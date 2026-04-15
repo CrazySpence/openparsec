@@ -20,7 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <math.h>
@@ -40,30 +40,40 @@
 // global externals
 #include "globals.h"
 
+#ifndef PARSEC_SERVER
 // subsystem headers
 #include "aud_defs.h"
 
 // drawing subsystem
 #include "d_iter.h"
+#endif
 
 // mathematics header
 #include "utl_math.h"
 
 // model header
+#ifndef PARSEC_SERVER
 #include "utl_model.h"
+#endif
 
 // local module header
 #include "g_laser.h"
 
+// shared module headers
+#include "obj_cust.h"
+
+#ifndef PARSEC_SERVER
 // proprietary module headers
 #include "con_info.h"
 #include "e_callbk.h"
 #include "e_supp.h"
 #include "h_supp.h"
 #include "obj_ctrl.h"
-#include "obj_cust.h"
 #include "obj_expl.h"
-
+#else
+#include "con_info_sv.h"
+#include "con_main_sv.h"
+#endif
 
 
 // preset laserbeam type properties values ------------------------------------
@@ -93,6 +103,7 @@ static char no_target_selected_str[]	= "no target selected";
 static char low_energy_str[]			= "low energy";
 
 extern int headless_bot;
+
 // laserbeam custom type structure --------------------------------------------
 //
 struct LaserBeam : CustomObject {
@@ -100,7 +111,9 @@ struct LaserBeam : CustomObject {
 	dword		OwnerObjno;		// needed for animation calculation
 	dword		TargetObjno;
 	char		texname[ MAX_TEX_NAME + 1 ];
+#ifndef PARSEC_SERVER
 	TextureMap *texmap;
+#endif
 //	int			lifetime;
 	int			kill;
 	int			energy_consumption;
@@ -154,9 +167,10 @@ proplist_s LaserBeam_PropList[] = {
 	{ NULL,			0,			0,		0,				0				}
 };
 
+#ifndef PARSEC_SERVER
 LaserBeam *proplist_Laser;
- proplist_s_new LaserBeam_PropList_new[] = {
- //	{ "lifetime",	OFS_LIFETIME,	0,	0xffff,		PROPTYPE_INT	},
+proplist_s_new LaserBeam_PropList_new[] = {
+//	{ "lifetime",	OFS_LIFETIME,	0,	0xffff,		PROPTYPE_INT	},
 	{ "width",		&proplist_Laser->width,	 -0x7fffffff,	0x7fffffff,	PROPTYPE_GEOMV	},
 	{ "texname",	&proplist_Laser->texname,	0,		MAX_TEX_NAME,   PROPTYPE_STRING	},
 	{ "delta.x",	&proplist_Laser->delta_x, -0x7fffffff,	0x7fffffff,	PROPTYPE_GEOMV	},
@@ -169,9 +183,11 @@ LaserBeam *proplist_Laser;
 	{ "green",		&proplist_Laser->green,		0,	0xff,		PROPTYPE_INT	},
 	{ "blue",		&proplist_Laser->blue,		0,	0xff,		PROPTYPE_INT	},
 	{ "alpha",		&proplist_Laser->alpha,		0,	0xff,		PROPTYPE_INT	},
- 
+
 	{ NULL,			0,			0,		0,				0				}
- };
+};
+#endif // !PARSEC_SERVER
+
 
 // assigned type id for laserbeam type ----------------------------------------
 //
@@ -182,6 +198,8 @@ static dword laserbeam_type_id;
 //
 static LaserBeam *laserbeam_type_template = NULL;
 
+
+#ifndef PARSEC_SERVER
 
 // macro to set the properties of a itervertex --------------------------------
 //
@@ -228,7 +246,7 @@ int LaserBeam_Draw( void* param )
 		ownerpo = MyShip;
 	else
 		ownerpo = FetchHostObject( laserbeam->OwnerObjno );
-	
+
 	if ( ownerpo == NULL )
 		return FALSE;
 
@@ -333,6 +351,8 @@ int LaserBeam_Draw( void* param )
 //
 static int callback_type = CBTYPE_DRAW_CUSTOM_ITER | CBFLAG_REMOVE;
 
+#endif // !PARSEC_SERVER
+
 
 // laserbeam animation callback -----------------------------------------------
 //
@@ -343,24 +363,36 @@ int LaserBeamAnimate( CustomObject *base )
 	LaserBeam *laserbeam = (LaserBeam *) base;
 
 	if ( laserbeam->kill == 1 ) {
+#ifndef PARSEC_SERVER
 		// stop the laser beam sound
 		AUD_StopLaserBeam();
-
+#endif
 		return FALSE;
 	}
+
+#ifdef PARSEC_SERVER
+
+	// server: look up owner and target by object number
+	ShipObject *ownerpo  = (ShipObject *) TheWorld->FetchObject( laserbeam->OwnerObjno );
+	ShipObject *targetpo = (ShipObject *) TheWorld->FetchObject( laserbeam->TargetObjno );
+
+#else // !PARSEC_SERVER
 
 	ShipObject *ownerpo  = (ShipObject *) FetchHostObject( laserbeam->OwnerObjno );
 	if ( laserbeam->OwnerObjno == 0 )
 		ownerpo = MyShip;
 	ShipObject *targetpo = (ShipObject *) FetchHostObject( laserbeam->TargetObjno );
 
+#endif // PARSEC_SERVER
+
 	// check if target destroyed
 	if ( targetpo == NULL ) {
+#ifndef PARSEC_SERVER
 		// stop the laser beam sound
 		AUD_StopLaserBeam();
-
-		ownerpo = MyShip;
-		ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
+#endif
+		if ( ownerpo != NULL )
+			ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
 		return FALSE;
 	}
 
@@ -380,23 +412,30 @@ int LaserBeamAnimate( CustomObject *base )
 
 	// check range
 	if ( range > ( laserbeam->range * laserbeam->range ) ) {
+#ifndef PARSEC_SERVER
 		// stop the laser beam sound
 		AUD_StopLaserBeam();
-
-		ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
 		ShowMessage( out_of_range_str );
+#endif
+		ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
 		return FALSE;
 	}
 
+#ifdef PARSEC_SERVER
+	cur_energy_consumption = ( 10 * laserbeam->energy_consumption ) / 10;
+#else
 	// check energy consumption
 	cur_energy_consumption = ( CurScreenRefFrames * laserbeam->energy_consumption ) / 10;
+#endif
+
 	if ( ownerpo->CurEnergy < MIN_LASERBEAM_ENERGY + cur_energy_consumption ) {
+#ifndef PARSEC_SERVER
 		// stop the laser beam sound
 		AUD_StopLaserBeam();
-
-		ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
 		ShowMessage( low_energy_str );
 		AUD_LowEnergy();
+#endif
+		ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
 		return FALSE;
 	}
 	else {
@@ -405,6 +444,16 @@ int LaserBeamAnimate( CustomObject *base )
 
 	// damage if megashield not active
 	if ( targetpo->MegaShieldAbsorption <= 0 ) {
+
+#ifdef PARSEC_SERVER
+		// on the server apply damage unconditionally (authoritative)
+		int hpf = ( 10 * laserbeam->hitpoints_per_frame ) / 10;
+		targetpo->CurDamage += hpf;
+		if ( targetpo->CurDamage > targetpo->MaxDamage ) {
+			ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
+			return FALSE;
+		}
+#else
 		if ( targetpo == MyShip ) {
 			targetpo->CurDamage += ( CurScreenRefFrames * laserbeam->hitpoints_per_frame ) / 10;
 
@@ -414,9 +463,6 @@ int LaserBeamAnimate( CustomObject *base )
 			if ( targetpo->CurDamage > targetpo->MaxDamage ) {
 				// schedule explosion
 				LetShipExplode( targetpo );
-
-				// needed for explosions caused by particles
-//				shippo->DelayExplosion = 0;
 
 				ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;
 				ShowMessage( laserbeam_downed_ship_str );
@@ -428,10 +474,13 @@ int LaserBeamAnimate( CustomObject *base )
 				return FALSE;
 			}
 		}
+#endif // PARSEC_SERVER
 	}
 
+#ifndef PARSEC_SERVER
 	// register the drawing callback for drawing the laserbeam
 	CALLBACK_RegisterCallback( callback_type, LaserBeam_Draw, (void *) base );
+#endif
 
 	return TRUE;
 }
@@ -451,6 +500,8 @@ int KillLaserBeam( dword laserbeamobjno )
 	return TRUE;
 }
 
+
+#ifndef PARSEC_SERVER
 
 // ----------------------------------------------------------------------------
 //
@@ -508,6 +559,8 @@ int CreateLaserBeam( GenObject *ownerpo, dword targetobjno, dword *laserbeamobjn
 	return TRUE;
 }
 
+#endif // !PARSEC_SERVER
+
 
 // init type fields with default values ---------------------------------------
 //
@@ -537,7 +590,7 @@ void LaserBeamInitDefaults( LaserBeam *laserbeam )
 }
 
 
-// type fields init function for laserbeam trail ---------------------------------
+// type fields init function for laserbeam ------------------------------------
 //
 PRIVATE
 void LaserBeamInitType( CustomObject *base )
@@ -560,6 +613,7 @@ void LaserBeamInstantiate( CustomObject *base )
 	ASSERT( base != NULL );
 	LaserBeam *laserbeam = (LaserBeam *) base;
 
+#ifndef PARSEC_SERVER
 	// get pointer to texture map
 	laserbeam->texmap = FetchTextureMap( laserbeam->texname );
 	if ( laserbeam->texmap == NULL ) {
@@ -567,6 +621,7 @@ void LaserBeamInstantiate( CustomObject *base )
 		return;
 	}
 	laserbeam->half_width	= GEOMV_MUL( laserbeam->width, FLOAT_TO_GEOMV( 0.5 ) );
+#endif
 	laserbeam->kill			= 0;
 }
 
@@ -577,12 +632,14 @@ PRIVATE
 void LaserBeamDestroy( CustomObject *base )
 {
 	ASSERT( base != NULL );
-	
+
+#ifndef PARSEC_SERVER
 	// ensure pending callbacks are destroyed to avoid
 	// calling them with invalid pointers
 	int numremoved = CALLBACK_DestroyCallback( callback_type, (void *) base );
 	if(!headless_bot)
 		ASSERT( numremoved <= 1 );
+#endif
 }
 
 
@@ -626,6 +683,3 @@ REGISTER_MODULE( G_LASER )
 	// register type
 	LaserBeamRegisterCustomType();
 }
-
-
-

@@ -135,7 +135,9 @@ OBJECTS := \
 	$(OBJDIR)/e_relist.o \
 	$(OBJDIR)/g_emp.o \
 	$(OBJDIR)/g_extra.o \
+	$(OBJDIR)/g_stgate.o \
 	$(OBJDIR)/g_telep.o \
+	$(OBJDIR)/g_wfx.o \
 	$(OBJDIR)/net_pckt_gmsv.o \
 	$(OBJDIR)/net_stream.o \
 	$(OBJDIR)/net_swap.o \
@@ -184,7 +186,6 @@ OBJECTS := \
 	$(OBJDIR)/e_world.o \
 	$(OBJDIR)/g_main_sv.o \
 	$(OBJDIR)/g_player.o \
-	$(OBJDIR)/g_stgate_sv.o \
 	$(OBJDIR)/inp_main_sv.o \
 	$(OBJDIR)/net_packetdriver.o \
 	$(OBJDIR)/net_util_sv.o \
@@ -276,6 +277,9 @@ $(OBJDIR)/g_extra.o: ../../../../src/libparsec/g_extra.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_telep.o: ../../../../src/libparsec/g_telep.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/g_wfx.o: ../../../../src/libparsec/g_wfx.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/net_pckt_gmsv.o: ../../../../src/libparsec/net_pckt_gmsv.cpp
@@ -422,7 +426,7 @@ $(OBJDIR)/g_main_sv.o: ../../../../src/parsec_server/g_main_sv.cpp
 $(OBJDIR)/g_player.o: ../../../../src/parsec_server/g_player.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/g_stgate_sv.o: ../../../../src/parsec_server/g_stgate_sv.cpp
+$(OBJDIR)/g_stgate.o: ../../../../src/libparsec/g_stgate.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/inp_main_sv.o: ../../../../src/parsec_server/inp_main_sv.cpp

@@ -71,8 +71,7 @@
 //#include "sys_refframe_sv.h"
 
 #include "g_emp.h"
-
-float	spreadfire_ref_z			= 1.0f;
+#include "g_wfx.h"
 
 // reset all game variables ---------------------------------------------------
 //
@@ -146,7 +145,7 @@ void G_Player::FireHelix()
 {
 	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
     if ( ( pShip->WeaponsActive & WPMASK_CANNON_HELIX ) == 0 ) {
-		_WFX_ActivateHelix();
+		WFX_ActivateHelix( pShip );
 	}
 }
 
@@ -157,7 +156,7 @@ void G_Player::FireLightning()
 {
     ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
 	if ( ( pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) == 0 ) {
-		_WFX_ActivateLightning();
+		WFX_ActivateLightning( pShip );
 	}
 }
 
@@ -168,7 +167,7 @@ void G_Player::FirePhoton()
 {
     ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
 	if ( (pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) == 0 ) {
-		_WFX_ActivatePhoton();
+		WFX_ActivatePhoton( pShip );
 	}
 }
 
@@ -329,330 +328,6 @@ void G_Player::_OBJ_ShootLaser()
 	// play sound effect
 	AUD_Laser( laserpo );
 #endif // PARSEC_CLIENT
-}
-
-// helix props ----------------------------------------------------------------
-//
-bams_t  HelixBamsInc			= 0x1500;
-int     HelixRefFrames			= 10;                     // create one particle every ... frames
-geomv_t HelixRadius				= INT_TO_GEOMV( 10 );
-
-
-void G_Player::_WFX_ActivateHelix()
-{
-	ASSERT( m_pSimPlayerInfo != NULL );
-	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
-	ASSERT( pShip != NULL );
-    
-	// check if helix available
-	if ( !TheGame->OBJ_DeviceAvailable( pShip, WPMASK_CANNON_HELIX ) ) {
-		MSGOUT("G_PLAYER::_WFX_ActivateHelix(): client %d trying to fire Helix cannon illegally",m_nClientID);
-		return;
-	}
-    
-	// check if enough energy to shoot helix
-    if ( pShip->CurEnergy < MIN_HELIX_ENERGY + HELIX_ENERGY_CONSUMPTION ) {
-		//MSGOUT("G_PLAYER::_WFX_ActivateHelix(): Not enough energy to activate Helix cannon");
-		return;
-	}
-    
-	// set active flag
-	pShip->WeaponsActive |= WPMASK_CANNON_HELIX;
-   // MSGOUT("G_PLAYER::_WFX_ActivateHelix(): client %d fired",m_nClientID);
-    //Create the object/event somehow    
-}
-
-// create helix particles for current frame -----------------------------------
-//
-int G_Player::_WFX_MaintainHelix( ShipObject *shippo, int playerid )
-{
-	ASSERT( shippo != NULL );
-    
-	//int bitmap	  = SPREADFIRE_BM_INDX;
-	int color	  = SPREADFIRE_PARTICLE_COLOR;
-	float ref_z = spreadfire_ref_z;
-	int sizebound = partbitmap_size_bound;
-	int lifetime  = HELIX_LIFETIME;
-    
-	pextinfo_s *pextinfo = NULL;
-    
-	// calc number of particles according to time passed (remember remainder)
-	refframe_t numrefframes		  = TheSimulator->GetThisFrameRefFrames() + shippo->helix_refframes_delta;
-	int numparticles			  = numrefframes / HelixRefFrames;
-	shippo->helix_refframes_delta = numrefframes % HelixRefFrames;
-    Vector3 dirvec;
-	fixed_t speed = HELIX_SPEED + shippo->CurSpeed;
-	DirVctMUL( shippo->ObjPosition, FIXED_TO_GEOMV( speed ), &dirvec );
-    
-	for ( int curp = 0; curp < numparticles; curp++ ) {
-        
-		// check if enough energy to shoot helix
-		if ( shippo->CurEnergy < MIN_HELIX_ENERGY + HELIX_ENERGY_CONSUMPTION ) {
-            
-			_WFX_DeactivateHelix();
-            
-            return 0;
-		}
-		shippo->CurEnergy -= HELIX_ENERGY_CONSUMPTION;
-        
-		sincosval_s resultp;
-		GetSinCos( shippo->HelixCurBams, &resultp );
-        
-		// create oldest particle first
-		int		invcurp = numparticles - curp - 1;
-		fixed_t timefrm = invcurp * HelixRefFrames + helix_refframes_delta;
-		fixed_t timepos = timefrm * shippo->HelixSpeed;
-        
-		// create one full frame set back because the current frame will
-		// be added by the linear particle animation code in the same frame
-		timepos -= speed * TheSimulator->GetThisFrameRefFrames();
-        
-		Vector3 pofsvec;
-		pofsvec.X = GEOMV_MUL( HelixRadius, resultp.sinval );
-		pofsvec.Y = GEOMV_MUL( HelixRadius, resultp.cosval );
-		pofsvec.Z = FIXED_TO_GEOMV( timepos );
-        
-		// first particle ---
-		Vertex3 object_space;
-		object_space.X = shippo->Helix_X + pofsvec.X;
-		object_space.Y = shippo->Helix_Y + pofsvec.Y;
-		object_space.Z = shippo->Helix_Z + pofsvec.Z;
-        
-		Vertex3 world_space;
-		MtxVctMUL( shippo->ObjPosition, &object_space, &world_space );
-        
-		particle_s particle;
-		TheWorld->PRT_InitParticle( particle, color, sizebound,
-                         ref_z, &world_space, &dirvec,
-                         lifetime, playerid, pextinfo );
-		particle.flags |= PARTICLE_COLLISION;
-		TheWorld->PRT_CreateLinearParticle( particle );
-        
-		// second particle ---
-		object_space.X = shippo->Helix_X - pofsvec.X;
-#ifdef SECOND_HELIX
-		object_space.Y = shippo->Helix_Y - pofsvec.Y;
-#else
-		object_space.Y = shippo->Helix_Y + pofsvec.Y;
-#endif
-		MtxVctMUL( shippo->ObjPosition, &object_space, &world_space );
-        
-		TheWorld->PRT_InitParticle( particle, color, sizebound,
-                         ref_z, &world_space, &dirvec,
-                         lifetime, playerid, pextinfo );
-		particle.flags |= PARTICLE_COLLISION;
-		particle.flags |= PARTICLE_IS_HELIX;
-		TheWorld->PRT_CreateLinearParticle( particle );
-        
-		shippo->HelixCurBams = ( shippo->HelixCurBams + HelixBamsInc ) & 0xffff;
-	}
-    
-	return 1;
-}
-
-void G_Player::_WFX_DeactivateHelix()
-{
-	ASSERT( m_pSimPlayerInfo != NULL );
-	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
-	if( pShip == NULL )
-        return;
-    
-	// make sure helix cannon is inactive
-	if ( pShip->WeaponsActive & WPMASK_CANNON_HELIX ) {
-        
-		// reset activation flag
-        pShip->WeaponsActive &= ~WPMASK_CANNON_HELIX;
-        //MSGOUT("G_PLAYER::_WFX_DeactivateHelix(): client %d stopped firing",m_nClientID);
-        
-	}
-}
-
-// ensure that helix cannon is inactive for local ship ------------------------
-//
-void G_Player::WFX_EnsureHelixInactive( ShipObject *shippo )
-{
-	ASSERT( shippo != NULL );
-    
-	if ( shippo->WeaponsActive & WPMASK_CANNON_HELIX ) {
-		shippo->WeaponsActive &= ~WPMASK_CANNON_HELIX;
-	}
-    
-	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_HELIX ) == 0 );
-}
-
-
-// remote player activated lightning device -----------------------------------
-//
-void G_Player::_WFX_ActivateLightning()
-{
-	ASSERT( m_pSimPlayerInfo != NULL );
-	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
-	ASSERT( pShip != NULL );
-    
-    
-    if ( !TheGame->OBJ_DeviceAvailable( pShip, WPMASK_CANNON_LIGHTNING ) ) {
-		MSGOUT("G_PLAYER::_WFX_ActivateLightning(): client %d trying to fire Lightning cannon illegally",m_nClientID);
-		return;
-	}
-    dword energy_consumption = pShip->CurEnergyFrac + ( TheSimulator->GetThisFrameRefFrames() * LIGHTNING_ENERGY_CONSUMPTION );
-    
-	// check if enough energy to shoot lightning
-	if ( (dword)pShip->CurEnergy < ( MIN_LIGHTNING_ENERGY + ( energy_consumption >> 16 ) ) ) {
-       MSGOUT("G_PLAYER::_WFX_ActivateLightning(): client %d low energy",m_nClientID);
-       return;
-	}
-    
-    
-	// make sure lightning device is active
-	if ( ( pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) == 0 ) {
-        
-		if ( TheWorld->CreateLightningParticles( pShip, m_nClientID ) != NULL ) {
-			pShip->WeaponsActive |= WPMASK_CANNON_LIGHTNING;
-            MSGOUT("G_PLAYER::_WFX_ActivateLightning(): client %d fired",m_nClientID);
-		}
-    }
-}
-
-
-// remote player deactivated lightning device ---------------------------------
-//
-void G_Player::_WFX_DeactivateLightning()
-{
-	ASSERT( m_pSimPlayerInfo != NULL );
-	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
-	if( pShip == NULL )
-        return;
-    
-	// make sure lightning device is inactive
-	if ( ( pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) != 0 ) {
-        // remove lightning particles
-        TheWorld->PRT_DeleteAttachedClustersOfType( pShip, SAT_LIGHTNING );
-        // reset activation flag
-        pShip->WeaponsActive &= ~WPMASK_CANNON_LIGHTNING;
-        MSGOUT("G_PLAYER::_WFX_DeactivateLightning(): client %d fired",m_nClientID);
-	    //Remote event goes here
-    }
-}
-
-// ensure that lightning is inactive for local ship ---------------------------
-//
-void G_Player::WFX_EnsureLightningInactive( ShipObject *shippo )
-{
-	ASSERT( shippo != NULL );
-	    
-	if ( TheWorld->PRT_DeleteAttachedClustersOfType( shippo, SAT_LIGHTNING ) != 0 ) {
-		shippo->WeaponsActive &= ~WPMASK_CANNON_LIGHTNING;
-	}
-    
-	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_LIGHTNING ) == 0 );
-}
-
-// check whether to turn off lightning due to too little energy ---------------
-//
-void G_Player::WFX_MaintainLightning( ShipObject *shippo)
-{
-	ASSERT( shippo != NULL );
-	ASSERT( shippo->WeaponsActive & WPMASK_CANNON_LIGHTNING );
-    
-	dword energy_consumption = shippo->CurEnergyFrac +
-    ( TheSimulator->GetThisFrameRefFrames() * LIGHTNING_ENERGY_CONSUMPTION );
-    
-	// check if enough energy to shoot lightning
-	if ( (dword)shippo->CurEnergy < ( MIN_LIGHTNING_ENERGY + ( energy_consumption >> 16 ) ) ) {
-		_WFX_DeactivateLightning();
-	} else {
-        
-		shippo->CurEnergyFrac = ( energy_consumption & 0xffff );
-		shippo->CurEnergy    -= ( energy_consumption >> 16 );
-	}
-}
-
-// activate photon cannon of local ship ----------------------------------------
-//
-void G_Player::_WFX_ActivatePhoton()
-{
-	ASSERT( m_pSimPlayerInfo != NULL );
-	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
-	ASSERT( pShip != NULL );
-    
-    // check if photon available
-    if ( !TheGame->OBJ_DeviceAvailable( pShip, WPMASK_CANNON_PHOTON ) ) {
-        //MSGOUT("G_Player::_WFX_ActivatePhoton: client %d illigally tried to fire Photon Cannon\n",m_nClientID);
-        return;
-	}
-    
-    // check if enough energy to shoot photon
-    if ( pShip->CurEnergy < MIN_PHOTON_ENERGY ) {
-		MSGOUT("G_Player::_WFX_ActivatePhoton: client %d low energy",m_nClientID);
-		return;
-	}
-    
-    // check if photon cannon still firing
-    if ( TheWorld->PRT_ObjectHasAttachedClustersOfType( pShip, SAT_PHOTON ) ) {
-        return;
-    }
-     
-    //Not sure yet if I even need to simulate this part below
-    // create particle sphere
-    if ( !TheWorld->CreatePhotonSphere( pShip ) ) {
-        return;
-    }
-    
-    // set active flag
-    pShip->WeaponsActive |= WPMASK_CANNON_PHOTON;
-    MSGOUT("G_Player::_WFX_ActivatePhoton: client %d charging photon cannon",m_nClientID);
-    
-}
-
-// deactivate photon cannon of specified ship ----------------------------------
-//
-void G_Player::_WFX_DeactivatePhoton()
-{
-    // anim type for photon particles (no "real" sphere animtype)
-    #define SAT_PHOTON                          0x00000008
-
-	ASSERT( m_pSimPlayerInfo != NULL );
-	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
-    if( pShip == NULL )
-        return;
-    
-	// send remote event to switch photon off
-    
-	// reset activation flag
-    pShip->WeaponsActive &= ~WPMASK_CANNON_PHOTON;
-    MSGOUT("G_Player::_WFX_DectivatePhoton: client %d fired photon cannon",m_nClientID);
-    
-    // start firing
-    photon_sphere_pcluster_s* cluster = (photon_sphere_pcluster_s *) TheWorld->PRT_ObjectHasAttachedClustersOfType( pShip, SAT_PHOTON );
-    if(cluster != NULL)
-       cluster->firing = TRUE;
-    
-}
-
-// ensure that photon cannon is inactive for local ship -----------------------
-//
-void G_Player::WFX_EnsurePhotonInactive( ShipObject *shippo )
-{
-	ASSERT( shippo != NULL );
-	    
-    if ( shippo->WeaponsActive & WPMASK_CANNON_PHOTON ) {
-        shippo->WeaponsActive &= ~WPMASK_CANNON_PHOTON;
-     
-	}
-    
-    ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_PHOTON ) == 0 );
-}
-
-// ensure that no particle weapons are active for local ship ------------------
-//
-void G_Player::WFX_EnsureParticleWeaponsInactive( ShipObject *shippo )
-{
-	ASSERT( shippo != NULL );
-	    
-	// ensure lightning and helix are destroyed
-	WFX_EnsureLightningInactive( shippo );
-	WFX_EnsureHelixInactive( shippo );
-    WFX_EnsurePhotonInactive( shippo );
 }
 
 // create missile originating from specified position -------------------------

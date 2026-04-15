@@ -55,6 +55,7 @@
 #include "e_colldet.h"
 #include "g_player.h"
 #include "g_main_sv.h"
+#include "g_wfx.h"
 
 // local module header
 #include "obj_cust.h"
@@ -2478,7 +2479,7 @@ void E_World::CalcPhotonSphereAnimation( photon_sphere_pcluster_s *cluster )
             cluster->alive = (int)(cluster->alive -( working_time - ( shippo->CurEnergy - MIN_PHOTON_ENERGY ) /
                                                     FIXED_TO_FLOAT( PHOTON_ENERGY_CONSUMPTION ) ));
             shippo->CurEnergy = MIN_PHOTON_ENERGY - 1;
-            pPlayer->_WFX_DeactivatePhoton();
+            WFX_DeactivatePhoton( shippo );
         } else {
             shippo->CurEnergyFrac = ( energy_consumption & 0xffff );
             shippo->CurEnergy    -= ( energy_consumption >> 16 );
@@ -2500,7 +2501,7 @@ void E_World::CalcPhotonSphereAnimation( photon_sphere_pcluster_s *cluster )
             // so we must not add them here
             cluster->cur_contraction_time -= working_time;
             
-            pPlayer->_WFX_DeactivatePhoton();
+            WFX_DeactivatePhoton( shippo );
         }
     }
     

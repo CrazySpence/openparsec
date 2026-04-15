@@ -303,9 +303,6 @@
     <ClCompile Include="..\..\src\parsec\g_stars.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\g_stgate.cpp">
-      <Filter>parsec</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\parsec\g_supp.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
@@ -313,9 +310,6 @@
       <Filter>parsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\g_vapor.cpp">
-      <Filter>parsec</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\parsec\g_wfx.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\h_cockpt.cpp">
@@ -597,7 +591,13 @@
     <ClCompile Include="..\..\src\libraries\glew\glew.c">
       <Filter>libraries\glew</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\libparsec\g_stgate.cpp">
+      <Filter>libparsec</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\libparsec\g_telep.cpp">
+      <Filter>libparsec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libparsec\g_wfx.cpp">
       <Filter>libparsec</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1070,8 +1070,8 @@
     <ClInclude Include="..\..\src\parsec\include\g_vapor.h">
       <Filter>parsec\include</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\parsec\include\g_wfx.h">
-      <Filter>parsec\include</Filter>
+    <ClInclude Include="..\..\src\libparsec\include\g_wfx.h">
+      <Filter>libparsec\include</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\parsec\include\h_cockpt.h">
       <Filter>parsec\include</Filter>

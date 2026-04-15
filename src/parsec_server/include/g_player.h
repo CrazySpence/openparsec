@@ -1,18 +1,5 @@
 // class holding all GAME specific player information -------------------------
-// 
-// helix energy properties
-#define HELIX_LIFETIME                          1500
-#define HELIX_SPEED                             0x10000
-#define MIN_HELIX_ENERGY                        10
-#define HELIX_ENERGY_CONSUMPTION			2
-// properties of spreadfire particles       Also move this someday
-#define SPREADFIRE_PARTICLE_COLOR	              174
-#define SPREADFIRE_BM_INDX	                     BM_FIREBALL1
-#define SPREADFIRE_REF_Z                         20.0f //400.0f
-// lightning energy properties
-#define MIN_LIGHTNING_ENERGY				10
-#define LIGHTNING_ENERGY_CONSUMPTION		7000          // 65536 = 1.0
-
+//
 class G_Player
 {
 	//NOTE: this class mirrors all information/actions of a single client ( in the client code )
@@ -39,15 +26,6 @@ protected:
 	// create laser originating from player ship
 	void _OBJ_ShootLaser();
 
-    //Activate Helix Cannon
-    void _WFX_ActivateHelix();
-    	
-    //Activate lightning gun
-    void _WFX_ActivateLightning();
-    
-    //Activate Photon cannon
-    void _WFX_ActivatePhoton();
-    
     // create a dumb missle originating from player ship
 	void _OBJ_LaunchMissile();
 	
@@ -79,23 +57,12 @@ public:
     
     // user fired Helix cannon
     void FireHelix();
-    int  _WFX_MaintainHelix( ShipObject *shippo, int playerid );
-    
-    //Deactivate Helix Cannon
-    void _WFX_DeactivateHelix();
-    
+
     // user fired Lightning cannon
     void FireLightning();
-    void WFX_MaintainLightning( ShipObject *shippo);
-    
-    //Deactivate lightning gun
-    void _WFX_DeactivateLightning();
-    
+
     // user fired Photon cannon
     void FirePhoton();
-    
-    //Deactivate Photon Cannon
-    void _WFX_DeactivatePhoton();
 
 	// user launched a dumb missle
 	void LaunchMissile();
@@ -138,11 +105,5 @@ public:
 
 	// return the player id that last killed this player
 	int GetLastKiller() { return m_nLastKiller; }
-    
-    //weapons cleanup
-    void WFX_EnsurePhotonInactive( ShipObject *shippo );
-    void WFX_EnsureHelixInactive( ShipObject *shippo );
-    void WFX_EnsureLightningInactive( ShipObject *shippo );
-    void WFX_EnsureParticleWeaponsInactive( ShipObject *shippo );
 };
 

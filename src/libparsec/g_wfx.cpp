@@ -20,7 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <math.h>
@@ -40,9 +40,7 @@
 #include "globals.h"
 
 // subsystem headers
-#include "aud_defs.h"
 #include "net_defs.h"
-#include "vid_defs.h"
 
 // mathematics header
 #include "utl_math.h"
@@ -53,7 +51,13 @@
 // local module header
 #include "g_wfx.h"
 
-// proprietary module headers
+#ifndef PARSEC_SERVER
+
+// client-only subsystem headers
+#include "aud_defs.h"
+#include "vid_defs.h"
+
+// client-only proprietary module headers
 #include "con_aux.h"
 #include "e_color.h"
 #include "e_record.h"
@@ -63,6 +67,14 @@
 #include "part_ani.h"
 #include "part_api.h"
 #include "part_def.h"
+
+#else // PARSEC_SERVER
+
+#include "e_global_sv.h"
+#include "e_simulator.h"
+#include "g_main_sv.h"
+
+#endif // PARSEC_SERVER
 
 
 
@@ -76,10 +88,12 @@
 #define LIGHTNING_ENERGY_CONSUMPTION		7000          // 65536 = 1.0
 
 // properties of lightning particles
-#define LIGHTNING_BM_INDX					BM_LIGHTNING1 //BM_FIREBALL2 //BM_LIGHTNING1
-#define LIGHTNING_REF_Z						9.0f // 30.0f // 150.0f
+#define LIGHTNING_BM_INDX					BM_LIGHTNING1
+#define LIGHTNING_REF_Z						9.0f
 #define LIGHTNING_PARTICLE_COLOR			255
+#ifndef PARSEC_SERVER
 #define LIGHTNING_SIZZLE_SPEED				60
+#endif // !PARSEC_SERVER
 
 // spread energy properties
 #define MIN_SPREAD_ENERGY					10
@@ -88,19 +102,20 @@
 // helix energy properties
 #define MIN_HELIX_ENERGY					10
 #define HELIX_ENERGY_CONSUMPTION			2
+#define HELIX_LIFETIME						1500
 
 // properties of spreadfire particles
 #define SPREADFIRE_PARTICLE_COLOR			174
 #define SPREADFIRE_BM_INDX					BM_FIREBALL1
-#define SPREADFIRE_REF_Z					20.0f //400.0f
+#define SPREADFIRE_REF_Z					20.0f
 
 // photon properties
-#define MIN_PHOTON_ENERGY                    10
+#define MIN_PHOTON_ENERGY                   10
 #define PHOTON_ENERGY_CONSUMPTION           0x6000  // 0x10000 = 1.0
 
-#define PHOTON_ROT_PITCH					0x0015  //0x01a0
-#define PHOTON_ROT_YAW						-0x0022 //-0x02a0
-#define PHOTON_ROT_ROLL						0x000d  //0x0100
+#define PHOTON_ROT_PITCH					0x0015
+#define PHOTON_ROT_YAW						-0x0022
+#define PHOTON_ROT_ROLL						0x000d
 
 #define PHOTON_SPHERE_PARTICLES				256
 #define PHOTON_COLOR						123
@@ -112,7 +127,9 @@
 
 
 
-// string constants -----------------------------------------------------------
+#ifndef PARSEC_SERVER
+
+// string constants -------------------------------------------------------
 //
 static char no_spreadfire_str[]		= "no spreadfire gun";
 static char no_helixcannon_str[]	= "no helix cannon";
@@ -120,12 +137,16 @@ static char no_lightning_str[]		= "no lightning device";
 static char no_photoncannon_str[]   = "no photon cannon";
 static char low_energy_str[]		= "low energy";
 
+#endif // !PARSEC_SERVER
 
-// reference z values for particles -------------------------------------------
+
+// reference z values for particles (client-only: server has its own in e_world.cpp)
 //
+#ifndef PARSEC_SERVER
 float	spreadfire_ref_z			= 1.0f;
-float lightning_ref_z				= 1.0f;
-float photon_ref_z                = 1.0f;
+float	lightning_ref_z				= 1.0f;
+float	photon_ref_z				= 1.0f;
+#endif // !PARSEC_SERVER
 
 
 // helix props ----------------------------------------------------------------
@@ -135,13 +156,15 @@ int     HelixRefFrames			= 10;                     // create one particle every 
 geomv_t HelixRadius				= INT_TO_GEOMV( 10 );
 
 
+#ifndef PARSEC_SERVER
+
 // init reference z values for particles according to resolution --------------
 //
 void WFX_InitParticleSizes( float resoscale )
 {
 	spreadfire_ref_z = resoscale * SPREADFIRE_REF_Z;
 	lightning_ref_z  = resoscale * LIGHTNING_REF_Z;
-    photon_ref_z     = resoscale * PHOTON_REF_Z;
+	photon_ref_z     = resoscale * PHOTON_REF_Z;
 }
 
 
@@ -274,6 +297,8 @@ void WFX_RemoteShootSpreadfire( int playerid )
 	ShootSpreadfire( shippo, playerid );
 }
 
+#endif // !PARSEC_SERVER
+
 
 
 // ----------------------------------------------------------------------------
@@ -287,14 +312,22 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 {
 	ASSERT( shippo != NULL );
 
-	int bitmap	  = SPREADFIRE_BM_INDX;
-	int color	  = SPREADFIRE_PARTICLE_COLOR;
-	float ref_z = spreadfire_ref_z;
+#ifndef PARSEC_SERVER
+	int bitmap    = SPREADFIRE_BM_INDX;
+#endif
+	int color     = SPREADFIRE_PARTICLE_COLOR;
+#ifdef PARSEC_SERVER
+	float ref_z   = 1.0f;
+#else
+	float ref_z   = spreadfire_ref_z;
+#endif
 	int sizebound = partbitmap_size_bound;
 	int lifetime  = shippo->HelixLifeTime;
 
-	pextinfo_s extinfo;
 	pextinfo_s *pextinfo = NULL;
+
+#ifndef PARSEC_SERVER
+	pextinfo_s extinfo;
 
 	if ( AUX_SPREADFIRE_PARTICLES_EXTINFO ) {
 
@@ -317,10 +350,15 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 		pextinfo = &extinfo;
 		PRT_InitParticleExtInfo( pextinfo, pdef, NULL, NULL );
 	}
+#endif // !PARSEC_SERVER
 
 	// calc number of particles according to time passed (remember remainder)
-	refframe_t numrefframes		  = CurScreenRefFrames + shippo->helix_refframes_delta;
-	int numparticles			  = numrefframes / HelixRefFrames;
+#ifdef PARSEC_SERVER
+	refframe_t numrefframes = TheSimulator->GetThisFrameRefFrames() + shippo->helix_refframes_delta;
+#else
+	refframe_t numrefframes = CurScreenRefFrames + shippo->helix_refframes_delta;
+#endif
+	int numparticles              = numrefframes / HelixRefFrames;
 	shippo->helix_refframes_delta = numrefframes % HelixRefFrames;
 
 	Vector3 dirvec;
@@ -334,11 +372,12 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 
 			WFX_DeactivateHelix( shippo );
 
+#ifndef PARSEC_SERVER
 			if ( shippo == MyShip ) {
 				ShowMessage( low_energy_str );
 				AUD_LowEnergy();
 			}
-
+#endif
 			return FALSE;
 		}
 		shippo->CurEnergy -= HELIX_ENERGY_CONSUMPTION;
@@ -347,13 +386,17 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 		GetSinCos( shippo->HelixCurBams, &resultp );
 
 		// create oldest particle first
-		int		invcurp = numparticles - curp - 1;
+		int     invcurp = numparticles - curp - 1;
 		fixed_t timefrm = invcurp * HelixRefFrames + shippo->helix_refframes_delta;
 		fixed_t timepos = timefrm * shippo->HelixSpeed;
 
 		// create one full frame set back because the current frame will
 		// be added by the linear particle animation code in the same frame
+#ifdef PARSEC_SERVER
+		timepos -= speed * TheSimulator->GetThisFrameRefFrames();
+#else
 		timepos -= speed * CurScreenRefFrames;
+#endif
 
 		Vector3 pofsvec;
 		pofsvec.X = GEOMV_MUL( HelixRadius, resultp.sinval );
@@ -370,11 +413,21 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 		MtxVctMUL( shippo->ObjPosition, &object_space, &world_space );
 
 		particle_s particle;
+#ifdef PARSEC_SERVER
+		TheWorld->PRT_InitParticle( particle, color, sizebound,
+		                            ref_z, &world_space, &dirvec,
+		                            lifetime, playerid, pextinfo );
+#else
 		PRT_InitParticle( particle, bitmap, color, sizebound,
-						  ref_z, &world_space, &dirvec,
-						  lifetime, playerid, pextinfo );
+		                  ref_z, &world_space, &dirvec,
+		                  lifetime, playerid, pextinfo );
+#endif
 		particle.flags |= PARTICLE_COLLISION;
+#ifdef PARSEC_SERVER
+		TheWorld->PRT_CreateLinearParticle( particle );
+#else
 		PRT_CreateLinearParticle( particle );
+#endif
 
 		// second particle ---
 		object_space.X = shippo->Helix_X - pofsvec.X;
@@ -385,12 +438,22 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 #endif
 		MtxVctMUL( shippo->ObjPosition, &object_space, &world_space );
 
+#ifdef PARSEC_SERVER
+		TheWorld->PRT_InitParticle( particle, color, sizebound,
+		                            ref_z, &world_space, &dirvec,
+		                            lifetime, playerid, pextinfo );
+#else
 		PRT_InitParticle( particle, bitmap, color, sizebound,
-					  	  ref_z, &world_space, &dirvec,
-					  	  lifetime, playerid, pextinfo );
+		                  ref_z, &world_space, &dirvec,
+		                  lifetime, playerid, pextinfo );
+#endif
 		particle.flags |= PARTICLE_COLLISION;
 		particle.flags |= PARTICLE_IS_HELIX;
+#ifdef PARSEC_SERVER
+		TheWorld->PRT_CreateLinearParticle( particle );
+#else
 		PRT_CreateLinearParticle( particle );
+#endif
 
 		shippo->HelixCurBams = ( shippo->HelixCurBams + HelixBamsInc ) & 0xffff;
 	}
@@ -399,13 +462,15 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 }
 
 
-// activate helix cannon of local ship ----------------------------------------
+// activate helix cannon of ship ----------------------------------------------
 //
-int	WFX_ActivateHelix( ShipObject *shippo )
+int WFX_ActivateHelix( ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
-	ASSERT( shippo == MyShip );
 	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_HELIX ) == 0 );
+
+#ifndef PARSEC_SERVER
+	ASSERT( shippo == MyShip );
 
 	// check if enough space in RE_List
 	if ( !NET_RmEvAllowed( RE_WEAPONSTATE ) )
@@ -416,17 +481,24 @@ int	WFX_ActivateHelix( ShipObject *shippo )
 		ShowMessage( no_helixcannon_str );
 		return FALSE;
 	}
+#else
+	if ( !TheGame->OBJ_DeviceAvailable( shippo, WPMASK_CANNON_HELIX ) )
+		return FALSE;
+#endif
 
 	// check if enough energy to shoot helix
 	if ( shippo->CurEnergy < MIN_HELIX_ENERGY + HELIX_ENERGY_CONSUMPTION ) {
+#ifndef PARSEC_SERVER
 		ShowMessage( low_energy_str );
 		AUD_LowEnergy();
+#endif
 		return FALSE;
 	}
 
 	// set active flag
 	shippo->WeaponsActive |= WPMASK_CANNON_HELIX;
 
+#ifndef PARSEC_SERVER
 	// send remote event to switch helix on
 	NET_RmEvWeaponState( WPMASK_CANNON_HELIX, WPSTATE_ON, shippo->CurEnergy, shippo->Specials );
 
@@ -435,6 +507,7 @@ int	WFX_ActivateHelix( ShipObject *shippo )
 
 	// play sound
 	AUD_Helix( shippo );
+#endif
 
 	return TRUE;
 }
@@ -447,6 +520,7 @@ void WFX_DeactivateHelix( ShipObject *shippo )
 	ASSERT( shippo != NULL );
 	ASSERT( shippo->WeaponsActive & WPMASK_CANNON_HELIX );
 
+#ifndef PARSEC_SERVER
 	// local ship is special case
 	if ( shippo == MyShip ) {
 
@@ -460,14 +534,19 @@ void WFX_DeactivateHelix( ShipObject *shippo )
 		// record deactivation event if recording active
 		Record_HelixDeactivation();
 	}
+#endif
 
 	// reset activation flag
 	shippo->WeaponsActive &= ~WPMASK_CANNON_HELIX;
 
+#ifndef PARSEC_SERVER
 	// stop sound
 	AUD_HelixOff( shippo );
+#endif
 }
 
+
+#ifndef PARSEC_SERVER
 
 // remote player activated helix cannon ---------------------------------------
 //
@@ -506,17 +585,20 @@ void WFX_RemoteDeactivateHelix( int playerid )
 	}
 }
 
+#endif // !PARSEC_SERVER
 
-// ensure that helix cannon is inactive for local ship ------------------------
+
+// ensure that helix cannon is inactive for ship ------------------------------
 //
 void WFX_EnsureHelixInactive( ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
-	ASSERT( shippo == MyShip );
 
 	if ( shippo->WeaponsActive & WPMASK_CANNON_HELIX ) {
 		shippo->WeaponsActive &= ~WPMASK_CANNON_HELIX;
+#ifndef PARSEC_SERVER
 		AUD_HelixOff( shippo );
+#endif
 	}
 
 	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_HELIX ) == 0 );
@@ -528,6 +610,8 @@ void WFX_EnsureHelixInactive( ShipObject *shippo )
 // LIGHTNING STUFF
 // ----------------------------------------------------------------------------
 
+
+#ifndef PARSEC_SERVER
 
 // create two lightning beams -------------------------------------------------
 //
@@ -616,7 +700,7 @@ lightning_pcluster_s *CreateLightningParticles( ShipObject *shippo, int owner )
 		}
 
 	} else {
-		
+
 		for ( curp = 0; curp < LIGHTNING_LENGTH; curp++ )
 			PRT_InitClusterParticle( cluster, curp, bitmap, color,
 									 sizebound, ref_z,
@@ -637,12 +721,16 @@ lightning_pcluster_s *CreateLightningParticles( ShipObject *shippo, int owner )
 	return cluster;
 }
 
+#endif // !PARSEC_SERVER
 
-// activate lightning device of local ship ------------------------------------
+
+// activate lightning device of ship ------------------------------------------
 //
-int	WFX_ActivateLightning( ShipObject *shippo )
+int WFX_ActivateLightning( ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
+
+#ifndef PARSEC_SERVER
 	ASSERT( shippo == MyShip );
 	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_LIGHTNING ) == 0 );
 
@@ -656,25 +744,40 @@ int	WFX_ActivateLightning( ShipObject *shippo )
 		return FALSE;
 	}
 
+	refframe_t curRefFrames = CurScreenRefFrames;
+#else
+	if ( !TheGame->OBJ_DeviceAvailable( shippo, WPMASK_CANNON_LIGHTNING ) )
+		return FALSE;
+
+	refframe_t curRefFrames = TheSimulator->GetThisFrameRefFrames();
+#endif
+
 	dword energy_consumption = shippo->CurEnergyFrac +
-		( CurScreenRefFrames * LIGHTNING_ENERGY_CONSUMPTION );
+		( curRefFrames * LIGHTNING_ENERGY_CONSUMPTION );
 
 	// check if enough energy to shoot lightning
 	if ( (dword)shippo->CurEnergy < ( MIN_LIGHTNING_ENERGY + ( energy_consumption >> 16 ) ) ) {
+#ifndef PARSEC_SERVER
 		ShowMessage( low_energy_str );
 		AUD_LowEnergy();
+#endif
 		return FALSE;
 	}
 
 	// attach lightning particle cluster
+#ifndef PARSEC_SERVER
 	ASSERT( PRT_ObjectHasAttachedClustersOfType( shippo, SAT_LIGHTNING ) == NULL );
-	if ( CreateLightningParticles( shippo, LocalPlayerId ) == NULL ) {
+	if ( CreateLightningParticles( shippo, LocalPlayerId ) == NULL )
 		return FALSE;
-	}
+#else
+	if ( TheWorld->CreateLightningParticles( shippo, GetObjectOwner( shippo ) ) == NULL )
+		return FALSE;
+#endif
 
 	// set activation flag
 	shippo->WeaponsActive |= WPMASK_CANNON_LIGHTNING;
 
+#ifndef PARSEC_SERVER
 	// send remote event to switch lightning on
 	NET_RmEvWeaponState( WPMASK_CANNON_LIGHTNING, WPSTATE_ON, shippo->CurEnergy, shippo->Specials );
 
@@ -683,6 +786,7 @@ int	WFX_ActivateLightning( ShipObject *shippo )
 
 	// play sound
 	AUD_Lightning( shippo );
+#endif
 
 	// signify that lightning is now active
 	return TRUE;
@@ -696,6 +800,7 @@ void WFX_DeactivateLightning( ShipObject *shippo )
 	ASSERT( shippo != NULL );
 	ASSERT( shippo->WeaponsActive & WPMASK_CANNON_LIGHTNING );
 
+#ifndef PARSEC_SERVER
 	// local ship is special case
 	if ( shippo == MyShip ) {
 
@@ -713,13 +818,18 @@ void WFX_DeactivateLightning( ShipObject *shippo )
 	// remove lightning particles
 	PRT_DeleteAttachedClustersOfType( shippo, SAT_LIGHTNING );
 
-	// reset activation flag
-	shippo->WeaponsActive &= ~WPMASK_CANNON_LIGHTNING;
-
 	// stop sound
 	AUD_LightningOff( shippo );
+#else
+	TheWorld->PRT_DeleteAttachedClustersOfType( shippo, SAT_LIGHTNING );
+#endif
+
+	// reset activation flag
+	shippo->WeaponsActive &= ~WPMASK_CANNON_LIGHTNING;
 }
 
+
+#ifndef PARSEC_SERVER
 
 // remote player activated lightning device -----------------------------------
 //
@@ -760,18 +870,25 @@ void WFX_RemoteDeactivateLightning( int playerid )
 	}
 }
 
+#endif // !PARSEC_SERVER
 
-// ensure that lightning is inactive for local ship ---------------------------
+
+// ensure that lightning is inactive for ship ---------------------------------
 //
 void WFX_EnsureLightningInactive( ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
-	ASSERT( shippo == MyShip );
 
+#ifndef PARSEC_SERVER
 	if ( PRT_DeleteAttachedClustersOfType( shippo, SAT_LIGHTNING ) != 0 ) {
 		shippo->WeaponsActive &= ~WPMASK_CANNON_LIGHTNING;
 		AUD_LightningOff( shippo );
 	}
+#else
+	if ( TheWorld->PRT_DeleteAttachedClustersOfType( shippo, SAT_LIGHTNING ) != 0 ) {
+		shippo->WeaponsActive &= ~WPMASK_CANNON_LIGHTNING;
+	}
+#endif
 
 	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_LIGHTNING ) == 0 );
 }
@@ -784,18 +901,26 @@ void WFX_MaintainLightning( ShipObject *shippo )
 	ASSERT( shippo != NULL );
 	ASSERT( shippo->WeaponsActive & WPMASK_CANNON_LIGHTNING );
 
+#ifdef PARSEC_SERVER
+	refframe_t curRefFrames = TheSimulator->GetThisFrameRefFrames();
+#else
+	refframe_t curRefFrames = CurScreenRefFrames;
+#endif
+
 	dword energy_consumption = shippo->CurEnergyFrac +
-		( CurScreenRefFrames * LIGHTNING_ENERGY_CONSUMPTION );
+		( curRefFrames * LIGHTNING_ENERGY_CONSUMPTION );
 
 	// check if enough energy to shoot lightning
 	if ( (dword)shippo->CurEnergy < ( MIN_LIGHTNING_ENERGY + ( energy_consumption >> 16 ) ) ) {
 
 		WFX_DeactivateLightning( shippo );
 
+#ifndef PARSEC_SERVER
 		if ( shippo == MyShip ) {
 			ShowMessage( low_energy_str );
 			AUD_LowEnergy();
 		}
+#endif
 
 	} else {
 
@@ -805,24 +930,13 @@ void WFX_MaintainLightning( ShipObject *shippo )
 }
 
 
-// ensure that no particle weapons are active for local ship ------------------
-//
-void WFX_EnsureParticleWeaponsInactive( ShipObject *shippo )
-{
-	ASSERT( shippo != NULL );
-	ASSERT( shippo == MyShip );
-
-	// ensure lightning and helix are destroyed
-	WFX_EnsureLightningInactive( shippo );
-	WFX_EnsureHelixInactive( shippo );
-}
-
-
 
 // ----------------------------------------------------------------------------
 // PHOTON CANNON STUFF
 // ----------------------------------------------------------------------------
 
+
+#ifndef PARSEC_SERVER
 
 // calc animation of photon sphere --------------------------------------------
 //
@@ -1029,9 +1143,6 @@ void WFX_CalcPhotonSphereAnimation( photon_sphere_pcluster_s *cluster )
                 cluster->rep[ pid ].position.Y -= old_center.Y;
                 cluster->rep[ pid ].position.Z -= old_center.Z;
 
-                //FIXME ?:
-                // particles may not be contained in
-                // ship-bounding-sphere any more
                 CalcSphereParticleRotation( cluster->rep[ pid ].position,
                                             pitch, yaw, roll );
                 CalcSphereContraction( cluster->rep[ pid ].position, contraction );
@@ -1152,47 +1263,64 @@ photon_sphere_pcluster_s *CreatePhotonSphere( ShipObject *shippo )
     return cluster;
 }
 
+#endif // !PARSEC_SERVER
 
-// activate photon cannon of local ship ----------------------------------------
+
+// activate photon cannon of ship ---------------------------------------------
 //
 int WFX_ActivatePhoton( ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
+
+#ifndef PARSEC_SERVER
 	ASSERT( shippo == MyShip );
     ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_PHOTON ) == 0 );
 
 	// check if enough space in RE_List
-	if ( !NET_RmEvAllowed( RE_WEAPONSTATE ) ) {
+	if ( !NET_RmEvAllowed( RE_WEAPONSTATE ) )
 		return FALSE;
-	}
 
     // check if photon available
     if ( !OBJ_DeviceAvailable( shippo, WPMASK_CANNON_PHOTON ) ) {
         ShowMessage( no_photoncannon_str );
 		return FALSE;
 	}
+#else
+	if ( !TheGame->OBJ_DeviceAvailable( shippo, WPMASK_CANNON_PHOTON ) )
+		return FALSE;
+#endif
 
     // check if enough energy to shoot photon
     if ( shippo->CurEnergy < MIN_PHOTON_ENERGY ) {
+#ifndef PARSEC_SERVER
 		ShowMessage( low_energy_str );
 		AUD_LowEnergy();
+#endif
 		return FALSE;
 	}
 
     // check if photon cannon still firing
-    if ( PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON ) ) {
+#ifndef PARSEC_SERVER
+    if ( PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON ) )
         return FALSE;
-    }
 
     // create particle sphere
     if ( !CreatePhotonSphere( shippo ) ) {
         ShowMessage( "could not create sphere" );
         return FALSE;
     }
+#else
+    if ( TheWorld->PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON ) )
+        return FALSE;
+
+    if ( !TheWorld->CreatePhotonSphere( shippo ) )
+        return FALSE;
+#endif
 
     // set active flag
     shippo->WeaponsActive |= WPMASK_CANNON_PHOTON;
 
+#ifndef PARSEC_SERVER
     // send remote event to switch photon on
     NET_RmEvWeaponState( WPMASK_CANNON_PHOTON, WPSTATE_ON, shippo->CurEnergy, shippo->Specials );
 
@@ -1201,6 +1329,7 @@ int WFX_ActivatePhoton( ShipObject *shippo )
 
 	// play sound
 	AUD_PhotonLoading( shippo );
+#endif
 
 	return TRUE;
 }
@@ -1213,13 +1342,13 @@ void WFX_DeactivatePhoton( ShipObject *shippo )
 	ASSERT( shippo != NULL );
     ASSERT( shippo->WeaponsActive & WPMASK_CANNON_PHOTON );
 
+#ifndef PARSEC_SERVER
 	// local ship is special case
 	if ( shippo == MyShip ) {
 
 		// check if enough space in RE_List
-		if ( !NET_RmEvAllowed( RE_WEAPONSTATE ) ) {
+		if ( !NET_RmEvAllowed( RE_WEAPONSTATE ) )
 			return;
-		}
 
         // send remote event to switch photon off
         NET_RmEvWeaponState( WPMASK_CANNON_PHOTON, WPSTATE_OFF, shippo->CurEnergy, shippo->Specials );
@@ -1228,18 +1357,27 @@ void WFX_DeactivatePhoton( ShipObject *shippo )
 		Record_PhotonDeactivation();
 	}
 
+	// stop sound
+    AUD_PhotonLoadingOff( shippo );
+#endif
+
 	// reset activation flag
     shippo->WeaponsActive &= ~WPMASK_CANNON_PHOTON;
 
     // start firing
+#ifndef PARSEC_SERVER
     photon_sphere_pcluster_s* cluster = (photon_sphere_pcluster_s *)
 		PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON );
-    cluster->firing = TRUE;
-
-	// stop sound
-    AUD_PhotonLoadingOff( shippo );
+#else
+    photon_sphere_pcluster_s* cluster = (photon_sphere_pcluster_s *)
+		TheWorld->PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON );
+#endif
+    if ( cluster != NULL )
+        cluster->firing = TRUE;
 }
 
+
+#ifndef PARSEC_SERVER
 
 // remote player activated photon cannon --------------------------------------
 //
@@ -1257,9 +1395,8 @@ void WFX_RemoteActivatePhoton( int playerid )
         // by WFX_ActivatePhoton()
 
         // check if photon cannon still firing
-        if ( PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON ) ) {
+        if ( PRT_ObjectHasAttachedClustersOfType( shippo, SAT_PHOTON ) )
             return;
-        }
 
         // create particle sphere
 	    if ( !CreatePhotonSphere( shippo ) ) {
@@ -1292,23 +1429,35 @@ void WFX_RemoteDeactivatePhoton( int playerid )
 	}
 }
 
+#endif // !PARSEC_SERVER
 
-// ensure that photon cannon is inactive for local ship -----------------------
+
+// ensure that photon cannon is inactive for ship -----------------------------
 //
 void WFX_EnsurePhotonInactive( ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
-	ASSERT( shippo == MyShip );
 
     if ( shippo->WeaponsActive & WPMASK_CANNON_PHOTON ) {
         shippo->WeaponsActive &= ~WPMASK_CANNON_PHOTON;
-
+#ifndef PARSEC_SERVER
 		// stop sound
 		AUD_PhotonLoadingOff( shippo );
+#endif
 	}
 
     ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_PHOTON ) == 0 );
 }
 
 
+// ensure that no particle weapons are active for ship ------------------------
+//
+void WFX_EnsureParticleWeaponsInactive( ShipObject *shippo )
+{
+	ASSERT( shippo != NULL );
 
+	// ensure all particle weapons are destroyed
+	WFX_EnsureLightningInactive( shippo );
+	WFX_EnsureHelixInactive( shippo );
+	WFX_EnsurePhotonInactive( shippo );
+}

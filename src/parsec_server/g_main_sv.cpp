@@ -72,6 +72,7 @@
 #include "e_simulator.h"
 #include "sys_refframe_sv.h"
 #include "g_emp.h"
+#include "g_wfx.h"
 
 #include "e_simplayerinfo.h"
 
@@ -434,7 +435,7 @@ void G_Main::UnjoinPlayer( int nClientID )
 	G_Player* pPlayer = &m_Players[ nClientID ];
 	int rc = m_CurJoinedPlayerList->Remove( pPlayer );
 	ShipObject* pShip = m_Players[nClientID].GetShipObject();
-    pPlayer->WFX_EnsureParticleWeaponsInactive(pShip); //Turn off all particle weapons when unjoined
+    WFX_EnsureParticleWeaponsInactive(pShip); //Turn off all particle weapons when unjoined
     ASSERT( rc );
 }
 
@@ -703,12 +704,12 @@ void G_Main::MaintainDurationWeapons( int playerid )
     
 	// maintain helix
 	if ( pShip->WeaponsActive & WPMASK_CANNON_HELIX ) {
-		m_Players[playerid]._WFX_MaintainHelix( pShip, playerid );
+		WFX_MaintainHelix( pShip, playerid );
 	}
-    
+
 	// maintain lightning
 	if ( pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) {
-		m_Players[playerid].WFX_MaintainLightning( pShip );
+		WFX_MaintainLightning( pShip );
 	}
     
 	// maintain photon
@@ -1228,26 +1229,27 @@ void G_Input::CreateEMP(int nClientID, byte UpgradeLevel)
 void G_Input::DeactivateGun( int nClientID, int SelectedGun )
 {
    G_Player*  pPlayer = TheGame->GetPlayer( nClientID );
-    
+   ShipObject* pShip = pPlayer->GetShipObject();
+
 	// Deactivate selected gun
 	switch ( SelectedGun ) {
-            
+
             // laser
 		case 0:
 			break;
             // helix cannon
 		case 1:
-			pPlayer->_WFX_DeactivateHelix();
+			WFX_DeactivateHelix( pShip );
 			break;
-            
+
             // lightning device
 		case 2:
-			pPlayer->_WFX_DeactivateLightning();
+			WFX_DeactivateLightning( pShip );
 			break;
-            
+
             // photon cannon
 		case 3:
-			pPlayer->_WFX_DeactivatePhoton();
+			WFX_DeactivatePhoton( pShip );
 			break;
             
             // emp device

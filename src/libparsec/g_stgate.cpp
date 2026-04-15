@@ -1,7 +1,7 @@
 /*
  * PARSEC - Stargate Model
  *
- * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:37 $
+ * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:47 $
  *
  * Orginally written by:
  *   Copyright (c) Clemens Beer        <cbx@parsec.org>   1999-2002
@@ -21,7 +21,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <stddef.h>
@@ -44,53 +44,76 @@
 #include "net_defs.h"
 #include "sys_defs.h"
 
-// drawing subsystem
+// subsystem linkage info
+#include "linkinfo.h"
+
+// UNP header
+#include "net_wrap.h"
+
+// mathematics header
+#include "utl_math.h"
+
+// local module header
+#include "g_stgate.h"
+
+// proprietary module headers (shared)
+#include "obj_clas.h"
+#include "obj_creg.h"
+#include "obj_cust.h"
+
+#ifndef PARSEC_SERVER
+
+// client-only drawing subsystem
 #include "d_bmap.h"
 #include "d_font.h"
 #include "d_iter.h"
 #include "d_misc.h"
 
-// subsystem linkage info
-#include "linkinfo.h"
-
-// mathematics header
-#include "utl_math.h"
-
-// model header
+// client-only model header
 #include "utl_model.h"
 
-// local module header
-#include "g_stgate.h"
-
-// proprietary module headers
+// client-only proprietary headers
+#include "con_com.h"
 #include "con_info.h"
 #include "e_callbk.h"
 #include "e_color.h"
 #include "e_supp.h"
 #include "h_supp.h"
-//#include "net_game_gmsv.h"
 #include "net_serv.h"
 #include "net_udpdf.h"
-#include "net_wrap.h"
-#include "obj_clas.h"
-#include "obj_creg.h"
 #include "obj_ctrl.h"
-#include "obj_cust.h"
 #include "part_api.h"
 
-// flags
+#else // PARSEC_SERVER
+
+// server-only headers
+#include "con_info_sv.h"
+#include "e_global_sv.h"
+#include "e_simulator.h"
+
+#endif // PARSEC_SERVER
+
+
+// flags (client-only)
 //#define _VISUALIZE_BBOX
 //#define _VISUALIZE_BRECT
+#ifndef PARSEC_SERVER
 #define USE_COMPILED_VTX_ARRAYS
 #define USE_STRIPORDER_TRIANGLES
 //#define DISABLE_RING_FLARES
+#endif // !PARSEC_SERVER
 
 
+#ifndef PARSEC_SERVER
 
 // generic string paste area --------------------------------------------------
 //
 #define PASTE_STR_LEN 255
 static char paste_str[ PASTE_STR_LEN + 1 ];
+
+extern int headless_bot;
+
+#endif // !PARSEC_SERVER
 
 
 // stargate limits and constants ----------------------------------------------
@@ -121,12 +144,16 @@ static char paste_str[ PASTE_STR_LEN + 1 ];
 
 // module local functions -----------------------------------------------------
 //
+#ifndef PARSEC_SERVER
 PRIVATE int		StargateInstantiate_InitInteriorVertices( Stargate *stargate );
+#endif
 
 //PRIVATE int		StargateModify_RealizeNode( GenObject* base );
 PRIVATE int		StargateModify_ActiveChanged( GenObject* base );
 PRIVATE int		StargateModify_AutoactivateChanged( GenObject* base );
+#ifndef PARSEC_SERVER
 PRIVATE void	StargateModify_CreateActiveParticles( CustomObject *base );
+#endif
 
 
 // offset definitions into the Stargate ---------------------------------------
@@ -137,7 +164,7 @@ PRIVATE void	StargateModify_CreateActiveParticles( CustomObject *base );
 //#define OFS_DESTIP			offsetof( Stargate, destination_ip )
 //#define OFS_DESTPORT		offsetof( Stargate, destination_port )
 #define OFS_ACTDISTANCE		offsetof( Stargate, actdistance )
-#define OFS_DORMANT			offsetof( Stargate, dormant )			
+#define OFS_DORMANT			offsetof( Stargate, dormant )
 #define OFS_ACTIVE			offsetof( Stargate, active )
 #define OFS_AUTOACTIVATE	offsetof( Stargate, autoactivate )
 #define OFS_NUMPARTACTIVE	offsetof( Stargate, numpartactive )
@@ -178,11 +205,14 @@ proplist_s Stargate_PropList[] = {
 	{ NULL,				0,				0,			0,							0,					NULL	},
 };
 
+
+#ifndef PARSEC_SERVER
+
 Stargate *proplist_stargate;
 
 PRIVATE
 proplist_s_new Stargate_PropList_new[] = {
-	
+
 	{ "rotspeed",		&proplist_stargate->rotspeed,		0,			0xffff,						PROPTYPE_INT,		NULL	},
 	{ "radius",			&proplist_stargate->radius,			0x10000,	0x4000000,					PROPTYPE_FLOAT,		NULL	},
 	//{ "destname",		OFS_DESTNAME,		0,			MAX_SERVER_NAME,			PROPTYPE_STRING,	NULL	},
@@ -201,11 +231,12 @@ proplist_s_new Stargate_PropList_new[] = {
 	{ "acttime",		&proplist_stargate->acttime,		0,			FRAME_MEASURE_TIMEBASE*10,	PROPTYPE_INT,		NULL	},
 	{ "flare_name",		&proplist_stargate->flare_name,		0,			MAX_TEXNAME,				PROPTYPE_STRING,	NULL	},
 	{ "interior_name",	&proplist_stargate->interior_name,	0,			MAX_TEXNAME,				PROPTYPE_STRING,	NULL	},
-	
+
 	{ NULL,				0,				0,			0,							0,					NULL	},
 };
 
-extern int headless_bot;
+#endif // !PARSEC_SERVER
+
 
 // type fields init function for stargate -------------------------------------
 //
@@ -249,35 +280,21 @@ void StargateInitType( CustomObject *base )
 
 	stargate->ping				= -1;
 	stargate->lastpinged		= 0;
-	
+
+#ifndef PARSEC_SERVER
 	proplist_stargate = stargate;
+#endif
 }
 
-/*
-// notification callback when eihter IP or port is changed --------------------
+
+/*// notification callback when eihter IP or port is changed --------------------
 //
-PRIVATE 
+PRIVATE
 int StargateModify_RealizeNode( GenObject* base )
 {
-	ASSERT( base != NULL );
-	Stargate* stargate = (Stargate *) base;
+	...
+}*/
 
-	// try to resolve DNS name to IP address (still as string)
-	char resolved_name[ MAX_IPADDR_LEN + 1 ];
-	if ( NET_ResolveHostName( stargate->destination_ip, resolved_name, NULL ) ) {
-		MSGOUT( "stargate->destinaiton %s resolved to %s", stargate->destination_ip, resolved_name );
-	} else {
-		// DNS lookup failed
-		return FALSE;
-	}
-
-	// save server address for later use by NET_GMSV.C
-	inet_aton( resolved_name, &stargate->destination_node );
-	UDP_StoreNodePort( &stargate->destination_node, stargate->destination_port );
-
-	return TRUE;
-}
-*/
 
 // notification callback when "active" changed --------------------------------
 //
@@ -297,15 +314,12 @@ int StargateModify_ActiveChanged( GenObject* base )
 		stargate->active = FALSE;
 	}
 
-	if ( stargate->active ) {
-
-		if ( !stargate->manually_activated ) {
-			stargate->manually_activated = TRUE;
-			StargateModify_CreateActiveParticles( stargate );
-		}
-
+	if ( ( stargate->active ) && ( !stargate->manually_activated ) ) {
+		stargate->manually_activated = TRUE;
+#ifndef PARSEC_SERVER
+		StargateModify_CreateActiveParticles( stargate );
+#endif
 	} else {
-
 		stargate->manually_activated = FALSE;
 	}
 
@@ -330,6 +344,8 @@ int StargateModify_AutoactivateChanged( GenObject* base )
 	return TRUE;
 }
 
+
+#ifndef PARSEC_SERVER
 
 // particle animation callback for setting the stargate-active particles ------
 //
@@ -476,6 +492,8 @@ void StargateInstantiate_AllocInterior( Stargate *stargate )
 	stargate->interior_texmap = NULL;
 }
 
+#endif // !PARSEC_SERVER
+
 
 // stargate constructor (class instantiation) ---------------------------------
 //
@@ -483,6 +501,7 @@ PRIVATE
 void StargateInstantiate( CustomObject *base )
 {
 	ASSERT( base != NULL );
+#ifndef PARSEC_SERVER
 	Stargate *stargate = (Stargate *) base;
 
 #ifndef DISABLE_RING_FLARES
@@ -500,8 +519,11 @@ void StargateInstantiate( CustomObject *base )
 
 	// only when connected the stargate is dormant by default
 	stargate->dormant = NET_ConnectedGMSV() ? TRUE : FALSE;
+#endif // !PARSEC_SERVER
 }
 
+
+#ifndef PARSEC_SERVER
 
 //FIXME:
 pdef_s *PDEF_pflare03();
@@ -737,7 +759,7 @@ void DetermineStargateDormantState( Stargate *stargate )
 {
 	ASSERT( stargate != NULL );
 
-	
+
 	// only while connected
 	if ( !NET_ConnectedGMSV() ) {
 		return;
@@ -775,7 +797,7 @@ void DetermineStargateDormantState( Stargate *stargate )
 			stargate->active  = FALSE;
 		}
 	}
-	
+
 }
 
 
@@ -838,10 +860,10 @@ int StargateDraw_HUD( Stargate *stargate )
 	if ( CalculateBoundingRectFromBSphere( stargate, &boundrect ) ) {
 
 		if ( NetConnected == NETWORK_GAME_ON ) {
-		
+
 			// draw name of destination system
 			DrawStargateText( stargate->destination_name, &boundrect, TRUE );
-	
+
 			// draw ping text
 			if ( stargate->ping == -1 ) {
 				sprintf( paste_str, "system unreachable" );
@@ -881,8 +903,8 @@ int StargateInstantiate_InitInteriorVertices( Stargate *stargate )
 	geomv_t uScaleFactor = GEOMV_DIV( INT_TO_GEOMV( uWidth  ), FLOAT_TO_GEOMV( 2 * STARGATE_INTERIOR_RADIUS ) );
 	geomv_t vScaleFactor = GEOMV_DIV( INT_TO_GEOMV( vHeight ), FLOAT_TO_GEOMV( 2 * STARGATE_INTERIOR_RADIUS ) );
 
-	stargate->interior_u[ 0 ] = GEOMV_MUL( 0 + STARGATE_INTERIOR_RADIUS, uScaleFactor ); /*INT_TO_GEOMV ( ( 1L << stargate->interior_texmap->Width  ) >> 1 );*/
-	stargate->interior_v[ 0 ] = GEOMV_MUL( 0 + STARGATE_INTERIOR_RADIUS, vScaleFactor );/*INT_TO_GEOMV ( ( 1L << stargate->interior_texmap->Height ) >> 1 );*/
+	stargate->interior_u[ 0 ] = GEOMV_MUL( 0 + STARGATE_INTERIOR_RADIUS, uScaleFactor );
+	stargate->interior_v[ 0 ] = GEOMV_MUL( 0 + STARGATE_INTERIOR_RADIUS, vScaleFactor );
 
 	hprec_t interior_mesh_angle_deg = 360.0 / STARGATE_INTERIOR_VERTS_PER_RING;
 	sincosval_s sincosv;
@@ -997,12 +1019,7 @@ void StargateDraw_InteriorTriStrips( Stargate *stargate )
 	byte _alpha = 255;
 
 	for ( int ringseg = 0; ringseg < STARGATE_INTERIOR_VERTS_PER_RING; ringseg++ ) {
-/*
-		_alpha =  0;
-		_red   =  0;
-		_green =  0;
-		_blue  =  0;
-*/
+
 		SET_ITER_VTX( &itstrip->Vtxs[ 0 ], &stargate->interior_vtxlist[ 0 ], &stargate->interior_viewvtxs[ 0 ],
 				        &stargate->interior_u[ 0 ], &stargate->interior_u[ 0 ], _red, _green, _blue, _alpha );
 
@@ -1014,12 +1031,7 @@ void StargateDraw_InteriorTriStrips( Stargate *stargate )
 
 			int _animring = nRing + FLOAT2INT( stargate->actring );
 			_animring = max( STARGATE_INTERIOR_NUM_RINGS, _animring );
-/*
-			_alpha =  FLOAT2INT( INT2FLOAT( _animring ) * ( 255.0f / INT2FLOAT( STARGATE_INTERIOR_NUM_RINGS ) ) );
-			_red   =  FLOAT2INT( INT2FLOAT( _animring ) * ( 128.0f / INT2FLOAT( STARGATE_INTERIOR_NUM_RINGS ) ) );
-			_green =  FLOAT2INT( INT2FLOAT( _animring ) * ( 128.0f / INT2FLOAT( STARGATE_INTERIOR_NUM_RINGS ) ) );
-			_blue  =  FLOAT2INT( INT2FLOAT( _animring ) * ( 128.0f / INT2FLOAT( STARGATE_INTERIOR_NUM_RINGS ) ) );
-*/
+
 			int nVertexIndex_1 = 1 + ( STARGATE_INTERIOR_VERTS_PER_RING * nRing  + ringseg );
 			int nVertexIndex_2 = 1 + ( STARGATE_INTERIOR_VERTS_PER_RING * nRing  + ( ( ringseg + 1 ) % STARGATE_INTERIOR_VERTS_PER_RING ) );
 
@@ -1085,7 +1097,7 @@ void StargateDraw_InteriorStripOrderTris( IterArray3 *itarray )
 		vindxs[ dstindx + 1 ] = srcindx;
 		vindxs[ dstindx + 2 ] = srcindx + 1;
 		dstindx += 3;
-		int ring = 1; 
+		int ring = 1;
 		for ( ring = 1; ring < STARGATE_INTERIOR_NUM_RINGS; ring++ ) {
 
 			srcindx += STARGATE_INTERIOR_VERTS_PER_RING;
@@ -1333,6 +1345,8 @@ int StargateDraw_Interior( void *param )
 //
 static int callback_type = CBTYPE_DRAW_CUSTOM_ITER | CBFLAG_REMOVE;
 
+#endif // !PARSEC_SERVER
+
 
 // stargate animation callback ------------------------------------------------
 //
@@ -1341,6 +1355,16 @@ int StargateAnimate( CustomObject *base )
 {
 	ASSERT( base != NULL );
 	Stargate *stargate = (Stargate *) base;
+
+#ifdef PARSEC_SERVER
+
+	// simply rotate around Z
+	ObjRotZ( stargate->ObjPosition, stargate->rotspeed * TheSimulator->GetThisFrameRefFrames() );
+
+	// determine whether stargate is dormant or not
+	//DetermineStargateDormantState( stargate );
+
+#else // !PARSEC_SERVER
 
 	// simply rotate around Z
 	ObjRotZ( stargate->ObjPosition, stargate->rotspeed * CurScreenRefFrames );
@@ -1356,6 +1380,8 @@ int StargateAnimate( CustomObject *base )
 		StargateAnimate_StepActivationSequence( stargate );
 	}
 
+#endif // PARSEC_SERVER
+
 	return TRUE;
 }
 
@@ -1366,6 +1392,7 @@ PRIVATE
 void StargateDestroy( CustomObject *base )
 {
 	ASSERT( base != NULL );
+#ifndef PARSEC_SERVER
 	Stargate *stargate = (Stargate *) base;
 
 	// destroy attached vertex info
@@ -1379,8 +1406,9 @@ void StargateDestroy( CustomObject *base )
 	// ensure pending callbacks are destroyed to avoid
 	// calling them with invalid pointers
 	int numremoved = CALLBACK_DestroyCallback( callback_type, (void *) base );
-	if(!headless_bot) 
+	if(!headless_bot)
 		ASSERT( numremoved <= 1 );
+#endif // !PARSEC_SERVER
 }
 
 
@@ -1492,6 +1520,8 @@ int StargateCollide( CustomObject *base )
 		return TRUE;
 	}
 
+#ifndef PARSEC_SERVER
+
 	int inrange = 0x00;
 
 	// check local ship
@@ -1587,10 +1617,70 @@ int StargateCollide( CustomObject *base )
 
 #endif // LINKED_PROTOCOL_GAMESERVER
 
+#endif // !PARSEC_SERVER
+
 	return TRUE;
 }
 
-// handle persistency ---------------------------------------------------------
+
+#ifdef PARSEC_SERVER
+
+// handle persistency (server: serialize to stream) ---------------------------
+//
+int StargatePersistToStream( CustomObject* base, int tostream, void* rl )
+{
+	ASSERT( base != NULL );
+	ASSERT( tostream == TRUE );
+	Stargate* stargate = (Stargate*) base;
+
+	// determine size in packet
+	size_t size = E_REList::RmEvGetSizeFromType( RE_STARGATE );
+
+	// write to RE list
+	if ( rl != NULL ) {
+
+		E_REList* pREList = (E_REList*)rl;
+
+		RE_Stargate* re_stg = (RE_Stargate*)pREList->NET_Allocate( RE_STARGATE );
+		ASSERT( re_stg != NULL );
+
+		re_stg->serverid	= stargate->serverid;
+
+		re_stg->pos[ 0 ]	= stargate->ObjPosition[ 0 ][ 3 ];
+		re_stg->pos[ 1 ]	= stargate->ObjPosition[ 1 ][ 3 ];
+		re_stg->pos[ 2 ]	= stargate->ObjPosition[ 2 ][ 3 ];
+
+		re_stg->dir[ 0 ]	= stargate->ObjPosition[ 0 ][ 2 ];
+		re_stg->dir[ 1 ]	= stargate->ObjPosition[ 1 ][ 2 ];
+		re_stg->dir[ 2 ]	= stargate->ObjPosition[ 2 ][ 2 ];
+
+		re_stg->dormant		= stargate->dormant;
+		re_stg->active		= stargate->active;
+		re_stg->rotspeed	= stargate->rotspeed;
+		re_stg->radius		= stargate->radius;
+		re_stg->actdistance	= stargate->actdistance;
+		re_stg->numpartactive = stargate->numpartactive;
+		re_stg->actcyllen	= stargate->actcyllen;
+		re_stg->partvel		= stargate->partvel;
+		re_stg->modulspeed	= stargate->modulspeed;
+		re_stg->modulrad1	= stargate->modulrad1;
+		re_stg->modulrad2	= stargate->modulrad2;
+		re_stg->acttime		= stargate->acttime;
+		re_stg->autoactivate= stargate->autoactivate;
+
+		strncpy( re_stg->flare_name,	stargate->flare_name,	MAX_TEXNAME );
+		re_stg->flare_name[ MAX_TEXNAME ] = 0;
+
+		strncpy( re_stg->interior_name, stargate->interior_name, MAX_TEXNAME );
+		re_stg->interior_name[ MAX_TEXNAME ] = 0;
+	}
+
+	return size;
+}
+
+#else // !PARSEC_SERVER
+
+// handle persistency (client: deserialize from stream) -----------------------
 //
 int StargatePersistFromStream( CustomObject* base, int tostream, void* rl )
 {
@@ -1643,6 +1733,7 @@ int StargatePersistFromStream( CustomObject* base, int tostream, void* rl )
 	return TRUE;
 }
 
+#endif // PARSEC_SERVER
 
 
 // register object type for stargate ------------------------------------------
@@ -1663,14 +1754,20 @@ void StargateRegisterCustomType()
 	info.callback_destroy	= StargateDestroy;
 	info.callback_animate	= StargateAnimate;
 	info.callback_collide	= StargateCollide;
+#ifdef PARSEC_SERVER
+	info.callback_notify	= NULL;
+	info.callback_persist   = StargatePersistToStream;
+#else
 	info.callback_notify	= NULL;
 	info.callback_persist   = StargatePersistFromStream;
+#endif
 
 	OBJ_RegisterCustomType( &info );
 	CON_RegisterCustomType( info.type_id, Stargate_PropList );
 }
 
-#include "con_com.h"
+
+#ifndef PARSEC_SERVER
 
 int Cmd_sg_test(char *dummy_str)
 {
@@ -1679,23 +1776,35 @@ int Cmd_sg_test(char *dummy_str)
 	return TRUE;
 }
 
+#endif // !PARSEC_SERVER
+
+
 // module registration function -----------------------------------------------
 //
+#ifdef PARSEC_SERVER
+
+REGISTER_MODULE( G_STGATE_SV )
+{
+	// register type
+	StargateRegisterCustomType();
+}
+
+#else // !PARSEC_SERVER
+
 REGISTER_MODULE( G_STGATE )
 {
 	// register type
 	StargateRegisterCustomType();
+
 	user_command_s regcom;
 	memset( &regcom, 0, sizeof( user_command_s ) );
-	
-	// register "clbot.start" command
+
+	// register "stargatetest" command
 	regcom.command	 = "stargatetest";
 	regcom.numparams = 0;
 	regcom.execute	 = Cmd_sg_test;
 	regcom.statedump = NULL;
 	CON_RegisterUserCommand( &regcom );
-
 }
 
-
-
+#endif // PARSEC_SERVER

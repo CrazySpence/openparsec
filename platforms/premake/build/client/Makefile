@@ -659,7 +659,7 @@ $(OBJDIR)/g_shkwav.o: ../../../../src/parsec/g_shkwav.cpp
 $(OBJDIR)/g_stars.o: ../../../../src/parsec/g_stars.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/g_stgate.o: ../../../../src/parsec/g_stgate.cpp
+$(OBJDIR)/g_stgate.o: ../../../../src/libparsec/g_stgate.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_supp.o: ../../../../src/parsec/g_supp.cpp
@@ -671,7 +671,7 @@ $(OBJDIR)/g_swarm.o: ../../../../src/parsec/g_swarm.cpp
 $(OBJDIR)/g_vapor.o: ../../../../src/parsec/g_vapor.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/g_wfx.o: ../../../../src/parsec/g_wfx.cpp
+$(OBJDIR)/g_wfx.o: ../../../../src/libparsec/g_wfx.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/h_cockpt.o: ../../../../src/parsec/h_cockpt.cpp
