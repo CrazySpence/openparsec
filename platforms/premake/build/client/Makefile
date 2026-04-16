@@ -494,7 +494,7 @@ $(OBJDIR)/aud_sdlmixer.o: ../../../../src/parsec/aud_sdlmixer.cpp
 $(OBJDIR)/aud_supp.o: ../../../../src/parsec/aud_supp.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_act.o: ../../../../src/parsec/con_act.cpp
+$(OBJDIR)/con_act.o: ../../../../src/libparsec/con_act.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_aux.o: ../../../../src/parsec/con_aux.cpp
@@ -503,31 +503,31 @@ $(OBJDIR)/con_aux.o: ../../../../src/parsec/con_aux.cpp
 $(OBJDIR)/con_cani.o: ../../../../src/parsec/con_cani.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_com.o: ../../../../src/parsec/con_com.cpp
+$(OBJDIR)/con_com.o: ../../../../src/libparsec/con_com.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_conf.o: ../../../../src/parsec/con_conf.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_ext.o: ../../../../src/parsec/con_ext.cpp
+$(OBJDIR)/con_ext.o: ../../../../src/libparsec/con_ext.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_geom.o: ../../../../src/parsec/con_geom.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_info.o: ../../../../src/parsec/con_info.cpp
+$(OBJDIR)/con_info.o: ../../../../src/libparsec/con_info.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_int.o: ../../../../src/parsec/con_int.cpp
+$(OBJDIR)/con_int.o: ../../../../src/libparsec/con_int.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_kmap.o: ../../../../src/parsec/con_kmap.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_list.o: ../../../../src/parsec/con_list.cpp
+$(OBJDIR)/con_list.o: ../../../../src/libparsec/con_list.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_load.o: ../../../../src/parsec/con_load.cpp
+$(OBJDIR)/con_load.o: ../../../../src/libparsec/con_load.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_main.o: ../../../../src/parsec/con_main.cpp
@@ -545,7 +545,7 @@ $(OBJDIR)/con_say.o: ../../../../src/parsec/con_say.cpp
 $(OBJDIR)/con_shad.o: ../../../../src/parsec/con_shad.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_std.o: ../../../../src/parsec/con_std.cpp
+$(OBJDIR)/con_std.o: ../../../../src/libparsec/con_std.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_tani.o: ../../../../src/parsec/con_tani.cpp

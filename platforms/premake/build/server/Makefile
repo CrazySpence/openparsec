@@ -164,16 +164,16 @@ OBJECTS := \
 	$(OBJDIR)/utl_math2.o \
 	$(OBJDIR)/MasterServer.o \
 	$(OBJDIR)/MasterServerItem.o \
-	$(OBJDIR)/con_act_sv.o \
+	$(OBJDIR)/con_act.o \
 	$(OBJDIR)/con_aux_sv.o \
-	$(OBJDIR)/con_com_sv.o \
-	$(OBJDIR)/con_ext_sv.o \
-	$(OBJDIR)/con_info_sv.o \
-	$(OBJDIR)/con_int_sv.o \
-	$(OBJDIR)/con_list_sv.o \
-	$(OBJDIR)/con_load_sv.o \
+	$(OBJDIR)/con_com.o \
+	$(OBJDIR)/con_ext.o \
+	$(OBJDIR)/con_info.o \
+	$(OBJDIR)/con_int.o \
+	$(OBJDIR)/con_list.o \
+	$(OBJDIR)/con_load.o \
 	$(OBJDIR)/con_main_sv.o \
-	$(OBJDIR)/con_std_sv.o \
+	$(OBJDIR)/con_std.o \
 	$(OBJDIR)/e_colldet_sv.o \
 	$(OBJDIR)/e_connmanager.o \
 	$(OBJDIR)/e_gameserver.o \
@@ -360,34 +360,34 @@ $(OBJDIR)/MasterServer.o: ../../../../src/parsec_server/MasterServer.cpp
 $(OBJDIR)/MasterServerItem.o: ../../../../src/parsec_server/MasterServerItem.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_act_sv.o: ../../../../src/parsec_server/con_act_sv.cpp
+$(OBJDIR)/con_act.o: ../../../../src/libparsec/con_act.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_aux_sv.o: ../../../../src/parsec_server/con_aux_sv.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_com_sv.o: ../../../../src/parsec_server/con_com_sv.cpp
+$(OBJDIR)/con_com.o: ../../../../src/libparsec/con_com.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_ext_sv.o: ../../../../src/parsec_server/con_ext_sv.cpp
+$(OBJDIR)/con_ext.o: ../../../../src/libparsec/con_ext.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_info_sv.o: ../../../../src/parsec_server/con_info_sv.cpp
+$(OBJDIR)/con_info.o: ../../../../src/libparsec/con_info.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_int_sv.o: ../../../../src/parsec_server/con_int_sv.cpp
+$(OBJDIR)/con_int.o: ../../../../src/libparsec/con_int.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_list_sv.o: ../../../../src/parsec_server/con_list_sv.cpp
+$(OBJDIR)/con_list.o: ../../../../src/libparsec/con_list.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_load_sv.o: ../../../../src/parsec_server/con_load_sv.cpp
+$(OBJDIR)/con_load.o: ../../../../src/libparsec/con_load.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/con_main_sv.o: ../../../../src/parsec_server/con_main_sv.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/con_std_sv.o: ../../../../src/parsec_server/con_std_sv.cpp
+$(OBJDIR)/con_std.o: ../../../../src/libparsec/con_std.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/e_colldet_sv.o: ../../../../src/parsec_server/e_colldet_sv.cpp

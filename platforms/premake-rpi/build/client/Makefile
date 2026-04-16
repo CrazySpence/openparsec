@@ -647,7 +647,7 @@ $(OBJDIR)/img_api.o: ../../../../src/parsec/img_api.cpp
 $(OBJDIR)/g_bot_cl.o: ../../../../src/parsec/g_bot_cl.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_info.o: ../../../../src/parsec/con_info.cpp
+$(OBJDIR)/con_info.o: ../../../../src/libparsec/con_info.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/net_rmev_gmsv.o: ../../../../src/parsec/net_rmev_gmsv.cpp
@@ -698,7 +698,7 @@ $(OBJDIR)/img_conv.o: ../../../../src/parsec/img_conv.cpp
 $(OBJDIR)/inp_comm.o: ../../../../src/parsec/inp_comm.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_com.o: ../../../../src/parsec/con_com.cpp
+$(OBJDIR)/con_com.o: ../../../../src/libparsec/con_com.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/net_rmev_peer.o: ../../../../src/parsec/net_rmev_peer.cpp
@@ -713,7 +713,7 @@ $(OBJDIR)/aud_sdlmixer.o: ../../../../src/parsec/aud_sdlmixer.cpp
 $(OBJDIR)/r_glob.o: ../../../../src/parsec/r_glob.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_int.o: ../../../../src/parsec/con_int.cpp
+$(OBJDIR)/con_int.o: ../../../../src/libparsec/con_int.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/inp_init.o: ../../../../src/parsec/inp_init.cpp
@@ -806,13 +806,13 @@ $(OBJDIR)/e_callbk.o: ../../../../src/parsec/e_callbk.cpp
 $(OBJDIR)/obj_game.o: ../../../../src/parsec/obj_game.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_std.o: ../../../../src/parsec/con_std.cpp
+$(OBJDIR)/con_std.o: ../../../../src/libparsec/con_std.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/e_level.o: ../../../../src/parsec/e_level.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_list.o: ../../../../src/parsec/con_list.cpp
+$(OBJDIR)/con_list.o: ../../../../src/libparsec/con_list.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_telep.o: ../../../../src/libparsec/g_telep.cpp
@@ -830,7 +830,7 @@ $(OBJDIR)/d_glob.o: ../../../../src/parsec/d_glob.cpp
 $(OBJDIR)/obj_iter.o: ../../../../src/parsec/obj_iter.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_load.o: ../../../../src/parsec/con_load.cpp
+$(OBJDIR)/con_load.o: ../../../../src/libparsec/con_load.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/obj_ani.o: ../../../../src/parsec/obj_ani.cpp
@@ -869,7 +869,7 @@ $(OBJDIR)/e_draw.o: ../../../../src/parsec/e_draw.cpp
 $(OBJDIR)/sl_opt.o: ../../../../src/parsec/sl_opt.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_ext.o: ../../../../src/parsec/con_ext.cpp
+$(OBJDIR)/con_ext.o: ../../../../src/libparsec/con_ext.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/con_path.o: ../../../../src/parsec/con_path.cpp
@@ -884,7 +884,7 @@ $(OBJDIR)/do_bmap.o: ../../../../src/parsec/do_bmap.cpp
 $(OBJDIR)/obj_coll.o: ../../../../src/parsec/obj_coll.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/con_act.o: ../../../../src/parsec/con_act.cpp
+$(OBJDIR)/con_act.o: ../../../../src/libparsec/con_act.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/h_supp.o: ../../../../src/parsec/h_supp.cpp
