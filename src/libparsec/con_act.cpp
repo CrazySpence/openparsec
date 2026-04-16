@@ -1,5 +1,5 @@
 /*
- * PARSEC - Action Commands
+ * PARSEC - Action Commands (Client+Server)
  *
  * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:34 $
  *
@@ -38,21 +38,33 @@
 
 // global externals
 #include "globals.h"
+#ifdef PARSEC_SERVER
+#include "e_world_trans.h"
+#endif
 
 // subsystem headers
+#ifndef PARSEC_SERVER
 #include "aud_defs.h"
 #include "inp_defs.h"
+#endif
 #include "net_defs.h"
 #include "sys_defs.h"
+#ifndef PARSEC_SERVER
 #include "vid_defs.h"
+#endif
 
 // mathematics header
 #include "utl_math.h"
 
 // local module header
+#ifndef PARSEC_SERVER
 #include "con_act.h"
+#else
+#include "con_act_sv.h"
+#endif
 
 // proprietary module headers
+#ifndef PARSEC_SERVER
 #include "con_aux.h"
 #include "con_ext.h"
 #include "con_int.h"
@@ -71,12 +83,20 @@
 #ifdef LINKED_PROTOCOL_GAMESERVER
 	#include "net_serv.h"
 #endif // LINKED_PROTOCOL_GAMESERVER
+#else
+#include "con_aux_sv.h"
+#include "con_ext_sv.h"
+#include "con_int_sv.h"
+#include "con_main_sv.h"
+#endif
 #include "obj_clas.h"
+#ifndef PARSEC_SERVER
 #include "obj_ctrl.h"
 #include "obj_xtra.h"
 #include "g_sfx.h"
 #include "g_wfx.h"
 #include "g_emp.h"
+#endif
 #include "sys_file.h"
 
 
@@ -94,27 +114,33 @@ static char paste_str[ PASTE_STR_LEN + 1 ];
 
 // string constants -----------------------------------------------------------
 //
+#ifndef PARSEC_SERVER
 static char invalid_key_id[]	= "invalid key identifier.";
 static char no_batch_open[] 	= "no script open.";
 static char too_many_pseudos[]	= "too many pseudo stars.";
 static char no_objcam_allowed[] = "object camera must not be active.";
+#endif
 static char invalid_list[]		= "invalid list identifier.";
 static char invalid_class[] 	= "invalid object class identifier.";
 static char invalid_action[]	= "invalid action.";
 static char invalid_id_range[]	= "object class id out of range.";
 static char no_action_found[]	= "no action specified.";
 static char non_batch_use[] 	= "only valid if called from command script.";
+#ifndef PARSEC_SERVER
 static char stream_name_inval[]	= "stream name is invalid.";
 static char no_stream_started[] = "stream could not be started.";
 static char no_stream_stopped[] = "no stream has been stopped.";
+#endif
 static char action_preempted[]	= "action command not allowed.";
 static char compile_write_err[]	= "write error during compilation.";
 static char compile_arg_inval[]	= "invalid argument found during compilation.";
 static char compile_non_comp[]	= "non-compilable command found during compilation.";
+#ifndef PARSEC_SERVER
 static char compile_pkt_inval[]	= "packet not found during compilation.";
 static char only_for_compile[]	= "command is only for compilation.";
 static char invalid_bin_wait[]	= "invalid binary wait argument encountered.";
 static char maxplayers_diff[]	= "netplayers limit is different from recording.";
+#endif
 
 
 // pointer to binary parameters -----------------------------------------------
@@ -360,10 +386,12 @@ int AcFetchStringParam( char **param, int stripspace )
 PRIVATE
 void AcAutoPitch()
 {
+#ifndef PARSEC_SERVER
 	bams_t angle;
 	if ( AcFetchIntParams( 1, (int32 *) &angle ) ) {
 		AutomaticPitch = angle;
 	}
+#endif
 }
 
 
@@ -372,10 +400,12 @@ void AcAutoPitch()
 PRIVATE
 void AcAutoYaw()
 {
+#ifndef PARSEC_SERVER
 	bams_t angle;
 	if ( AcFetchIntParams( 1, (int32 *) &angle ) ) {
 		AutomaticYaw = angle;
 	}
+#endif
 }
 
 
@@ -384,10 +414,12 @@ void AcAutoYaw()
 PRIVATE
 void AcAutoRoll()
 {
+#ifndef PARSEC_SERVER
 	bams_t angle;
 	if ( AcFetchIntParams( 1, (int32 *) &angle ) ) {
 		AutomaticRoll = angle;
 	}
+#endif
 }
 
 
@@ -396,10 +428,12 @@ void AcAutoRoll()
 PRIVATE
 void AcAutoSlideX()
 {
+#ifndef PARSEC_SERVER
 	hprec_t slideval;
 	if ( AcFetchFloatParams( 1, &slideval ) ) {
 		AutomaticSlideHorz = FLOAT_TO_GEOMV( slideval );
 	}
+#endif
 }
 
 
@@ -408,10 +442,12 @@ void AcAutoSlideX()
 PRIVATE
 void AcAutoSlideY()
 {
+#ifndef PARSEC_SERVER
 	hprec_t slideval;
 	if ( AcFetchFloatParams( 1, &slideval ) ) {
 		AutomaticSlideVert = FLOAT_TO_GEOMV( slideval );
 	}
+#endif
 }
 
 
@@ -420,11 +456,13 @@ void AcAutoSlideY()
 PRIVATE
 void AcAutoMove()
 {
+#ifndef PARSEC_SERVER
 	fixed_t translation;
 	if ( AcFetchIntParams( 1, (int32 *) &translation ) ) {
 		AutomaticMovement = translation;
 		MyShip->CurSpeed  = AutomaticMovement;
 	}
+#endif
 }
 
 
@@ -433,6 +471,7 @@ void AcAutoMove()
 PRIVATE
 void AcIdleCommand()
 {
+#ifndef PARSEC_SERVER
 	int32 waitcount;
 	if ( AcFetchIntParams( 1, &waitcount ) ) {
 
@@ -446,12 +485,15 @@ void AcIdleCommand()
 		// save level recursion is stalled on
 		idle_reclevel = rec_depth;
 	}
+#endif
 }
 
 
 // flag for view camera filter reset after matrix init ------------------------
 //
+#ifndef PARSEC_SERVER
 static int reset_viewcam_filter_on_update = FALSE;
+#endif
 
 
 // set single column of camera matrix -----------------------------------------
@@ -470,10 +512,12 @@ void SetCameraColumn( Camera cam, int col, hprec_t *v )
 PRIVATE
 void AcSetCamRotCol1()
 {
+#ifndef PARSEC_SERVER
 	hprec_t v[ 3 ];
 	if ( AcFetchFloatParams( 3, v ) ) {
 		SetCameraColumn( ShipViewCamera, 0, v );
 	}
+#endif
 }
 
 
@@ -482,10 +526,12 @@ void AcSetCamRotCol1()
 PRIVATE
 void AcSetCamRotCol2()
 {
+#ifndef PARSEC_SERVER
 	hprec_t v[ 3 ];
 	if ( AcFetchFloatParams( 3, v ) ) {
 		SetCameraColumn( ShipViewCamera, 1, v );
 	}
+#endif
 }
 
 
@@ -494,10 +540,12 @@ void AcSetCamRotCol2()
 PRIVATE
 void AcSetCamRotCol3()
 {
+#ifndef PARSEC_SERVER
 	hprec_t v[ 3 ];
 	if ( AcFetchFloatParams( 3, v ) ) {
 		SetCameraColumn( ShipViewCamera, 2, v );
 	}
+#endif
 }
 
 
@@ -506,6 +554,7 @@ void AcSetCamRotCol3()
 PRIVATE
 void AcSetCamOrigin()
 {
+#ifndef PARSEC_SERVER
 	hprec_t v[ 3 ];
 	if ( AcFetchFloatParams( 3, v ) ) {
 		SetCameraColumn( ShipViewCamera, 3, v );
@@ -517,6 +566,7 @@ void AcSetCamOrigin()
 		CAMERA_ResetFilter();
 		reset_viewcam_filter_on_update = FALSE;
 	}
+#endif
 }
 
 
@@ -667,7 +717,9 @@ GenObject *CreateRecordedObject( dword objclass, Xmatrx startmatrx )
 //
 static int		delayed_object_creation = FALSE;
 static dword	delayed_object_class;
+#ifndef PARSEC_SERVER
 static dword	delayed_object_id;
+#endif
 static dword	delayed_object_hostid;
 static Xmatrx	delayed_object_matrix;
 
@@ -786,6 +838,7 @@ void AcSetFixedStarRotCol3()
 PRIVATE
 void AcCreateObject()
 {
+#ifndef PARSEC_SERVER
 	ASSERT( !delayed_object_creation );
 
 	int32 objclass;
@@ -807,6 +860,7 @@ void AcCreateObject()
 			delayed_object_hostid	= (dword)-1; // not yet set
 		}
 	}
+#endif
 }
 
 
@@ -857,10 +911,12 @@ void AcDestroyObjectList()
 PRIVATE
 void AcWriteSmall()
 {
+#ifndef PARSEC_SERVER
 	char *nextparam;
 	if ( AcFetchStringParam( &nextparam, ACM_EAT_SPACE( ACM_WRITESMALL ) ) ) {
 //		HUD_SetDemoText( 0, nextparam );
 	}
+#endif
 }
 
 
@@ -869,10 +925,12 @@ void AcWriteSmall()
 PRIVATE
 void AcWriteBig()
 {
+#ifndef PARSEC_SERVER
 	char *nextparam;
 	if ( AcFetchStringParam( &nextparam, ACM_EAT_SPACE( ACM_WRITEBIG1 ) ) ) {
 //		HUD_SetDemoText( 1, nextparam );
 	}
+#endif
 }
 
 
@@ -881,10 +939,12 @@ void AcWriteBig()
 PRIVATE
 void AcWriteBig2()
 {
+#ifndef PARSEC_SERVER
 	char *nextparam;
 	if ( AcFetchStringParam( &nextparam, ACM_EAT_SPACE( ACM_WRITEBIG2 ) ) ) {
 //		HUD_SetDemoText( 2, nextparam );
 	}
+#endif
 }
 
 
@@ -893,10 +953,12 @@ void AcWriteBig2()
 PRIVATE
 void AcWriteBig3()
 {
+#ifndef PARSEC_SERVER
 	char *nextparam;
 	if ( AcFetchStringParam( &nextparam, ACM_EAT_SPACE( ACM_WRITEBIG3 ) ) ) {
 //		HUD_SetDemoText( 3, nextparam );
 	}
+#endif
 }
 
 
@@ -905,7 +967,9 @@ void AcWriteBig3()
 PRIVATE
 void AcClearText()
 {
+#ifndef PARSEC_SERVER
 //	HUD_ClearDemoText();
+#endif
 }
 
 
@@ -914,6 +978,7 @@ void AcClearText()
 PRIVATE
 void AcRemoteMaxPlayers()
 {
+#ifndef PARSEC_SERVER
 	if ( !NetConnected ) {
 		CON_AddLine( "AcRemoteMaxPlayers(): no net." );
 		return;
@@ -932,12 +997,15 @@ void AcRemoteMaxPlayers()
 			}
 		}
 	}
+#endif
 }
 
 
 // remember id of remote player whose state was set last ----------------------
 //
+#ifndef PARSEC_SERVER
 static int last_remote_playerid = 0;
+#endif
 
 
 // create remote player with specified state ----------------------------------
@@ -945,6 +1013,7 @@ static int last_remote_playerid = 0;
 PRIVATE
 void AcRemotePlayer()
 {
+#ifndef PARSEC_SERVER
 	if ( !NetConnected ) {
 		CON_AddLine( "AcRemotePlayer(): no net." );
 		return;
@@ -968,6 +1037,7 @@ void AcRemotePlayer()
 		// init state except matrix and name
 		NET_SetRemotePlayerState( params[ 0 ], params[ 1 ], params[ 2 ], params[ 3 ] );
 	}
+#endif
 }
 
 
@@ -976,6 +1046,7 @@ void AcRemotePlayer()
 PRIVATE
 void AcRemoteMatrix()
 {
+#ifndef PARSEC_SERVER
 	if ( !NetConnected ) {
 		CON_AddLine( "AcRemoteMatrix(): no net." );
 		return;
@@ -1013,6 +1084,7 @@ void AcRemoteMatrix()
 			CAMERA_ResetFilter();
 		}
 	}
+#endif
 }
 
 
@@ -1021,6 +1093,7 @@ void AcRemoteMatrix()
 PRIVATE
 void AcRemoteWeaponsActive()
 {
+#ifndef PARSEC_SERVER
 	//NOTE:
 	// if new duration weapons are added this function
 	// should be updated.
@@ -1086,12 +1159,15 @@ void AcRemoteWeaponsActive()
 		shippo->WeaponsActive &= ~unknownmask;
 		shippo->WeaponsActive |= weaponsactive & unknownmask;
 	}
+#endif
 }
 
 
 // should a join be performed on the next "ac.remotename" ? -------------------
 //
+#ifndef PARSEC_SERVER
 static int join_on_setname = FALSE;
+#endif
 
 
 // perform recorded join ------------------------------------------------------
@@ -1099,6 +1175,7 @@ static int join_on_setname = FALSE;
 PRIVATE
 void PerformRecordedJoin()
 {
+#ifndef PARSEC_SERVER
 	if ( !NetJoined ) {
 		HideFloatingMenu();
 		NETs_Join();
@@ -1108,6 +1185,7 @@ void PerformRecordedJoin()
 
 	ASSERT( EntryMode == FALSE );
 	ASSERT( InFloatingMenu == FALSE );
+#endif
 }
 
 
@@ -1116,6 +1194,7 @@ void PerformRecordedJoin()
 PRIVATE
 void AcRemoteName()
 {
+#ifndef PARSEC_SERVER
 	if ( !NetConnected ) {
 		CON_AddLine( "AcRemoteName(): no net." );
 		return;
@@ -1133,6 +1212,7 @@ void AcRemoteName()
 		join_on_setname = FALSE;
 		PerformRecordedJoin();
 	}
+#endif
 }
 
 
@@ -1141,6 +1221,7 @@ void AcRemoteName()
 PRIVATE
 void AcRemoteJoin()
 {
+#ifndef PARSEC_SERVER
 	ASSERT( !join_on_setname );
 
 	if ( !NetConnected ) {
@@ -1169,6 +1250,7 @@ void AcRemoteJoin()
 			join_on_setname = TRUE;
 		}
 	}
+#endif
 }
 
 
@@ -1177,6 +1259,7 @@ void AcRemoteJoin()
 PRIVATE
 void AcRemoteUnjoin()
 {
+#ifndef PARSEC_SERVER
 	ASSERT( !join_on_setname );
 
 	if ( !NetConnected ) {
@@ -1200,6 +1283,7 @@ void AcRemoteUnjoin()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1208,6 +1292,7 @@ void AcRemoteUnjoin()
 PRIVATE
 void AcClearDemo()
 {
+#ifndef PARSEC_SERVER
 	//NOTE:
 	// this function has to be used after a demo containing network packets
 	// has been replayed (and ended) to restore/ensure a proper game state.
@@ -1233,6 +1318,7 @@ void AcClearDemo()
 
 	// perform actual clear
 	DEMO_ClearDemo( stopflag );
+#endif
 }
 
 
@@ -1241,11 +1327,13 @@ void AcClearDemo()
 PRIVATE
 void AcPlayRemotePacket()
 {
+#ifndef PARSEC_SERVER
 	int32 params[ 2 ];
 	if ( AcFetchIntParams( 2, params ) ) {
 
 		REC_PlayRemotePacket( params[ 0 ], params[ 1 ] );
 	}
+#endif
 }
 
 
@@ -1254,6 +1342,7 @@ void AcPlayRemotePacket()
 PRIVATE
 void AcPlayServerMessage()
 {
+#ifndef PARSEC_SERVER
 	char *nextparam;
 	if ( AcFetchStringParam( &nextparam, ACM_EAT_SPACE( ACM_SERVERMSG ) ) ) {
 
@@ -1266,6 +1355,7 @@ void AcPlayServerMessage()
 #endif // LINKED_PROTOCOL_GAMESERVER
 
 	}
+#endif
 }
 
 
@@ -1274,11 +1364,13 @@ void AcPlayServerMessage()
 PRIVATE
 void AcWriteConsoleText()
 {
+#ifndef PARSEC_SERVER
 	char *msgtext;
 	if ( AcFetchStringParam( &msgtext, ACM_EAT_SPACE( ACM_WRITECONSOLETEXT ) ) ) {
 
 		CON_AddLine( msgtext );
 	}
+#endif
 }
 
 
@@ -1287,11 +1379,13 @@ void AcWriteConsoleText()
 PRIVATE
 void AcDisplayMessage()
 {
+#ifndef PARSEC_SERVER
 	char *msgtext;
 	if ( AcFetchStringParam( &msgtext, ACM_EAT_SPACE( ACM_DISPLAYMESSAGE ) ) ) {
 
 		ShowMessage( msgtext );
 	}
+#endif
 }
 
 
@@ -1300,6 +1394,7 @@ void AcDisplayMessage()
 PRIVATE
 void AcExecCommandString()
 {
+#ifndef PARSEC_SERVER
 	// make sure this is called from within a compiled demo
 	if ( bin_params == NULL ) {
 		CON_AddLine( "only valid during binary replay." );
@@ -1318,6 +1413,7 @@ void AcExecCommandString()
 		ProcessExternalLine( command );
 		ExecNonCompilableCommand( command );
 	}
+#endif
 }
 
 
@@ -1336,6 +1432,7 @@ if ( !RecordingActive ) { \
 PRIVATE
 void AcSaveObjectList()
 {
+#ifndef PARSEC_SERVER
 	CHECK_RECORDING_STATE();
 
 	// disallow object camera
@@ -1373,6 +1470,7 @@ void AcSaveObjectList()
 				CON_AddLine( invalid_list );
 		}
 	}
+#endif
 }
 
 
@@ -1381,8 +1479,10 @@ void AcSaveObjectList()
 PRIVATE
 void AcSavePseudoStars()
 {
+#ifndef PARSEC_SERVER
 	CHECK_RECORDING_STATE();
 	Save_PseudoStars( RecordingFp );
+#endif
 }
 
 
@@ -1391,8 +1491,10 @@ void AcSavePseudoStars()
 PRIVATE
 void AcSaveCamera()
 {
+#ifndef PARSEC_SERVER
 	CHECK_RECORDING_STATE();
 	Save_Camera( RecordingFp );
+#endif
 }
 
 
@@ -1401,7 +1503,9 @@ void AcSaveCamera()
 PRIVATE
 void AcSaveFixedStars()
 {
+#ifndef PARSEC_SERVER
 	// dummy for compatibility
+#endif
 }
 
 
@@ -1410,8 +1514,10 @@ void AcSaveFixedStars()
 PRIVATE
 void AcSaveRemoteState()
 {
+#ifndef PARSEC_SERVER
 	CHECK_RECORDING_STATE();
 	Save_RemoteState( RecordingFp );
+#endif
 }
 
 
@@ -1420,7 +1526,9 @@ void AcSaveRemoteState()
 PRIVATE
 void AcKillPseudoStars()
 {
+#ifndef PARSEC_SERVER
 	NumPseudoStars = 0;
+#endif
 }
 
 
@@ -1429,6 +1537,7 @@ void AcKillPseudoStars()
 PRIVATE
 void AcAddPseudoStar()
 {
+#ifndef PARSEC_SERVER
 	if ( NumPseudoStars < MAX_PSEUDO_STARS ) {
 		hprec_t pos[ 3 ];
 		if ( AcFetchFloatParams( 3, pos ) ) {
@@ -1440,6 +1549,7 @@ void AcAddPseudoStar()
 	} else {
 		CON_AddLine( too_many_pseudos );
 	}
+#endif
 }
 
 
@@ -1448,6 +1558,7 @@ void AcAddPseudoStar()
 PRIVATE
 void AcPrepareDataRestore()
 {
+#ifndef PARSEC_SERVER
 	int shipclass = MyShip->ObjectClass;
 
 	// allow optional specification of ship class
@@ -1479,6 +1590,7 @@ void AcPrepareDataRestore()
 
 	// reset mapping table for class ids
 	ResetClassMapTable();
+#endif
 }
 
 
@@ -1487,6 +1599,7 @@ void AcPrepareDataRestore()
 PRIVATE
 void AcSaveDataInfo()
 {
+#ifndef PARSEC_SERVER
 	//NOTE:
 	// this function tries to create the logical analog to a screenshot.
 	// for this, it records the current state (that is, commands that
@@ -1494,6 +1607,7 @@ void AcSaveDataInfo()
 
 	CHECK_RECORDING_STATE();
 	Save_StateInfo( RecordingFp );
+#endif
 }
 
 
@@ -1502,6 +1616,7 @@ void AcSaveDataInfo()
 PRIVATE
 void AcFadeOut()
 {
+#ifndef PARSEC_SERVER
 //	VIDs_FadeScreenToBlack( PAL_GAME, FALSE );
 
 	int32 speed;
@@ -1524,6 +1639,7 @@ void AcFadeOut()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1532,6 +1648,7 @@ void AcFadeOut()
 PRIVATE
 void AcFadeIn()
 {
+#ifndef PARSEC_SERVER
 //	VIDs_FadeScreenFromBlack( PAL_GAME );
 
 	int32 speed;
@@ -1554,6 +1671,7 @@ void AcFadeIn()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1562,6 +1680,7 @@ void AcFadeIn()
 PRIVATE
 void AcWhiteFadeOut()
 {
+#ifndef PARSEC_SERVER
 //	colrgba_s scol = COLRGBA_WHITE;
 //	VIDs_SetScreenToColor( scol );
 
@@ -1585,6 +1704,7 @@ void AcWhiteFadeOut()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1593,6 +1713,7 @@ void AcWhiteFadeOut()
 PRIVATE
 void AcWhiteFadeIn()
 {
+#ifndef PARSEC_SERVER
 //	VIDs_FadeScreenFromWhite( PAL_GAME );
 
 	int32 speed;
@@ -1615,6 +1736,7 @@ void AcWhiteFadeIn()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1623,10 +1745,12 @@ void AcWhiteFadeIn()
 PRIVATE
 void AcStandardPalette()
 {
+#ifndef PARSEC_SERVER
 //	AwaitVertSync();
 
 	// turn off fading
 	SetScreenFade = 0;
+#endif
 }
 
 
@@ -1635,6 +1759,7 @@ void AcStandardPalette()
 PRIVATE
 void AcBlackScreen()
 {
+#ifndef PARSEC_SERVER
 //	colrgba_s scol = COLRGBA_BLACK;
 //	VIDs_SetScreenToColor( scol );
 
@@ -1645,6 +1770,7 @@ void AcBlackScreen()
 
 	// hold fading at opaque level
 	SetScreenFade = 1;
+#endif
 }
 
 
@@ -1653,6 +1779,7 @@ void AcBlackScreen()
 PRIVATE
 void AcWhiteScreen()
 {
+#ifndef PARSEC_SERVER
 //	colrgba_s scol = COLRGBA_WHITE;
 //	VIDs_SetScreenToColor( scol );
 
@@ -1663,6 +1790,7 @@ void AcWhiteScreen()
 
 	// hold fading at opaque level
 	SetScreenFade = 1;
+#endif
 }
 
 
@@ -1806,6 +1934,7 @@ void AcSetMineOwner()
 PRIVATE
 void AcCreateExtra()
 {
+#ifndef PARSEC_SERVER
 	ASSERT( !delayed_object_creation );
 
 	int32 objclass;
@@ -1831,6 +1960,7 @@ void AcCreateExtra()
 			OBJ_FillExtraMemberVars( extrapo );
 		}
 	}
+#endif
 }
 
 
@@ -1839,6 +1969,7 @@ void AcCreateExtra()
 PRIVATE
 void AcEnergyField()
 {
+#ifndef PARSEC_SERVER
 	hprec_t vec[ 3 ];
 	if ( AcFetchFloatParams( 3, vec ) ) {
 		Vertex3 origin;
@@ -1847,6 +1978,7 @@ void AcEnergyField()
 		origin.Z = FLOAT_TO_GEOMV( vec[ 2 ] );
 		SFX_CreateEnergyField( origin );
 	}
+#endif
 }
 
 
@@ -1855,7 +1987,9 @@ void AcEnergyField()
 PRIVATE
 void AcSpreadfire()
 {
+#ifndef PARSEC_SERVER
 	WFX_ShootParticleWeapon( MyShip, PARTICLEGUN_SPREADFIRE );
+#endif
 }
 
 
@@ -1864,11 +1998,13 @@ void AcSpreadfire()
 PRIVATE
 void AcLightningOn()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) == 0 ) {
 		WFX_ActivateLightning( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant lightning activation." );
 	}
+#endif
 }
 
 
@@ -1877,11 +2013,13 @@ void AcLightningOn()
 PRIVATE
 void AcLightningOff()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) != 0 ) {
 		WFX_DeactivateLightning( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant lightning deactivation." );
 	}
+#endif
 }
 
 
@@ -1889,11 +2027,13 @@ void AcLightningOff()
 //
 void AcHelixOn()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_CANNON_HELIX ) == 0 ) {
 		WFX_ActivateHelix( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant helix activation." );
 	}
+#endif
 }
 
 
@@ -1901,11 +2041,13 @@ void AcHelixOn()
 //
 void AcHelixOff()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_CANNON_HELIX ) != 0 ) {
 		WFX_DeactivateHelix( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant helix deactivation." );
 	}
+#endif
 }
 
 
@@ -1913,11 +2055,13 @@ void AcHelixOff()
 //
 void AcPhotonOn()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_CANNON_PHOTON ) == 0 ) {
 		WFX_ActivatePhoton( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant photon activation." );
 	}
+#endif
 }
 
 
@@ -1925,11 +2069,13 @@ void AcPhotonOn()
 //
 void AcPhotonOff()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_CANNON_PHOTON ) != 0 ) {
 		WFX_DeactivatePhoton( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant photon deactivation." );
 	}
+#endif
 }
 
 
@@ -1937,11 +2083,13 @@ void AcPhotonOff()
 //
 void AcEmpOn()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_DEVICE_EMP ) == 0 ) {
 		WFX_ActivateEmp( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant emp activation." );
 	}
+#endif
 }
 
 
@@ -1949,11 +2097,13 @@ void AcEmpOn()
 //
 void AcEmpOff()
 {
+#ifndef PARSEC_SERVER
 	if ( ( MyShip->WeaponsActive & WPMASK_DEVICE_EMP) != 0 ) {
 		WFX_DeactivateEmp( MyShip );
 	} else {
 		CON_AddLine( "filtering redundant emp deactivation." );
 	}
+#endif
 }
 
 
@@ -1961,7 +2111,9 @@ void AcEmpOff()
 //
 void AcEmp()
 {
+#ifndef PARSEC_SERVER
 	WFX_EmpBlast( MyShip );
+#endif
 }
 
 
@@ -1970,6 +2122,7 @@ void AcEmp()
 PRIVATE
 void AcSetObjectId()
 {
+#ifndef PARSEC_SERVER
 	int32 objid;
 	if ( AcFetchIntParams( 1, &objid ) ) {
 		if ( delayed_object_creation ) {
@@ -1983,6 +2136,7 @@ void AcSetObjectId()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1991,6 +2145,7 @@ void AcSetObjectId()
 PRIVATE
 void AcSetObjectHostId()
 {
+#ifndef PARSEC_SERVER
 	int32 objid;
 	if ( AcFetchIntParams( 1, &objid ) ) {
 		if ( delayed_object_creation ) {
@@ -2004,6 +2159,7 @@ void AcSetObjectHostId()
 			}
 		}
 	}
+#endif
 }
 
 
@@ -2011,7 +2167,8 @@ void AcSetObjectHostId()
 //
 PRIVATE
 void AcSimulateKeyPress()
-{	
+{
+#ifndef PARSEC_SERVER	
 	int32 keynum;
 	if ( AcFetchIntParams( 1, &keynum ) ) {
 		if ( (dword)keynum < NUM_GAMEFUNC_KEYS ) {
@@ -2029,6 +2186,7 @@ void AcSimulateKeyPress()
 			CON_AddLine( invalid_key_id );
 		}
 	}
+#endif
 }
 
 
@@ -2037,6 +2195,7 @@ void AcSimulateKeyPress()
 PRIVATE
 void AcSimulateKeyRelease()
 {
+#ifndef PARSEC_SERVER
 	int32 keynum;
 	if ( AcFetchIntParams( 1, &keynum ) ) {
 		if ( (dword)keynum < NUM_GAMEFUNC_KEYS ) {
@@ -2047,6 +2206,7 @@ void AcSimulateKeyRelease()
 			CON_AddLine( invalid_key_id );
 		}
 	}
+#endif
 }
 
 
@@ -2060,10 +2220,12 @@ void AcSimulateKeyRelease()
 PRIVATE
 void AcMyShip_CurDamage()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->CurDamage = ivalue;
 	}
+#endif
 }
 
 
@@ -2072,10 +2234,12 @@ void AcMyShip_CurDamage()
 PRIVATE
 void AcMyShip_MaxDamage()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->MaxDamage = ivalue;
 	}
+#endif
 }
 
 
@@ -2084,10 +2248,12 @@ void AcMyShip_MaxDamage()
 PRIVATE
 void AcMyShip_CurEnergy()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->CurEnergy = ivalue;
 	}
+#endif
 }
 
 
@@ -2096,10 +2262,12 @@ void AcMyShip_CurEnergy()
 PRIVATE
 void AcMyShip_MaxEnergy()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->MaxEnergy = ivalue;
 	}
+#endif
 }
 
 
@@ -2108,10 +2276,12 @@ void AcMyShip_MaxEnergy()
 PRIVATE
 void AcMyShip_CurSpeed()
 {
+#ifndef PARSEC_SERVER
 	fixed_t ivalue;
 	if ( AcFetchIntParams( 1, (int32 *) &ivalue ) ) {
 		MyShip->CurSpeed = ivalue;
 	}
+#endif
 }
 
 
@@ -2120,10 +2290,12 @@ void AcMyShip_CurSpeed()
 PRIVATE
 void AcMyShip_MaxSpeed()
 {
+#ifndef PARSEC_SERVER
 	fixed_t ivalue;
 	if ( AcFetchIntParams( 1, (int32 *) &ivalue ) ) {
 		MyShip->MaxSpeed = ivalue;
 	}
+#endif
 }
 
 
@@ -2132,10 +2304,12 @@ void AcMyShip_MaxSpeed()
 PRIVATE
 void AcMyShip_NumMissls()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->NumMissls = ivalue;
 	}
+#endif
 }
 
 
@@ -2144,10 +2318,12 @@ void AcMyShip_NumMissls()
 PRIVATE
 void AcMyShip_MaxNumMissls()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->MaxNumMissls = ivalue;
 	}
+#endif
 }
 
 
@@ -2156,10 +2332,12 @@ void AcMyShip_MaxNumMissls()
 PRIVATE
 void AcMyShip_NumHomMissls()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->NumHomMissls = ivalue;
 	}
+#endif
 }
 
 
@@ -2168,10 +2346,12 @@ void AcMyShip_NumHomMissls()
 PRIVATE
 void AcMyShip_MaxNumHomMissls()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->MaxNumHomMissls = ivalue;
 	}
+#endif
 }
 
 
@@ -2180,10 +2360,12 @@ void AcMyShip_MaxNumHomMissls()
 PRIVATE
 void AcMyShip_NumPartMissls()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->NumPartMissls = ivalue;
 	}
+#endif
 }
 
 
@@ -2192,10 +2374,12 @@ void AcMyShip_NumPartMissls()
 PRIVATE
 void AcMyShip_MaxNumPartMissls()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->MaxNumPartMissls = ivalue;
 	}
+#endif
 }
 
 
@@ -2204,10 +2388,12 @@ void AcMyShip_MaxNumPartMissls()
 PRIVATE
 void AcMyShip_NumMines()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->NumMines = ivalue;
 	}
+#endif
 }
 
 
@@ -2216,10 +2402,12 @@ void AcMyShip_NumMines()
 PRIVATE
 void AcMyShip_MaxNumMines()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->MaxNumMines = ivalue;
 	}
+#endif
 }
 
 
@@ -2228,10 +2416,12 @@ void AcMyShip_MaxNumMines()
 PRIVATE
 void AcMyShip_Weapons()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->Weapons = ivalue;
 	}
+#endif
 }
 
 
@@ -2240,6 +2430,7 @@ void AcMyShip_Weapons()
 PRIVATE
 void AcMyShip_WeaponsActive()
 {
+#ifndef PARSEC_SERVER
 	//NOTE:
 	// if new duration weapons are added this function
 	// should be updated.
@@ -2293,6 +2484,7 @@ void AcMyShip_WeaponsActive()
 		MyShip->WeaponsActive &= ~unknownmask;
 		MyShip->WeaponsActive |= weaponsactive & unknownmask;
 	}
+#endif
 }
 
 
@@ -2301,10 +2493,12 @@ void AcMyShip_WeaponsActive()
 PRIVATE
 void AcMyShip_Specials()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		MyShip->Specials = ivalue;
 	}
+#endif
 }
 
 
@@ -2313,64 +2507,78 @@ void AcMyShip_Specials()
 PRIVATE
 void AcGlobals_SelectedLaser()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		SelectedLaser = ivalue;
 	}
+#endif
 }
 
 PRIVATE
 void AcGlobals_SelectedMissile()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		SelectedMissile = ivalue;
 	}
+#endif
 }
 
 PRIVATE
 void AcGlobals_CurGun()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		CurGun = ivalue;
 	}
+#endif
 }
 
 PRIVATE
 void AcGlobals_CurLauncher()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		CurLauncher = ivalue;
 	}
+#endif
 }
 
 PRIVATE
 void AcGlobals_AUX_HUD_PANEL_3_CONTROL()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		AUX_HUD_PANEL_3_CONTROL = ivalue;
 	}
+#endif
 }
 
 PRIVATE
 void AcGlobals_AUX_HUD_PANEL_4_CONTROL()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		AUX_HUD_PANEL_4_CONTROL = ivalue;
 	}
+#endif
 }
 
 PRIVATE
 void AcGlobals_TargetObjNumber()
 {
+#ifndef PARSEC_SERVER
 	int32 ivalue;
 	if ( AcFetchIntParams( 1, &ivalue ) ) {
 		TargetObjNumber = ivalue;
 	}
+#endif
 }
 
 
@@ -2379,7 +2587,9 @@ void AcGlobals_TargetObjNumber()
 PRIVATE
 void AcPlaySound()
 {
+#ifndef PARSEC_SERVER
 	// dummy for compatibility
+#endif
 }
 
 
@@ -2393,6 +2603,7 @@ PUBLIC int con_audio_stream_started = FALSE;
 PRIVATE
 void AcPlayStream()
 {
+#ifndef PARSEC_SERVER
 	char *streamname;
 	if ( AcFetchStringParam( &streamname, ACM_EAT_SPACE( ACM_PLAYSTREAM ) ) ) {
 
@@ -2442,6 +2653,7 @@ void AcPlayStream()
 			CON_AddLine( no_stream_started );
 		}
 	}
+#endif
 }
 
 
@@ -2450,6 +2662,7 @@ void AcPlayStream()
 PRIVATE
 void AcStopStream()
 {
+#ifndef PARSEC_SERVER
 	int stopped = AUDs_StopAudioStream();
 
 	if ( stopped ) {
@@ -2457,6 +2670,7 @@ void AcStopStream()
 	} else {
 		CON_AddLine( no_stream_stopped );
 	}
+#endif
 }
 
 
@@ -2465,6 +2679,7 @@ void AcStopStream()
 PRIVATE
 void AcSetAuxFlag()
 {
+#ifndef PARSEC_SERVER
 	int32 params[ 2 ];
 	if ( AcFetchIntParams( 2, params ) ) {
 
@@ -2472,6 +2687,7 @@ void AcSetAuxFlag()
 			AuxEnabling[ params[ 0 ] ] = params[ 1 ];
 		}
 	}
+#endif
 }
 
 
@@ -2480,6 +2696,7 @@ void AcSetAuxFlag()
 PRIVATE
 void AcSetAuxData()
 {
+#ifndef PARSEC_SERVER
 	int32 params[ 2 ];
 	if ( AcFetchIntParams( 2, params ) ) {
 
@@ -2487,6 +2704,7 @@ void AcSetAuxData()
 			AuxData[ params[ 0 ] ] = params[ 1 ];
 		}
 	}
+#endif
 }
 
 
@@ -2495,6 +2713,7 @@ void AcSetAuxData()
 PRIVATE
 void AcSetRefFrameFrequency()
 {
+#ifndef PARSEC_SERVER
 	int32 param;
 	if ( AcFetchIntParams( 1, &param ) ) {
 
@@ -2506,6 +2725,7 @@ void AcSetRefFrameFrequency()
 			SYSs_InitFrameTimer();
 		}
 	}
+#endif
 }
 
 
@@ -2514,6 +2734,7 @@ void AcSetRefFrameFrequency()
 PRIVATE
 void AcSetEntryMode()
 {
+#ifndef PARSEC_SERVER
 	int32 param;
 	if ( AcFetchIntParams( 1, &param ) ) {
 
@@ -2525,6 +2746,7 @@ void AcSetEntryMode()
 			ActivateFloatingMenu( FALSE );
 		}
 	}
+#endif
 }
 
 
@@ -2547,11 +2769,13 @@ void AcIncludeDemo()
 PRIVATE
 void AcScheduleCommand()
 {
+#ifndef PARSEC_SERVER
 	//NOTE:
 	// this command is a nop in a script file.
 	// in a compiled demo this function will not be called at all.
 
 	CON_AddLine( only_for_compile );
+#endif
 }
 
 
@@ -2560,11 +2784,13 @@ void AcScheduleCommand()
 PRIVATE
 void AcLightAmbient()
 {
+#ifndef PARSEC_SERVER
 	int32 params[ 4 ];
 	if ( AcFetchIntParams( 4, params ) ) {
 		for (int i = 0; i < 4; i++)
 			LightColorAmbient.index[i] = params[i];
 	}
+#endif
 }
 
 
@@ -2573,11 +2799,13 @@ void AcLightAmbient()
 PRIVATE
 void AcLightDiffuse()
 {
+#ifndef PARSEC_SERVER
 	int32 params[ 4 ];
 	if ( AcFetchIntParams( 4, params ) ) {
 		for (int i = 0; i < 4; i++)
 			LightColorDiffuse.index[i] = params[i];
 	}
+#endif
 }
 
 
@@ -2586,11 +2814,13 @@ void AcLightDiffuse()
 PRIVATE
 void AcLightSpecular()
 {
+#ifndef PARSEC_SERVER
 	int32 params[ 4 ];
 	if ( AcFetchIntParams( 4, params ) ) {
 		for (int i = 0; i < 4; i++)
 			LightColorSpecular.index[i] = params[i];
 	}
+#endif
 }
 
 
@@ -2599,11 +2829,13 @@ void AcLightSpecular()
 PRIVATE
 void AcCD_Open()
 {
+#ifndef PARSEC_SERVER
 	int32 param;
 	if ( AcFetchIntParams( 1, &param ) ) {
 
 		//AUDs_CDOpen( param );
 	}
+#endif
 }
 
 
@@ -2612,7 +2844,9 @@ void AcCD_Open()
 PRIVATE
 void AcCD_Close()
 {
+#ifndef PARSEC_SERVER
 	//AUDs_CDClose();
+#endif
 }
 
 
@@ -2621,6 +2855,7 @@ void AcCD_Close()
 PRIVATE
 void AcCD_Play()
 {
+#ifndef PARSEC_SERVER
 	//NOTE:
 	// the from and to params (param 1 and 2) cannot be omitted
 	// when using this command. however, they can be set to -1
@@ -2631,6 +2866,7 @@ void AcCD_Play()
 
 		//AUDs_CDPlay( params[ 0 ], params[ 1 ], params[ 2 ] );
 	}
+#endif
 }
 
 
@@ -2639,7 +2875,9 @@ void AcCD_Play()
 PRIVATE
 void AcCD_Pause()
 {
+#ifndef PARSEC_SERVER
 	//AUDs_CDPause();
+#endif
 }
 
 
@@ -2648,7 +2886,9 @@ void AcCD_Pause()
 PRIVATE
 void AcCD_Resume()
 {
+#ifndef PARSEC_SERVER
 	//AUDs_CDResume();
+#endif
 }
 
 
@@ -2657,7 +2897,9 @@ void AcCD_Resume()
 PRIVATE
 void AcCD_Stop()
 {
+#ifndef PARSEC_SERVER
 	//AUDs_CDStop();
+#endif
 }
 
 
@@ -2666,11 +2908,13 @@ void AcCD_Stop()
 PRIVATE
 void AcCD_Volume()
 {
+#ifndef PARSEC_SERVER
 	int32 param;
 	if ( AcFetchIntParams( 1, &param ) ) {
 
 		//AUDs_CDSetVolume( param );
 	}
+#endif
 }
 
 
@@ -2878,7 +3122,9 @@ struct scheduled_command_s {
 
 #define MAX_SCHEDULED_COMMANDS	64
 static int						num_scheduled_commands = 0;
+#ifndef PARSEC_SERVER
 static scheduled_command_s		scheduled_commands[ MAX_SCHEDULED_COMMANDS ];
+#endif
 
 
 // remainder of a wait interval split by a scheduled command ------------------
@@ -2902,6 +3148,7 @@ size_t ScheduleCommand( int *params )
 {
 	ASSERT( params != NULL );
 
+#ifndef PARSEC_SERVER
 	// fetch delta time and command to schedule
 	int timedelta = SWAP_32( params[ 0 ] );
 	int actid     = SWAP_32( params[ 1 ] );
@@ -2948,6 +3195,9 @@ size_t ScheduleCommand( int *params )
 	size_t paramsize = sizeof( int ) * 2;
 	paramsize += GetActionParamSize( actid, (char *) &params[ 2 ] );
 	return paramsize;
+#else
+	return 0;
+#endif
 }
 
 
@@ -2955,6 +3205,7 @@ size_t ScheduleCommand( int *params )
 //
 int ExecBinCommands( char* &data, int interactive )
 {
+#ifndef PARSEC_SERVER
 	// non-interactive console mode
 	con_non_interactive = !interactive;
 
@@ -3122,6 +3373,9 @@ restartwait:
 	bin_params = NULL;
 
 	return TRUE;
+#else
+	return TRUE;
+#endif
 }
 
 
@@ -3142,6 +3396,7 @@ void SaveGameState()
 PRIVATE
 int IncludeDemoFile( FILE *fp )
 {
+#ifndef PARSEC_SERVER
 	ASSERT( fp != NULL );
 
 	// read demo name
@@ -3187,6 +3442,9 @@ int IncludeDemoFile( FILE *fp )
 	}
 
 	return TRUE;
+#else
+	return TRUE;
+#endif
 }
 
 
@@ -3535,6 +3793,16 @@ void ActionCommand( char *cstr )
 
 // module registration function -----------------------------------------------
 //
+#ifdef PARSEC_SERVER
+REGISTER_MODULE( CON_ACT_SV )
+{
+	// reset mapping table for class ids
+	int oldflag = SV_CLASS_MAP_TABLE_DISABLE_RESET;
+	SV_CLASS_MAP_TABLE_DISABLE_RESET = FALSE;
+	ResetClassMapTable();
+	SV_CLASS_MAP_TABLE_DISABLE_RESET = oldflag;
+}
+#else
 REGISTER_MODULE( CON_ACT )
 {
 	// reset mapping table for class ids
@@ -3543,6 +3811,7 @@ REGISTER_MODULE( CON_ACT )
 	ResetClassMapTable();
 	AUX_DISABLE_CLASS_MAP_TABLE_RESET = oldflag;
 }
+#endif
 
 
 

@@ -1,11 +1,11 @@
 /*
- * PARSEC - Server List Commands
+ * PARSEC - List Commands
  *
- * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:47 $
+ * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:34 $
  *
  * Orginally written by:
- *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2002
  *   Copyright (c) Markus Hadwiger     <msh@parsec.org>   1996-1999
+ *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2002
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <ctype.h>
@@ -41,31 +41,57 @@
 
 // global externals
 #include "globals.h"
+
+#ifdef PARSEC_SERVER
 #include "e_world_trans.h"
+#endif
 
 // subsystem headers
-//#include "inp_defs.h"
-//#include "vid_defs.h"
+#ifndef PARSEC_SERVER
+#include "inp_defs.h"
+#include "vid_defs.h"
+#endif
 
 // particle types
 #include "parttype.h"
 
 // local module header
+#ifndef PARSEC_SERVER
+#include "con_list.h"
+#else
 #include "con_list_sv.h"
+#endif
 
 // proprietary module headers
+#ifndef PARSEC_SERVER
+#include "con_aux.h"
+#include "con_ext.h"
+#include "con_info.h"
+#include "con_int.h"
+#include "con_kmap.h"
+#include "con_main.h"
+#include "con_say.h"
+#include "con_shad.h"
+#include "con_std.h"
+#include "e_colani.h"
+#include "e_demo.h"
+#include "e_shader.h"
+#include "e_texani.h"
+#include "obj_ctrl.h"
+#include "obj_cust.h"
+#include "obj_type.h"
+#include "sys_file.h"
+#else // PARSEC_SERVER
 #include "con_aux_sv.h"
 #include "con_ext_sv.h"
 #include "con_info_sv.h"
 #include "con_int_sv.h"
 #include "con_main_sv.h"
-//#include "con_say_sv.h"
 #include "con_std_sv.h"
-//#include "e_demo.h"
-//#include "obj_ctrl.h"
 #include "obj_cust.h"
 #include "obj_type.h"
 #include "sys_file.h"
+#endif // PARSEC_SERVER
 
 
 
@@ -307,7 +333,8 @@ void Cmd_ListClasses()
 	CheckListContinuation( num_listable_classes, ListClasses_ctd );
 }
 
-/*
+
+#ifndef PARSEC_SERVER
 // display info about say macro -----------------------------------------------
 //
 PRIVATE
@@ -351,9 +378,8 @@ void Cmd_ListSayMacros()
 
 	CheckListContinuation( NUM_TEXT_MACROS, ListSayMacros_ctd );
 }
-*/
 
-/*
+
 // display info about key binding ---------------------------------------------
 //
 PRIVATE
@@ -385,12 +411,12 @@ int DispKeyFunction( int *cnt, int num )
 
 	#define FUNC_DESC_PAD_SIZE 15
 
-	ASSERT( num < NUM_GAMEFUNC_KEYS );
+	ASSERT( (dword)num < NUM_GAMEFUNC_KEYS );
 
 	char *fdesc = GetGameFuncDescription( num );
 	ASSERT( fdesc != NULL );
 	sprintf( paste_str, "%s: ", fdesc );
-	int descpad	= FUNC_DESC_PAD_SIZE - strlen( fdesc );
+	int descpad = FUNC_DESC_PAD_SIZE - strlen( fdesc );
 	char *ppad	= paste_str + strlen( fdesc ) + 2;
 	while ( descpad-- > 0 )
 		*ppad++ = ' ';
@@ -400,7 +426,8 @@ int DispKeyFunction( int *cnt, int num )
 
 	return PrintListLine( cnt, paste_str );
 }
-*/
+#endif // !PARSEC_SERVER
+
 
 // store alphabetic start sequence --------------------------------------------
 //
@@ -482,7 +509,11 @@ int PrintDirLine( int *iref, int comno )
 	switch ( external_command_types[ comno ] ) {
 
 		case COMTYPE_PACKAGE:
+#ifndef PARSEC_SERVER
+			if ( AUX_DISABLE_PACKAGE_SCRIPT_LISTING ) {
+#else
 			if ( SV_PACKAGE_SCRIPT_LISTING ) {
+#endif
 				// allow exclusion of package scripts from list
 				return 1;
 			}
@@ -556,7 +587,8 @@ int Cmd_ListExternalCommands( char *command )
 	return TRUE;
 }
 
-/*
+
+#ifndef PARSEC_SERVER
 // continue command list ------------------------------------------------------
 //
 PRIVATE
@@ -596,7 +628,7 @@ void ListKeyFunctions_ctd()
 {
 	// continued run
 	int cnt = 0;
-	while ( ( comm_to_print < NUM_GAMEFUNC_KEYS ) &&
+	while ( ( (dword)comm_to_print < NUM_GAMEFUNC_KEYS ) &&
 			( DispKeyFunction( &cnt, comm_to_print ) ) )
 		comm_to_print++;
 
@@ -613,7 +645,7 @@ void Cmd_ListKeyFunctions()
 
 	// first run
 	int cnt = 0;
-	while ( ( comm_to_print < NUM_GAMEFUNC_KEYS ) &&
+	while ( ( (dword)comm_to_print < NUM_GAMEFUNC_KEYS ) &&
 			( DispKeyFunction( &cnt, comm_to_print ) ) )
 		comm_to_print++;
 
@@ -629,7 +661,20 @@ int DispVidMode( int *cnt, int num )
 	ASSERT( cnt != NULL );
 	ASSERT( num >= 0 );
 
+	// todo
 	if ( VID_MODE_AVAILABLE( num ) ) {
+		sprintf( paste_str, "  mode: %4d x %4d",
+				Resolutions[num].width,
+				Resolutions[num].height );
+
+		if ( Resolutions[num].width == GameScreenRes.width
+			&& Resolutions[num].height == GameScreenRes.height )
+			paste_str[ 0 ] = '*';
+
+		return PrintListLine( cnt, paste_str );
+	}
+
+	/*if ( VID_MODE_AVAILABLE( num ) ) {
 
 		short bytesperscanline = HiresModes[ num ].bytesperscanline;
 		short colbits		   = HiresModes[ num ].colbits;
@@ -656,12 +701,12 @@ int DispVidMode( int *cnt, int num )
 		} else {
 			// display refresh rate if available (and not default)
 		}
-		if ( num == VidModeIndex ) {
+		if ( (dword) num == VidModeIndex ) {
 			paste_str[ 0 ] = '*';
 		}
 
 		return PrintListLine( cnt, paste_str );
-	}
+	}*/
 
 	return 1;
 }
@@ -674,11 +719,11 @@ void ListVidModes_ctd()
 {
 	// continued run
 	int cnt = 0;
-	while ( ( comm_to_print < MAX_NUM_GRAPH_MODES ) &&
+	while ( ( comm_to_print < Resolutions.size() ) &&
 			( DispVidMode( &cnt, comm_to_print ) ) )
 		comm_to_print++;
 
-	CheckListEnd( MAX_NUM_GRAPH_MODES );
+	CheckListEnd( Resolutions.size() );
 }
 
 
@@ -691,11 +736,11 @@ void Cmd_ListVidModes()
 
 	// first run
 	int cnt = 0;
-	while ( ( comm_to_print < MAX_NUM_GRAPH_MODES ) &&
+	while ( ( comm_to_print < Resolutions.size() ) &&
 			( DispVidMode( &cnt, comm_to_print ) ) )
 		comm_to_print++;
 
-	CheckListContinuation( MAX_NUM_GRAPH_MODES, ListVidModes_ctd );
+	CheckListContinuation( Resolutions.size(), ListVidModes_ctd );
 }
 
 
@@ -753,7 +798,85 @@ void Cmd_ListBinaryDemos()
 
 	CheckListContinuation( num_registered_demos, ListBinaryDemos_ctd );
 }
-*/
+#else // PARSEC_SERVER
+// display single video mode information (server) -----------------------------
+//
+PRIVATE
+int DispVidMode( int *cnt, int num )
+{
+	ASSERT( cnt != NULL );
+	ASSERT( num >= 0 );
+
+	if ( VID_MODE_AVAILABLE( num ) ) {
+
+		short bytesperscanline = HiresModes[ num ].bytesperscanline;
+		short colbits		   = HiresModes[ num ].colbits;
+
+		if ( HiresModes[ num ].flags & HIRESMODEFLAG_VISUALINFO ) {
+			bytesperscanline = 0;
+			colbits			 = HiresModes[ num ].visual_colbits;
+		}
+
+		if ( bytesperscanline > 0 ) {
+			sprintf( paste_str, "  mode: %4d x %4d %2dbpp %4dbpsl",
+				 	 HiresModes[ num ].xresolution,
+				 	 HiresModes[ num ].yresolution,
+				 	 colbits, bytesperscanline );
+		} else {
+			sprintf( paste_str, "  mode: %4d x %4d %2dbpp",
+				 	 HiresModes[ num ].xresolution,
+				 	 HiresModes[ num ].yresolution,
+				 	 colbits );
+		}
+
+		if ( VID_MODE_WINDOWED( num ) ) {
+			strcat( paste_str, " (windowed)" );
+		} else {
+			// display refresh rate if available (and not default)
+		}
+		if ( num == VidModeIndex ) {
+			paste_str[ 0 ] = '*';
+		}
+
+		return PrintListLine( cnt, paste_str );
+	}
+
+	return 1;
+}
+
+
+// continue video mode list (server) -------------------------------------------
+//
+PRIVATE
+void ListVidModes_ctd()
+{
+	// continued run
+	int cnt = 0;
+	while ( ( comm_to_print < MAX_NUM_GRAPH_MODES ) &&
+			( DispVidMode( &cnt, comm_to_print ) ) )
+		comm_to_print++;
+
+	CheckListEnd( MAX_NUM_GRAPH_MODES );
+}
+
+
+// list all available video modes ("vid.listmodes") (server) ------------------
+//
+void Cmd_ListVidModes()
+{
+	// list entries already output
+	comm_to_print = 0;
+
+	// first run
+	int cnt = 0;
+	while ( ( comm_to_print < MAX_NUM_GRAPH_MODES ) &&
+			( DispVidMode( &cnt, comm_to_print ) ) )
+		comm_to_print++;
+
+	CheckListContinuation( MAX_NUM_GRAPH_MODES, ListVidModes_ctd );
+}
+#endif // PARSEC_SERVER
+
 
 // display single table line of objects table (object classes) ----------------
 //
@@ -850,7 +973,8 @@ int DispObjectEntry( int *cnt, int num )
 	return rc;
 }
 
-/*
+
+#ifndef PARSEC_SERVER
 // display single table line of textures table --------------------------------
 //
 PRIVATE
@@ -869,7 +993,7 @@ int DispTextureEntry( int *cnt, int num )
 			 TextureInfo[ num ].width,
 			 TextureInfo[ num ].height );
 	ProcessExternalLine( paste_str );
-	int rc = PrintListLine( cnt, paste_str );
+	int rc = PrintListLine( cnt, paste_str ); //Flagged as dead store but used for an ASSERT, if theres a return code something broke.
 	ASSERT( rc );
 
 	sprintf( paste_str, "   %d file %s", num, TextureInfo[ num ].file );
@@ -877,9 +1001,8 @@ int DispTextureEntry( int *cnt, int num )
 
 	return PrintListLine( cnt, paste_str );
 }
-*/
 
-/*
+
 // display single table line of bitmaps table ---------------------------------
 //
 PRIVATE
@@ -896,9 +1019,8 @@ int DispBitmapEntry( int *cnt, int num )
 	ProcessExternalLine( paste_str );
 	return PrintListLine( cnt, paste_str );
 }
-*/
 
-/*
+
 // display single table line of samples table ---------------------------------
 //
 PRIVATE
@@ -914,14 +1036,16 @@ int DispSampleEntry( int *cnt, int num )
 	ProcessExternalLine( paste_str );
 	return PrintListLine( cnt, paste_str );
 }
-*/
+#endif // !PARSEC_SERVER
+
 
 // exported by PART_API.C -----------------------------------------------------
 //
 extern int			NumParticleDefinitions;
 extern pdefref_s	ParticleDefinitions[];
 
-/*
+
+#ifndef PARSEC_SERVER
 // display single particle definition -----------------------------------------
 //
 PRIVATE
@@ -934,16 +1058,15 @@ int DispPDefEntry( int *cnt, int num )
 	ASSERT( ParticleDefinitions[ num ].def != NULL );
 	pdef_s *pdef = ParticleDefinitions[ num ].def;
 
-	sprintf( paste_str, "id %d pdef (%s) texframes %d xfoframes %d", num,
+	sprintf( paste_str, "id %d pdef (%s) texframes %u xfoframes %u", num,
 			 ParticleDefinitions[ num ].defname,
 			 pdef->tex_table ? pdef->tex_end + 1 : 0,
 			 pdef->xfo_table ? pdef->xfo_end + 1 : 0 );
 	ProcessExternalLine( paste_str );
 	return PrintListLine( cnt, paste_str );
 }
-*/
 
-/*
+
 // display single shader ------------------------------------------------------
 //
 PRIVATE
@@ -960,7 +1083,7 @@ int DispShaderEntry( int *cnt, int num )
 
 	// display face color after shader only if no colanim defined
 	if ( ( shader->flags & FACE_SHADING_FACECOLOR ) && ( shader->colanim == NULL ) ) {
-		int endpos = strlen( paste_str );
+		size_t endpos = strlen( paste_str );
 		sprintf( paste_str + endpos, " color (%d %d %d %d)",
 				 shader->facecolor.R, shader->facecolor.G,
 				 shader->facecolor.B, shader->facecolor.A );
@@ -968,8 +1091,8 @@ int DispShaderEntry( int *cnt, int num )
 
 	if ( shader->texanim != NULL ) {
 		strcat( paste_str, " texanim (" );
-
-		for ( int pid = 0; pid < NumParticleDefinitions; pid++ ) {
+		int pid = 0;
+		for ( pid = 0; pid < NumParticleDefinitions; pid++ ) {
 			if ( shader->texanim == ParticleDefinitions[ pid ].def ) {
 				strcat( paste_str, ParticleDefinitions[ pid ].defname );
 				break;
@@ -984,8 +1107,8 @@ int DispShaderEntry( int *cnt, int num )
 
 	if ( shader->colanim != NULL ) {
 		strcat( paste_str, " colanim (" );
-
-		for ( int cid = 0; cid < num_registered_colanims; cid++ ) {
+		int cid = 0;
+		for ( cid = 0; cid < num_registered_colanims; cid++ ) {
 			if ( shader->colanim == &registered_colanims[ cid ].colanim ) {
 				strcat( paste_str, registered_colanims[ cid ].name );
 				break;
@@ -1000,7 +1123,7 @@ int DispShaderEntry( int *cnt, int num )
 		if ( shader->flags & FACE_SHADING_FACECOLOR ) {
 			// display face color only if it will not be overwritten by colanim
 			if ( ( shader->colflags & FACE_ANIM_BASE_MASK ) != FACE_ANIM_BASEIGNORE ) {
-				int endpos = strlen( paste_str );
+				size_t endpos = strlen( paste_str );
 				sprintf( paste_str + endpos, " color (%d %d %d %d)",
 						 shader->facecolor.R, shader->facecolor.G,
 						 shader->facecolor.B, shader->facecolor.A );
@@ -1015,9 +1138,8 @@ int DispShaderEntry( int *cnt, int num )
 	ProcessExternalLine( paste_str );
 	return PrintListLine( cnt, paste_str );
 }
-*/
 
-/*
+
 // display single colanim -----------------------------------------------------
 //
 PRIVATE
@@ -1036,7 +1158,8 @@ int DispColAnimEntry( int *cnt, int num )
 	ProcessExternalLine( paste_str );
 	return PrintListLine( cnt, paste_str );
 }
-*/
+#endif // !PARSEC_SERVER
+
 
 // display single data package ------------------------------------------------
 //
@@ -1060,12 +1183,25 @@ typedef int (*dtpf_t)(int*,int);
 
 struct datatable_desc_s {
 
-	const char* tablename;
+	const char*	tablename;
 	int*	numentries;
 	dtpf_t	printfunc;
 	int		_padto_16;
 };
 
+#ifndef PARSEC_SERVER
+static datatable_desc_s datatable_desc[] = {
+
+	{ "objects",	&NumLoadedObjects,			DispObjectEntry,	0	},
+	{ "textures",	&NumLoadedTextures,			DispTextureEntry,	0	},
+	{ "bitmaps",	&NumLoadedBitmaps,			DispBitmapEntry,	0	},
+	{ "samples",	&NumLoadedSamples,			DispSampleEntry,	0	},
+	{ "pdefs",		&NumParticleDefinitions,	DispPDefEntry,		0	},
+	{ "shaders",	&num_registered_shaders,	DispShaderEntry,	0	},
+	{ "colanims",	&num_registered_colanims,	DispColAnimEntry,	0	},
+	{ "packages",	&num_data_packages,			DispPackageEntry,	0	},
+};
+#else // PARSEC_SERVER
 static datatable_desc_s datatable_desc[] = {
 
 	{ "objects",	&NumLoadedObjects,			DispObjectEntry,	0	},
@@ -1077,6 +1213,7 @@ static datatable_desc_s datatable_desc[] = {
 	//{ "colanims",	&num_registered_colanims,	DispColAnimEntry,	0	},
 	{ "packages",	&num_data_packages,			DispPackageEntry,	0	},
 };
+#endif // PARSEC_SERVER
 
 #define NUM_DATATABLES		CALC_NUM_ARRAY_ENTRIES( datatable_desc )
 
@@ -1132,8 +1269,9 @@ int Cmd_ListDataTable( char *command )
 		CON_AddLine( table_name_syntax );
 		return TRUE;
 	}
-    unsigned int tid;
+
 	// scan valid table names
+	unsigned int tid = 0;
 	for ( tid = 0; tid < NUM_DATATABLES; tid++ ) {
 		if ( strcmp( datatable_desc[ tid ].tablename, tabname ) == 0 ) {
 			datatable_entries     = *datatable_desc[ tid ].numentries;
@@ -1172,7 +1310,7 @@ void ListIntCommands_ctd()
 	// continued run
 	int cnt = 0;
 	while ( ( comm_to_print < num_int_commands ) &&
-			( PrintFilteredCommand( &cnt, ICMSTR( comm_to_print ) ) ) )
+			( PrintFilteredCommand( &cnt, (char *) ICMSTR( comm_to_print ) ) ) )
 		comm_to_print++;
 
 	CheckListEnd( num_int_commands );
@@ -1198,7 +1336,7 @@ int Cmd_ListIntCommands( char *command )
 	// first run
 	int cnt = 0;
 	while ( ( comm_to_print < num_int_commands ) &&
-			( PrintFilteredCommand( &cnt, ICMSTR( comm_to_print ) ) ) )
+			( PrintFilteredCommand( &cnt, (char *) ICMSTR( comm_to_print ) ) ) )
 		comm_to_print++;
 
 	CheckListContinuation( num_int_commands, ListIntCommands_ctd );
@@ -1248,6 +1386,5 @@ int Cmd_ListStdCommands( char *command )
 
 	return TRUE;
 }
-
 
 

@@ -1,10 +1,9 @@
 /*
- * PARSEC - SERVER Standard Commands
+ * PARSEC - Standard Commands
  *
- * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:47 $
+ * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:35 $
  *
  * Orginally written by:
- *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2001
  *   Copyright (c) Markus Hadwiger     <msh@parsec.org>   1996-1999
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,7 +19,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <stddef.h>
@@ -37,7 +36,11 @@
 #include "objstruc.h"
 
 // local module header
+#ifndef PARSEC_SERVER
+#include "con_std.h"
+#else
 #include "con_std_sv.h"
+#endif
 
 
 // strings of standard commands -----------------------------------------------
@@ -72,6 +75,10 @@ std_command_s std_commands[] = {
 	{ "exitgame",			0,  0   },
 
 	{ "faceinfo",			0,	1	},
+#ifndef PARSEC_SERVER
+	{ "flashblue",			0,	0	},
+	{ "flashwhite",         0,	0	},
+#endif // !PARSEC_SERVER
 
 	{ "glbatch",			0,	1	},
 
@@ -131,8 +138,20 @@ std_command_s std_commands[] = {
 	{ "talk",				0,	0	},
 	{ "typeinfo",           0,	1	},
 
+#ifndef PARSEC_SERVER
+	{ "vid.listmodes",      0,	0	},
+	{ "vid.setmode",        0,	1	},
+	{ "vid.subsys",         0,	1	},
+#endif // !PARSEC_SERVER
+
 	{ "workdir",            0,	1	},
 	{ "write",              0,	1	},
+
+#ifndef PARSEC_SERVER
+	{ "aud.conf",           0,	1	},
+	{ "inp.conf",           0,	1	},
+	{ "netver",				0,	1	},
+#endif // !PARSEC_SERVER
 };
 
 #define NUM_STD_COMMANDS	CALC_NUM_ARRAY_ENTRIES( std_commands )
@@ -145,7 +164,11 @@ int num_std_commands = NUM_STD_COMMANDS;
 
 // registration function precalculates string lengths -------------------------
 //
+#ifdef PARSEC_SERVER
 REGISTER_MODULE( CON_STD_SV )
+#else
+REGISTER_MODULE( CON_STD )
+#endif
 {
 	// ensure table and constants are of consistent length
 	ASSERT( NUM_STD_COMMANDS == NUM_STD_COMMAND_CONSTANTS );
@@ -154,6 +177,3 @@ REGISTER_MODULE( CON_STD_SV )
 	for ( unsigned int cid = 0; cid < NUM_STD_COMMANDS; cid++ )
 		std_commands[ cid ].commlen = strlen( std_commands[ cid ].command );
 }
-
-
-

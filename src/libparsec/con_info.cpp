@@ -1,11 +1,11 @@
 /*
- * PARSEC - Server Object Info Commands
+ * PARSEC - Object Info Commands
  *
- * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:47 $
+ * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:34 $
  *
  * Orginally written by:
- *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2002
  *   Copyright (c) Markus Hadwiger     <msh@parsec.org>   1996-2000
+ *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2002
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <ctype.h>
@@ -41,21 +41,35 @@
 
 // global externals
 #include "globals.h"
+
+#ifdef PARSEC_SERVER
 #include "e_world_trans.h"
+#endif
 
 // local module header
+#ifndef PARSEC_SERVER
+#include "con_info.h"
+#else
 #include "con_info_sv.h"
+#endif
 
 // proprietary module headers
 #include "con_arg.h"
+#ifndef PARSEC_SERVER
+#include "con_aux.h"
+#include "con_int.h"
+#include "con_main.h"
+#include "con_std.h"
+#include "e_supp.h"
+#include "obj_comm.h"
+#include "obj_ctrl.h"
+#else // PARSEC_SERVER
 #include "con_aux_sv.h"
 #include "con_int_sv.h"
 #include "con_main_sv.h"
 #include "con_std_sv.h"
-//#include "e_supp.h"
+#endif // PARSEC_SERVER
 #include "obj_clas.h"
-//#include "obj_comm.h"
-//#include "obj_ctrl.h"
 #include "obj_cust.h"
 
 
@@ -68,20 +82,27 @@ static char paste_str[ PASTE_STR_LEN + 1 ];
 
 // string constants -----------------------------------------------------------
 //
-static char prop_syntax[]		= "syntax: prop <type_name>.<property> <value>";
-static char propc_syntax[]		= "syntax: propc <class_name>.<property> <value>";
-static char propo_syntax[]		= "syntax: propo <object_id>.<property> <value>";
-static char prop_wrong_type[]	= "invalid type name.";
-static char prop_wrong_class[]	= "invalid class name.";
-static char prop_objid_syntax[]	= "object id must be an int.";
-static char prop_no_object[]	= "no object with this id.";
-static char prop_wrong_field[]	= "invalid property name.";
-static char typeinfo_syntax[]	= "syntax: typeinfo <type_name>";
-static char classinfo_syntax[]	= "syntax: classinfo <class_name>";
-static char objectinfo_syntax[]	= "syntax: objectinfo <object_id>";
-static char class_not_loaded[]	= "class is not loaded.";
-static char no_objs_of_type[]	= "there are no objects of this type.";
-static char not_accessible[]	= "properties of this type are not accessible.";
+static const char prop_syntax[]			= "syntax: prop <type_name>.<property> <value>";
+static const char propc_syntax[]		= "syntax: propc <class_name>.<property> <value>";
+static const char propo_syntax[]		= "syntax: propo <object_id>.<property> <value>";
+static const char prop_wrong_type[]		= "invalid type name.";
+static const char prop_wrong_class[]	= "invalid class name.";
+static const char prop_objid_syntax[]	= "object id must be an int.";
+static const char prop_no_object[]		= "no object with this id.";
+static const char prop_wrong_field[]	= "invalid property name.";
+static const char typeinfo_syntax[]		= "syntax: typeinfo <type_name>";
+static const char classinfo_syntax[]	= "syntax: classinfo <class_name>";
+static const char objectinfo_syntax[]	= "syntax: objectinfo <object_id>";
+static const char class_not_loaded[]	= "class is not loaded.";
+static const char no_objs_of_type[]		= "there are no objects of this type.";
+static const char not_accessible[]		= "properties of this type are not accessible.";
+#ifndef PARSEC_SERVER
+static const char face_id_invalid[]		= "face id invalid.";
+static const char no_texture_found[]	= "texture invalid.";
+static const char no_face_selected[]	= "no face selection specified.";
+static const char base_object_empty[]	= "base object is empty.";
+#endif // !PARSEC_SERVER
+
 
 // property access type specification -----------------------------------------
 //
@@ -615,7 +636,7 @@ proplist_s *FetchTypePropertyList( dword objtypeid )
 //
 struct alias_typename_s {
 
-	const char* objtypename;
+	const char*	objtypename;
 	dword 	objtypeid;
 };
 
@@ -647,7 +668,7 @@ const char *FetchTypeName( dword objtypeid )
 	// check default type ids
 	for ( int tid = 0; tid < NUM_DISTINCT_OBJTYPES; tid++ )
 		if ( AliasTypeNames[ tid ].objtypeid == objtypeid )
-			return AliasTypeNames[ tid ].objtypename;
+			return (char *) AliasTypeNames[ tid ].objtypename;
 
 	// check custom type ids
 	dword typeindex = ( objtypeid & TYPENUMBERMASK ) - NUM_DISTINCT_OBJTYPES;
@@ -686,7 +707,7 @@ char *BuildTypeInfo( int typeindex )
 //
 struct alias_classname_s {
 
-	const char*	objclassname;
+	const char* objclassname;
 	dword 	objclassid;
 };
 
@@ -950,7 +971,7 @@ int SetObjPropertyValueInt( dword objclassid, dword objtypeid, proplist_s *plist
 		// check for increment/decrement tokens
 		if ( !argvalid ) {
 			if( strcmp( scan, "++" ) == 0 ) {
-				sval = (*pint) + 1;	
+				sval = (*pint) + 1;
 				argvalid = TRUE;
 			} else if ( strcmp( scan, "--" ) == 0 ) {
 				sval = (*pint) - 1;
@@ -1011,20 +1032,20 @@ int SetObjPropertyValueFlt( dword objclassid, dword objtypeid, proplist_s *plist
 	ASSERT( plist != NULL );
 	ASSERT( pflt != NULL );
 	ASSERT( query != NULL ); // all properties must be queriable right now!
-	
+
 	// query/alter intermediate field
 	char *scan = QueryFltArgument( query, pflt );
 	if ( scan != NULL ) {
-		
+
 		char *errpart;
 		float sval = strtod( scan, &errpart );
-		
+
 		int argvalid = ( *errpart == 0 );
 
 		// check for increment/decrement tokens
 		if ( !argvalid ) {
 			if( strcmp( scan, "++" ) == 0 ) {
-				sval = (*pflt) + 1.0f;	
+				sval = (*pflt) + 1.0f;
 				argvalid = TRUE;
 			} else if ( strcmp( scan, "--" ) == 0 ) {
 				sval = (*pflt) - 1.0f;
@@ -1175,8 +1196,9 @@ PRIVATE
 dword AliasResolveTypeName( const char *name )
 {
 	ASSERT( name != NULL );
-    dword tid;
+
 	// check type name aliases
+	unsigned int tid = 0;
 	for ( tid = 0; tid < NUM_DISTINCT_OBJTYPES; tid++ )
 		if ( strcmp( name, AliasTypeNames[ tid ].objtypename ) == 0 )
 			break;
@@ -1269,8 +1291,9 @@ int CheckSetObjTypeProperty( const char *query, const char *scan )
 		// classes of this type will be altered, since
 		// SetObjPropertyValue() continues the search in the
 		// class list.
-        int cid;
+
 		// scan object class list
+		int cid = 0;
 		for ( cid = 0; cid < NumObjClasses; cid++ )
 			if ( ObjClasses[ cid ]->ObjectType == objtypeid )
 				break;
@@ -1298,9 +1321,10 @@ PRIVATE
 dword AliasResolveClassName( const char *name )
 {
 	ASSERT( name != NULL );
-    int cid;
+
 	// check class name aliases
 	int propindx = -1;
+	int cid = 0;
 	for ( cid = 0; cid < NUM_ALTERABLE_CLASSES; cid++ ) {
 		if ( strcmp( name, AliasClassNames[ cid ].objclassname ) == 0 ) {
 			propindx = cid;
@@ -1433,8 +1457,13 @@ int CheckSetObjInstanceProperty( const char *query, const char *scan )
 	// summoned object.
 
 	if ( objid == 0 ) {
+#ifndef PARSEC_SERVER
+		objid = last_summoned_objectid;
+		if ( !AUX_DISABLE_LEVEL_CONSOLE_MESSAGES ) {
+#else
 		objid = TheWorld->GetLastSummonedObjectID();
 		if ( !SV_CONSOLE_LEVEL_MESSAGES ) {
+#endif
 			sprintf( paste_str, "using object id %u.", (unsigned int)objid );
 			CON_AddLine( paste_str );
 		}
@@ -1800,75 +1829,80 @@ int CheckInstanceInfo( const char *scan )
 		CON_AddLine( objectinfo_syntax );
 		return TRUE;
 	}
-	
+
 	//NOTE:
 	// id 0 means use id of most recently
 	// summoned object.
-	
+
 	if ( objid == 0 ) {
+#ifndef PARSEC_SERVER
+		objid = last_summoned_objectid;
+		if ( !AUX_DISABLE_LEVEL_CONSOLE_MESSAGES ) {
+#else
 		objid = TheWorld->GetLastSummonedObjectID();
 		if ( !SV_CONSOLE_LEVEL_MESSAGES ) {
+#endif
 			sprintf( paste_str, "using object id %u.", (unsigned int)objid );
 			CON_AddLine( paste_str );
 		}
 	}
-	
+
 	// find object
 	GenObject *obj = FetchObject( objid );
 	if ( obj == NULL ) {
 		CON_AddLine( prop_no_object );
 		return TRUE;
 	}
-	
+
 	dword objclassid = obj->ObjectClass;
 	dword objtypeid  = obj->ObjectType;
-	
+
 	ASSERT( objclassid < (dword)NumObjClasses );
 	char *objclassname = ObjectInfo[ objclassid ].name;
-	
+
 	// print info header
 	sprintf( paste_str, "--properties of object %u (class %s id %u, type %s):",
 		(unsigned int)objid, objclassname, (unsigned int)objclassid, FetchTypeName( objtypeid ) );
 	CON_AddLine( paste_str );
-	
+
 	// fetch property descriptions
 	proplist_s *plist = FetchTypePropertyList( objtypeid );
 	if ( plist == NULL ) {
 		CON_AddLine( not_accessible );
 		return TRUE;
 	}
-	
+
 	// set instance pointer
 	alter_object_instance = obj;
-	
+
 	// print list of properties with current values
 	for ( ; plist->propname; plist++ ) {
-		
+
 		int		pint = 0;
 		float	pflt = 0.0f;
 		char*	pstr = NULL;
 		int acct = GetPropertyValue( CLASS_ID_INVALID,
 			plist, &pint, &pflt, &pstr );
-		
+
 		switch ( acct ) {
-			
+
 			case ACCESSTYPE_INT:
 			case ACCESSTYPE_FLOAT:
 				DescClassNum( objclassname, plist, acct, pint, pflt );
 				break;
-			
+
 			case ACCESSTYPE_STRING:
 			case ACCESSTYPE_CHARPTR:
 				DescClassStr( objclassname, plist, pstr );
 				break;
 		}
-		
+
 		CON_AddLine( paste_str );
 	}
-	
+
 	// reset instance pointer
 	alter_object_instance = NULL;
-	
+
 	return TRUE;
 }
 
@@ -1884,53 +1918,53 @@ int WritePropList( FILE* fp, dword objid )
 		CON_AddLine( prop_no_object );
 		return TRUE;
 	}
-	
+
 	dword objclassid = obj->ObjectClass;
 	dword objtypeid  = obj->ObjectType;
-	
+
 	ASSERT( objclassid < (dword)NumObjClasses );
 	char *objclassname = ObjectInfo[ objclassid ].name;
-	
+
 	// print info header
 	fprintf( fp, "; properties of object %d (class %s id %d, type %s)\n",
 		objid, objclassname, objclassid, FetchTypeName( objtypeid ) );
-	
+
 	// fetch property descriptions
 	proplist_s *plist = FetchTypePropertyList( objtypeid );
 	if ( plist == NULL ) {
 		CON_AddLine( not_accessible );
 		return TRUE;
 	}
-	
+
 	// set instance pointer
 	alter_object_instance = obj;
-	
+
 	// print list of properties with current values
 	for ( ; plist->propname; plist++ ) {
-		
+
 		int		pint;
 		float	pflt;
 		char*	pstr;
 		int acct = GetPropertyValue( CLASS_ID_INVALID,
 			plist, &pint, &pflt, &pstr );
 		switch ( acct ) {
-			
+
 		case ACCESSTYPE_INT:
-			fprintf( fp, "propo 0.%s %d\n", plist->propname, pint ); 
+			fprintf( fp, "propo 0.%s %d\n", plist->propname, pint );
 			break;
 		case ACCESSTYPE_FLOAT:
-			fprintf( fp, "propo 0.%s %f\n", plist->propname, pflt ); 
+			fprintf( fp, "propo 0.%s %f\n", plist->propname, pflt );
 			break;
 		case ACCESSTYPE_STRING:
 		case ACCESSTYPE_CHARPTR:
-			fprintf( fp, "propo 0.%s \"%s\"\n", plist->propname, pstr ); 
+			fprintf( fp, "propo 0.%s \"%s\"\n", plist->propname, pstr );
 			break;
 		}
 	}
-	
+
 	// reset instance pointer
 	alter_object_instance = NULL;
-	
+
 	return TRUE;
 }
 
@@ -1972,7 +2006,7 @@ PRIVATE
 int FaceHasTexture( GenObject *gobj, int faceid )
 {
 	ASSERT( gobj != NULL );
-	ASSERT( ( faceid >= 0 ) && ( (unsigned int)faceid < gobj->NumFaces ) );
+	ASSERT( ( faceid >= 0 ) && ( (dword)faceid < gobj->NumFaces ) );
 
 	return ( gobj->FaceList[ faceid ].TexMap == facesearch_texture );
 }
@@ -2013,7 +2047,8 @@ void DisplayFaceList( GenObject *gobj )
 	}
 }
 
-/*
+
+#ifndef PARSEC_SERVER
 // command "faceinfo" to display various object face information --------------
 //
 int Cmd_FaceInfo( const char *command )
@@ -2065,7 +2100,7 @@ int Cmd_FaceInfo( const char *command )
 			CON_AddLine( face_id_invalid );
 			return TRUE;
 		}
-		if ( ( faceid < 0 ) || ( faceid > maxfaceid ) ) {
+		if ( ( faceid < 0 ) || ( (dword)faceid > maxfaceid ) ) {
 			CON_AddLine( face_id_invalid );
 			return TRUE;
 		}
@@ -2110,6 +2145,6 @@ int Cmd_FaceInfo( const char *command )
 	CON_AddLine( no_face_selected );
 	return TRUE;
 }
-*/
+#endif // !PARSEC_SERVER
 
 

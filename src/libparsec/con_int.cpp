@@ -4,6 +4,7 @@
  * $Author: uberlinuxguy $ - $Date: 2004/09/15 12:25:23 $
  *
  * Orginally written by:
+ *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2001-2002
  *   Copyright (c) Markus Hadwiger     <msh@parsec.org>   1996-2000
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -19,7 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <stddef.h>
@@ -40,20 +41,37 @@
 
 // subsystem headers
 #include "net_defs.h"
+#ifndef PARSEC_SERVER
 #include "sys_defs.h"
 #include "vid_defs.h"
+#endif // !PARSEC_SERVER
 
 // mathematics header
 #include "utl_math.h"
 
 // local module header
+#ifndef PARSEC_SERVER
 #include "con_int.h"
+#else
+#include "con_int_sv.h"
+#endif
 
 // proprietary module headers
+#ifndef PARSEC_SERVER
 #include "con_main.h"
 #include "e_record.h"
 #include "g_stars.h"
 #include "net_rmev.h"
+#else
+#include "con_aux_sv.h"
+#include "con_main_sv.h"
+#include "g_extra.h"
+#include "net_game_sv.h"
+#include "net_util.h"
+#include "e_relist.h"
+#include "g_main_sv.h"
+#include "e_simulator.h"
+#endif // !PARSEC_SERVER
 
 
 // integer input/output configuration -----------------------------------------
@@ -61,6 +79,8 @@
 PUBLIC	const char*	int_print_base = "%d";
 PUBLIC	int		int_calc_base  = 10;
 
+
+#ifndef PARSEC_SERVER
 
 // set fixed frame rate -------------------------------------------------------
 //
@@ -136,6 +156,8 @@ void SetRefFrameFrequency()
 	}
 }
 
+#endif // !PARSEC_SERVER
+
 
 // external variables which need to be accessed but are not in GLOBALS.H ------
 //
@@ -144,7 +166,9 @@ extern int	ConsoleTextX;
 extern int	ConsoleTextY;
 extern int	EchoExternalCommands;
 extern int	HistoryForBatchEntry;
+#ifndef PARSEC_SERVER
 extern int	timedemo_enabled;
+#endif // !PARSEC_SERVER
 
 
 // intermediate storage for MyShip integer properties -------------------------
@@ -169,6 +193,8 @@ struct myship_int_s {
 	int MaxNumMines;
 };
 
+#ifndef PARSEC_SERVER
+
 static myship_int_s myship_int;
 
 #define DEF_MYSHIP_INT( f ) \
@@ -181,6 +207,19 @@ void SetMSInt##f() \
 	MyShip->f = myship_int.f; \
 	Record_MyShipState##f(); \
 }
+
+#else // PARSEC_SERVER
+
+#define DEF_MYSHIP_INT( f ) \
+int GetMSInt##f() \
+{ \
+	return 0; \
+} \
+void SetMSInt##f() \
+{ \
+}
+
+#endif // !PARSEC_SERVER
 
 DEF_MYSHIP_INT( Weapons )
 DEF_MYSHIP_INT( Specials )
@@ -199,6 +238,8 @@ DEF_MYSHIP_INT( MaxNumHomMissls )
 DEF_MYSHIP_INT( MaxNumPartMissls )
 DEF_MYSHIP_INT( MaxNumMines )
 
+
+#ifndef PARSEC_SERVER
 
 // perform remote event syncing for certain int vars --------------------------
 //
@@ -232,11 +273,106 @@ DEF_RMEV_STATESYNC( ProbSwarmMissPack,		RMEVSTATE_PROBSWARMPACK )
 DEF_RMEV_STATESYNC( ProbEmpUpgrade1,		RMEVSTATE_PROBEMPUPGRADE1 )
 DEF_RMEV_STATESYNC( ProbEmpUpgrade2,		RMEVSTATE_PROBEMPUPGRADE2 )
 
+#else // PARSEC_SERVER
+
+//FIXME: get rid of these proxy stuff
+
+// proxy structure for G_Main data members modifiable through the console -----
+//
+struct game_proxy_int_s {
+
+	int EnergyExtraBoost;
+	int RepairExtraBoost;
+	int DumbPackNumMissls;
+	int HomPackNumMissls;
+	int SwarmPackNumMissls;
+	int ProxPackNumMines;
+    int m_NebulaID;
+	int opt_fraglog;
+};
+
+// proxy structure for G_Extra data members modifiable through the console ---
+//
+struct game_extra_proxy_int_s {
+
+	int MaxExtraArea;
+	int MinExtraDist;
+	int ExtraProbability;
+	int ProbHelixCannon;
+	int ProbLightningDevice;
+	int ProbPhotonCannon;
+	int ProbProximityMine;
+	int ProbRepairExtra;
+	int ProbAfterburner;
+	int ProbHoloDecoy;
+	int ProbInvisibility;
+	int ProbInvulnerability;
+	int ProbEnergyField;
+	int ProbLaserUpgrade;
+	int ProbLaserUpgrade1;
+	int ProbLaserUpgrade2;
+	int ProbMissilePack;
+	int ProbDumbMissPack;
+	int ProbHomMissPack;
+	int ProbSwarmMissPack;
+	int ProbEmpUpgrade1;
+	int ProbEmpUpgrade2;
+};
+
+
+static game_proxy_int_s			Game_proxy;
+static game_extra_proxy_int_s	GameExtraManager_proxy;
+
+#define DEF_PROXY_INT( name, f ) \
+int Get##name##Int##f() \
+{ \
+	return (int)The##name->f; \
+} \
+void Set##name##Int##f() \
+{ \
+	The##name->f = name##_proxy.f; \
+}
+
+DEF_PROXY_INT( GameExtraManager, MaxExtraArea )
+DEF_PROXY_INT( GameExtraManager, MinExtraDist )
+DEF_PROXY_INT( Game, EnergyExtraBoost )
+DEF_PROXY_INT( Game, RepairExtraBoost )
+DEF_PROXY_INT( Game, DumbPackNumMissls )
+DEF_PROXY_INT( Game, HomPackNumMissls )
+DEF_PROXY_INT( Game, SwarmPackNumMissls )
+DEF_PROXY_INT( Game, ProxPackNumMines )
+DEF_PROXY_INT( Game, m_NebulaID)
+DEF_PROXY_INT( Game, opt_fraglog)
+DEF_PROXY_INT( GameExtraManager, ExtraProbability )
+DEF_PROXY_INT( GameExtraManager, ProbHelixCannon )
+DEF_PROXY_INT( GameExtraManager, ProbLightningDevice )
+DEF_PROXY_INT( GameExtraManager, ProbPhotonCannon )
+DEF_PROXY_INT( GameExtraManager, ProbProximityMine )
+DEF_PROXY_INT( GameExtraManager, ProbRepairExtra )
+DEF_PROXY_INT( GameExtraManager, ProbAfterburner )
+DEF_PROXY_INT( GameExtraManager, ProbHoloDecoy )
+DEF_PROXY_INT( GameExtraManager, ProbInvisibility )
+DEF_PROXY_INT( GameExtraManager, ProbInvulnerability )
+DEF_PROXY_INT( GameExtraManager, ProbEnergyField )
+DEF_PROXY_INT( GameExtraManager, ProbLaserUpgrade )
+DEF_PROXY_INT( GameExtraManager, ProbLaserUpgrade1 )
+DEF_PROXY_INT( GameExtraManager, ProbLaserUpgrade2 )
+DEF_PROXY_INT( GameExtraManager, ProbMissilePack )
+DEF_PROXY_INT( GameExtraManager, ProbDumbMissPack )
+DEF_PROXY_INT( GameExtraManager, ProbHomMissPack )
+DEF_PROXY_INT( GameExtraManager, ProbSwarmMissPack )
+DEF_PROXY_INT( GameExtraManager, ProbEmpUpgrade1 )
+DEF_PROXY_INT( GameExtraManager, ProbEmpUpgrade2 )
+
+#endif // !PARSEC_SERVER
+
 
 // integer variable manipulation commands -------------------------------------
 //
 PRIVATE
 int_command_s int_commands_default[] = {
+
+#ifndef PARSEC_SERVER
 
 //CAVEAT:
 // absolute and relative positions of the following
@@ -248,8 +384,12 @@ int_command_s int_commands_default[] = {
 	{ 0x01, "con.width",			11,	500,	&ConsoleEnterLength,		CheckConExtents,     		NULL	},
 	{ 0x01, "con.height",			5,	300,	&ConsoleHeight,				CheckConExtents,			NULL	},
 
+#endif // !PARSEC_SERVER
+
 	{ 0x01, "con.echoextcoms",		0,	1,		&EchoExternalCommands,		NULL,             			NULL	},
 	{ 0x01, "con.scripthistory",	0,	1,		&HistoryForBatchEntry,		NULL,             			NULL	},
+
+#ifndef PARSEC_SERVER
 
 	{ 0x01, "hud.showrate",			0,	1,      &ShowFrameRate,          	NULL,                		NULL	},
 
@@ -258,7 +398,11 @@ int_command_s int_commands_default[] = {
 	{ 0x00, "gfx.framepolys",		0,	0,		&NumRenderedPolygons,		NULL,             			NULL	},
 
 	{ 0x01, "net.interface",		0,	10,		&NetInterfaceSelect,		NULL,             			NULL	},
+#endif // !PARSEC_SERVER
+
 	{ 0x01, "net.packetrecording",	0,	1,		&RecordRemotePackets,		NULL,             			NULL	},
+
+#ifndef PARSEC_SERVER
 	{ 0x01, "net.recsessionid",		0,	999,	&RemoteRecSessionId,		NULL,             			NULL	},
 
 	{ 0x00, "sys.refframes",		1,	6000,	&int_refframefrequency,		SetRefFrameFrequency,		GetRefFrameFrequency	},
@@ -337,6 +481,71 @@ int_command_s int_commands_default[] = {
 	{ 0x00, "intro.animspeed2",		0,	100000,	&intro_anim_speed2,			NULL,             			NULL	},
 	{ 0x00, "intro.animspeed3",		0,	100000,	&intro_anim_speed3,			NULL,             			NULL	},
 */
+
+#else // PARSEC_SERVER
+
+#ifdef ENABLE_CHEAT_COMMANDS
+/*
+	{ 0x00, ".weapons",				0,	0xfff,  &myship_int.Weapons,				SetMSIntWeapons,			GetMSIntWeapons			},
+	{ 0x00, ".specials",			0,	0xfffff,&myship_int.Specials,				SetMSIntSpecials,			GetMSIntSpecials		},
+	{ 0x00, ".damage",				0,	10000,  &myship_int.CurDamage,				SetMSIntCurDamage,			GetMSIntCurDamage		},
+	{ 0x00, ".energy",				0,	10000,  &myship_int.CurEnergy,				SetMSIntCurEnergy,			GetMSIntCurEnergy		},
+	{ 0x00, ".speed",				0,	500000, &myship_int.CurSpeed,				SetMSIntCurSpeed,			GetMSIntCurSpeed		},
+	{ 0x00, ".dumb",				0,	10000,  &myship_int.NumMissls,				SetMSIntNumMissls,			GetMSIntNumMissls		},
+	{ 0x00, ".guide",				0,	10000,  &myship_int.NumHomMissls,			SetMSIntNumHomMissls,		GetMSIntNumHomMissls	},
+	{ 0x00, ".swarm",				0,	10000,  &myship_int.NumPartMissls,			SetMSIntNumPartMissls,		GetMSIntNumPartMissls	},
+	{ 0x00, ".mines",				0,	10000,  &myship_int.NumMines,				SetMSIntNumMines,			GetMSIntNumMines		},
+	{ 0x00, ".damage.max",			0,	10000,  &myship_int.MaxDamage,				SetMSIntMaxDamage,			GetMSIntMaxDamage		},
+	{ 0x00, ".energy.max",			0,	10000,  &myship_int.MaxEnergy,				SetMSIntMaxEnergy,			GetMSIntMaxEnergy		},
+	{ 0x00, ".speed.max",			0,	500000, &myship_int.MaxSpeed,				SetMSIntMaxSpeed,			GetMSIntMaxSpeed		},
+	{ 0x00, ".dumb.max",			0,	10000,  &myship_int.MaxNumMissls,			SetMSIntMaxNumMissls,		GetMSIntMaxNumMissls	},
+	{ 0x00, ".guide.max",			0,	10000,  &myship_int.MaxNumHomMissls,		SetMSIntMaxNumHomMissls,	GetMSIntMaxNumHomMissls	},
+	{ 0x00, ".swarm.max",			0,	10000,  &myship_int.MaxNumPartMissls,		SetMSIntMaxNumPartMissls,	GetMSIntMaxNumPartMissls },
+	{ 0x00, ".mines.max",			0,	10000,  &myship_int.MaxNumMines,			SetMSIntMaxNumMines,		GetMSIntMaxNumMines		},
+*/
+#endif // ENABLE_CHEAT_COMMANDS
+
+	{ 0x00, "extras.max",			0,	100,    &SV_GAME_EXTRAS_MAXNUM,				NULL, NULL		},
+	{ 0x00, "extras.area",			100,10000,  &GameExtraManager_proxy.MaxExtraArea,           SetGameExtraManagerIntMaxExtraArea,			GetGameExtraManagerIntMaxExtraArea		},
+	{ 0x00, "extras.dist",			50,	1000,   &GameExtraManager_proxy.MinExtraDist,           SetGameExtraManagerIntMinExtraDist,			GetGameExtraManagerIntMinExtraDist		},
+
+	{ 0x00, "nebula.id",            2,     5,   &Game_proxy.m_NebulaID,             SetGameIntm_NebulaID,                       GetGameIntm_NebulaID        },
+	{ 0x00, "fraglog.on",           0,     1,   &Game_proxy.opt_fraglog,            SetGameIntopt_fraglog,                      GetGameIntopt_fraglog       },
+	{ 0x00, "energy.boost",			0,	1000,   &Game_proxy.EnergyExtraBoost,       SetGameIntEnergyExtraBoost,					GetGameIntEnergyExtraBoost	},
+	{ 0x00, "repair.boost",			0,	1000,   &Game_proxy.RepairExtraBoost,		SetGameIntRepairExtraBoost,					GetGameIntRepairExtraBoost	},
+
+	{ 0x00, "pack.dumb.size",		0,	100,    &Game_proxy.DumbPackNumMissls,      SetGameIntDumbPackNumMissls,				GetGameIntDumbPackNumMissls	},
+	{ 0x00, "pack.guide.size",		0,	100,    &Game_proxy.HomPackNumMissls,       SetGameIntHomPackNumMissls,					GetGameIntHomPackNumMissls	},
+	{ 0x00, "pack.swarm.size",		0,	100,    &Game_proxy.SwarmPackNumMissls,		SetGameIntSwarmPackNumMissls,				GetGameIntSwarmPackNumMissls},
+	{ 0x00, "pack.mine.size",		0,	100,    &Game_proxy.ProxPackNumMines,       SetGameIntProxPackNumMines,					GetGameIntProxPackNumMines	},
+
+	{ 0x00, "prob.extra",			0,	100,    &GameExtraManager_proxy.ExtraProbability,       SetGameExtraManagerIntExtraProbability,		GetGameExtraManagerIntExtraProbability	},
+
+	{ 0x00, "prob.helix",			0,	100,    &GameExtraManager_proxy.ProbHelixCannon,        SetGameExtraManagerIntProbHelixCannon,		GetGameExtraManagerIntProbHelixCannon	},
+	{ 0x00, "prob.lightning",		0,	100,    &GameExtraManager_proxy.ProbLightningDevice,    SetGameExtraManagerIntProbLightningDevice,	GetGameExtraManagerIntProbLightningDevice},
+	{ 0x00, "prob.photon",			0,	100,    &GameExtraManager_proxy.ProbPhotonCannon,       SetGameExtraManagerIntProbPhotonCannon,		GetGameExtraManagerIntProbPhotonCannon	},
+	{ 0x00, "prob.mine",			0,	100,    &GameExtraManager_proxy.ProbProximityMine,      SetGameExtraManagerIntProbProximityMine,	GetGameExtraManagerIntProbProximityMine	},
+	{ 0x00, "prob.repair",			0,	100,    &GameExtraManager_proxy.ProbRepairExtra,        SetGameExtraManagerIntProbRepairExtra,		GetGameExtraManagerIntProbRepairExtra	},
+	{ 0x00, "prob.aburner",			0,	100,    &GameExtraManager_proxy.ProbAfterburner,        SetGameExtraManagerIntProbAfterburner,		GetGameExtraManagerIntProbAfterburner	},
+	{ 0x00, "prob.decoy",			0,	100,    &GameExtraManager_proxy.ProbHoloDecoy,	        SetGameExtraManagerIntProbHoloDecoy,		GetGameExtraManagerIntProbHoloDecoy		},
+	{ 0x00, "prob.invisible",		0,	100,    &GameExtraManager_proxy.ProbInvisibility,       SetGameExtraManagerIntProbInvisibility,		GetGameExtraManagerIntProbInvisibility	},
+	{ 0x00, "prob.invulnerable",	0,	100,    &GameExtraManager_proxy.ProbInvulnerability,    SetGameExtraManagerIntProbInvulnerability,	GetGameExtraManagerIntProbInvulnerability},
+	{ 0x00, "prob.energyfield",		0,	100,    &GameExtraManager_proxy.ProbEnergyField,        SetGameExtraManagerIntProbEnergyField,		GetGameExtraManagerIntProbEnergyField	},
+
+	{ 0x00, "prob.lupgrade",		0,	100,    &GameExtraManager_proxy.ProbLaserUpgrade,       SetGameExtraManagerIntProbLaserUpgrade,		GetGameExtraManagerIntProbLaserUpgrade	},
+	{ 0x00, "prob.lupgrade1",		0,	100,    &GameExtraManager_proxy.ProbLaserUpgrade1,      SetGameExtraManagerIntProbLaserUpgrade1,	GetGameExtraManagerIntProbLaserUpgrade1	},
+	{ 0x00, "prob.lupgrade2",		0,	100,    &GameExtraManager_proxy.ProbLaserUpgrade2,      SetGameExtraManagerIntProbLaserUpgrade2,	GetGameExtraManagerIntProbLaserUpgrade2	},
+
+	{ 0x00, "prob.misspack",		0,	100,    &GameExtraManager_proxy.ProbMissilePack,        SetGameExtraManagerIntProbMissilePack,		GetGameExtraManagerIntProbMissilePack	},
+	{ 0x00, "prob.dumb",			0,	100,    &GameExtraManager_proxy.ProbDumbMissPack,       SetGameExtraManagerIntProbDumbMissPack,		GetGameExtraManagerIntProbDumbMissPack	},
+	{ 0x00, "prob.guide",			0,	100,    &GameExtraManager_proxy.ProbHomMissPack,        SetGameExtraManagerIntProbHomMissPack,		GetGameExtraManagerIntProbHomMissPack	},
+	{ 0x00, "prob.swarm",			0,	100,    &GameExtraManager_proxy.ProbSwarmMissPack,      SetGameExtraManagerIntProbSwarmMissPack,	GetGameExtraManagerIntProbSwarmMissPack	},
+
+	{ 0x00, "prob.empupgrade1",		0,	100,    &GameExtraManager_proxy.ProbEmpUpgrade1,        SetGameExtraManagerIntProbEmpUpgrade1,		GetGameExtraManagerIntProbEmpUpgrade1	},
+	{ 0x00, "prob.empupgrade2",		0,	100,    &GameExtraManager_proxy.ProbEmpUpgrade2,        SetGameExtraManagerIntProbEmpUpgrade2,		GetGameExtraManagerIntProbEmpUpgrade2	},
+
+#endif // !PARSEC_SERVER
+
 };
 
 #define NUM_INT_COMMANDS	CALC_NUM_ARRAY_ENTRIES( int_commands_default )
@@ -387,6 +596,7 @@ void CON_RegisterIntCommand( int_command_s *regcom )
 		int_commands = newlist;
 	}
 
+#ifndef PARSEC_SERVER
 	if ( ( regcom->bmin <= regcom->default_val ) && ( regcom->bmax >= regcom->default_val ) ) {
 		*regcom->intref = regcom->default_val;
 
@@ -395,11 +605,11 @@ void CON_RegisterIntCommand( int_command_s *regcom )
 	} else {
 		regcom->default_val = 0;
 	}
+#endif // !PARSEC_SERVER
 
 	// append new command
 	ASSERT( num_int_commands < max_int_commands );
 	int_commands[ num_int_commands++ ] = *regcom;
 }
-
 
 

@@ -1,7 +1,7 @@
 /*
  * PARSEC - Common Commands
  *
- * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:47 $
+ * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:34 $
  *
  * Orginally written by:
  *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2002
@@ -20,10 +20,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <ctype.h>
+#ifndef PARSEC_SERVER
+#include <errno.h>
+#endif // !PARSEC_SERVER
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,45 +43,70 @@
 
 // global externals
 #include "globals.h"
+#ifdef PARSEC_SERVER
 #include "e_world_trans.h"
+#endif // PARSEC_SERVER
 
 // subsystem headers
-//#include "aud_defs.h"
-//#include "inp_defs.h"
+#ifndef PARSEC_SERVER
+#include "aud_defs.h"
+#include "inp_defs.h"
+#endif // !PARSEC_SERVER
 #include "net_defs.h"
-//#include "vid_defs.h"
+#ifndef PARSEC_SERVER
+#include "vid_defs.h"
+#endif // !PARSEC_SERVER
 
 // local module header
+#ifndef PARSEC_SERVER
+#include "con_com.h"
+#else
 #include "con_com_sv.h"
+#endif
 
 // proprietary module headers
-//#include "con_act.h"
+#ifndef PARSEC_SERVER
+#include "con_act.h"
+#endif // !PARSEC_SERVER
 #include "con_arg.h"
+#ifndef PARSEC_SERVER
+#include "con_aux.h"
+#include "con_cani.h"
+#include "con_conf.h"
+#include "con_ext.h"
+#include "con_info.h"
+#include "con_int.h"
+#include "con_list.h"
+#include "con_load.h"
+#include "con_main.h"
+#include "con_say.h"
+#include "con_shad.h"
+#include "con_std.h"
+#include "e_demo.h"
+#include "e_supp.h"
+#include "g_supp.h"
+#include "h_supp.h"
+#include "m_main.h"
+#include "net_conn.h"
+#include "obj_ctrl.h"
+#else
 #include "con_aux_sv.h"
-//#include "con_cani.h"
-//#include "con_conf.h"
 #include "con_ext_sv.h"
 #include "con_info_sv.h"
 #include "con_int_sv.h"
 #include "con_list_sv.h"
 #include "con_load_sv.h"
 #include "con_main_sv.h"
-//#include "con_say.h"
-//#include "con_shad.h"
 #include "con_std_sv.h"
-//#include "e_demo.h"
-//#include "e_supp.h"
-//#include "g_supp.h"
-//#include "h_supp.h"
 #include "inp_main_sv.h"
-//#include "m_main.h"
-//#include "net_conn.h"
-//#include "obj_ctrl.h"
 #include "e_gameserver.h"
+#endif // !PARSEC_SERVER
 #include "sys_date.h"
 #include "sys_path.h"
-//#include "vid_init.h"
-//#include "vid_plug.h"
+#ifndef PARSEC_SERVER
+#include "vid_init.h"
+#include "vid_plug.h"
+#endif // !PARSEC_SERVER
 
 
 
@@ -100,6 +128,13 @@ static char base_set_to_hex[]		= "base set to hex.";
 static char base_set_to_oct[]		= "base set to oct.";
 static char info_sep_line[]			= "-----------------------------------------------";
 PUBLIC char dont_use_params[]		= "this command takes no parameters.";
+#ifndef PARSEC_SERVER
+static char server_name_missing[]	= "server must be supplied.";
+static char mode_number_invalid[]	= "invalid mode number.";
+static char mode_modifier_invalid[]	= "invalid mode modifier. use \"fullscreen\" or \"windowed\".";
+static char name_change_preempted[]	= "name change preempted. please try again.";
+#endif // !PARSEC_SERVER
+
 
 // remove all objects (command "objectclear") ---------------------------------
 //
@@ -116,6 +151,41 @@ void Cmd_OBJECTCLEAR()
 PRIVATE
 void Cmd_OBJECTCOUNT()
 {
+#ifndef PARSEC_SERVER
+	GenObject *walklist;
+	int 	  listlength;
+
+	listlength = 0;
+	for ( walklist = FetchFirstShip(); walklist; walklist = walklist->NextObj )
+		listlength++;
+	sprintf( paste_str, "ships   :%3d", listlength );
+	CON_AddLine( paste_str );
+
+	listlength = 0;
+	for ( walklist = FetchFirstLaser(); walklist; walklist = walklist->NextObj )
+		listlength++;
+	sprintf( paste_str, "lasers  :%3d", listlength );
+	CON_AddLine( paste_str );
+
+	listlength = 0;
+	for ( walklist = FetchFirstMissile(); walklist; walklist = walklist->NextObj )
+		listlength++;
+	sprintf( paste_str, "missiles:%3d", listlength );
+	CON_AddLine( paste_str );
+
+	listlength = 0;
+	for ( walklist = FetchFirstExtra(); walklist; walklist = walklist->NextObj )
+		listlength++;
+	sprintf( paste_str, "extras  :%3d (obj, counted %d) and %d particle",
+		listlength, CurrentNumExtras, CurrentNumPrtExtras );
+	CON_AddLine( paste_str );
+
+	listlength = 0;
+	for ( walklist = FetchFirstCustom(); walklist; walklist = walklist->NextObj )
+		listlength++;
+	sprintf( paste_str, "customs :%3d", listlength );
+	CON_AddLine( paste_str );
+#else
 	sprintf( paste_str, "ships   :%3d", TheWorld->GetNumShipObjects() );
 	CON_AddLine( paste_str );
 	sprintf( paste_str, "lasers  :%3d", TheWorld->GetNumLaserObjects() );
@@ -126,6 +196,7 @@ void Cmd_OBJECTCOUNT()
 	CON_AddLine( paste_str );
 	sprintf( paste_str, "customs :%3d", TheWorld->GetNumCustmObjects() );
 	CON_AddLine( paste_str );
+#endif // !PARSEC_SERVER
 }
 
 
@@ -157,17 +228,62 @@ int Cmd_HEAP( char *params )
 PRIVATE
 void Cmd_SHOWPOSITION()
 {
-	//FIXME: we need a shipindex parameter here
-
-	/*sprintf( paste_str, "x position: %13f", GEOMV_TO_FLOAT( MyShip->ObjPosition[ 0 ][ 3 ] ) );
+#ifndef PARSEC_SERVER
+	sprintf( paste_str, "x position: %13f", GEOMV_TO_FLOAT( MyShip->ObjPosition[ 0 ][ 3 ] ) );
 	CON_AddLine( paste_str );
 
 	sprintf( paste_str, "y position: %13f", GEOMV_TO_FLOAT( MyShip->ObjPosition[ 1 ][ 3 ] ) );
 	CON_AddLine( paste_str );
 
 	sprintf( paste_str, "z position: %13f", GEOMV_TO_FLOAT( MyShip->ObjPosition[ 2 ][ 3 ] ) );
-	CON_AddLine( paste_str );*/
+	CON_AddLine( paste_str );
+#else
+	//FIXME: we need a shipindex parameter here
+#endif // !PARSEC_SERVER
 }
+
+
+#ifndef PARSEC_SERVER
+// player name has been changed -> change remote name accordingly -------------
+//
+void CheckPlayerName( const char *name )
+{
+	ASSERT( name != NULL );
+
+/*
+	for ( char *scan = name; *scan; scan++ ) {
+
+		// allow only alphabetic chars
+		if ( !isalpha( *scan ) ) {
+			CON_AddLine( only_alpha_chars );
+			return;
+		}
+
+		// convert to lowercase
+		*scan = tolower( *scan );
+	}
+*/
+	// exit if name not altered
+	if ( strcmp( LocalPlayerName, name ) == 0 ) {
+
+		//NOTE:
+		// this happens either if the user tried to set
+		// the same name again, or supplied no argument
+		// and therefore only queried the current name.
+
+		return;
+	}
+
+	// ensure everybody knows about new name
+	if ( NET_SetPlayerName( name ) ) {
+		sprintf( paste_str, "name set to %s.", LocalPlayerName );
+		CON_AddLine( paste_str );
+	} else {
+		CON_AddLine( name_change_preempted );
+	}
+}
+#endif // !PARSEC_SERVER
+
 
 // open output script for writing (don't overwrite existing file) -------------
 //
@@ -247,7 +363,9 @@ int Cmd_BuildInfo( char *cstr )
 		CON_AddLine( build_date );
 		CON_AddLine( build_time );
 		CON_AddLine( info_sep_line );
-		//DisplayCurrentNetSubsys();
+#ifndef PARSEC_SERVER
+		DisplayCurrentNetSubsys();
+#endif // !PARSEC_SERVER
 		CON_AddLine( info_sep_line );
 		CON_AddLine( build_comp );
 		CON_AddLine( build_bind );
@@ -274,8 +392,12 @@ int Cmd_DisplayText( char *cstr )
 	const char *scan = GetStringBehindCommand( cstr, FALSE );
 
 	if ( ( scan != NULL ) && ( strlen( scan ) <= MAX_MESSAGELEN ) ) {
+#ifndef PARSEC_SERVER
+		ShowMessage( scan );
+#else
 		//FIXME: evt. precede text with "MESSAGE: "
 		MSGOUT( scan );
+#endif // !PARSEC_SERVER
 	}
 
 	// recognize always (implicitly reserves domain)
@@ -299,7 +421,14 @@ int Cmd_WriteText( char *cstr )
 
 	// output string in console (new-line possible)
 	if ( scan != NULL ) {
+#ifndef PARSEC_SERVER
+		if ( TextModeActive && AUX_CMD_WRITE_ACTIVE_IN_TEXTMODE )
+			MSGPUT( "\n::%s", scan );
+		if ( !AUX_CMD_WRITE_DISABLE_OUTPUT )
+			CON_AddLine( scan );
+#else
 		MSGPUT( "\n::%s", scan );
+#endif // !PARSEC_SERVER
 	}
 
 	// recognize always (implicitly reserves domain)
@@ -337,14 +466,16 @@ int Cmd_SetPathAnimIntro( char *command )
 {
 	ASSERT( command != NULL );
 	HANDLE_COMMAND_DOMAIN( command );
-/*
+
+	/*
 	extern char demo_movie_name[];
 	if ( SetSingleStringCommand( command, demo_movie_name, PATH_MAX ) ) {
 
 		// process file name and use current workdir
 		strcpy( demo_movie_name, SubstCurWorkDir( demo_movie_name ) );
 	}
-*/
+	*/
+
 	// recognize always (implicitly reserves domain)
 	return TRUE;
 }
@@ -357,13 +488,15 @@ int Cmd_SetPathAudioStreams( char *command )
 {
 	ASSERT( command != NULL );
 	HANDLE_COMMAND_DOMAIN( command );
-/*
+
+#ifndef PARSEC_SERVER
 	if ( SetSingleStringCommand( command, console_audio_stream_path, PATH_MAX ) ) {
 
 		// process file name and use current workdir
 		strcpy( console_audio_stream_path, SubstCurWorkDir( console_audio_stream_path ) );
 	}
-*/
+#endif // !PARSEC_SERVER
+
 	// recognize always (implicitly reserves domain)
 	return TRUE;
 }
@@ -376,13 +509,15 @@ int Cmd_SetPathAudioStreamIntro( char *command )
 {
 	ASSERT( command != NULL );
 	HANDLE_COMMAND_DOMAIN( command );
-/*
+
+#ifndef PARSEC_SERVER
 	if ( SetSingleStringCommand( command, intro_stream_name, PATH_MAX ) ) {
 
 		// process file name and use current workdir
 		strcpy( intro_stream_name, SubstCurWorkDir( intro_stream_name ) );
 	}
-*/
+#endif // !PARSEC_SERVER
+
 	// recognize always (implicitly reserves domain)
 	return TRUE;
 }
@@ -396,17 +531,37 @@ int Cmd_SetPathAudioStreamMenu( char *command )
 	ASSERT( command != NULL );
 	HANDLE_COMMAND_DOMAIN( command );
 
-/*
+#ifndef PARSEC_SERVER
 	if ( SetSingleStringCommand( command, menu_stream_name, PATH_MAX ) ) {
 
 		// process file name and use current workdir
 		strcpy( menu_stream_name, SubstCurWorkDir( menu_stream_name ) );
 	}
-*/
+#endif // !PARSEC_SERVER
 
 	// recognize always (implicitly reserves domain)
 	return TRUE;
 }
+
+
+#ifndef PARSEC_SERVER
+// flash screen white ---------------------------------------------------------
+//
+PRIVATE
+void Cmd_FLASHWHITE()
+{
+	SetScreenWhite = LASER2_INTENSITY * 16;
+}
+
+
+// flash screen blue ----------------------------------------------------------
+//
+PRIVATE
+void Cmd_FLASHBLUE()
+{
+	SetScreenBlue = FLASHTIME_LASER_THIEF;
+}
+#endif // !PARSEC_SERVER
 
 
 // init console talk mode -----------------------------------------------------
@@ -440,7 +595,20 @@ void Cmd_CLS()
 		InitTalkMode();
 
 	} else {
+#ifndef PARSEC_SERVER
+		// ensure automatic linefeed will not be eaten
+		CON_EnableLineFeed();
+
+		// ensure that after successive linefeed
+		// ( con_bottom == 0 ) && ( con_content == 1 )
+		con_bottom	= -1;
+		con_content = 0;
+
+		// reset back-viewing
+		con_back_view = 0;
+#else
 		wclear( g_curses_out_win );
+#endif // !PARSEC_SERVER
 	}
 }
 
@@ -463,13 +631,79 @@ void Cmd_TALK()
 }
 
 
+#ifndef PARSEC_SERVER
+// command "hide" -------------------------------------------------------------
+//
+PRIVATE
+void Cmd_HIDE()
+{
+	//NOTE:
+	// simulate depression of the console
+	// toggle key.
+
+	DepressedKeys->key_ToggleConsole = 1;
+}
+#endif // !PARSEC_SERVER
+
+
 // command "quit" -------------------------------------------------------------
 //
 PRIVATE
 void Cmd_QUIT()
 {
+#ifndef PARSEC_SERVER
+	//NOTE:
+	// simulate depression of the <ESC> key.
+	// (or whatever is currently mapped to
+	// gamefunction escape)
+
+	DepressedKeys->key_Escape = 1;
+#else
 	TheServer->SetQuitFlag();
+#endif // !PARSEC_SERVER
 }
+
+
+#ifndef PARSEC_SERVER
+// command "exitgame" -------------------------------------------------------------
+//
+PRIVATE
+void Cmd_EXITGAME()
+{
+	ExitGameLoop = 3;
+}
+
+
+// command "enable" -----------------------------------------------------------
+//
+PRIVATE
+void Cmd_ENABLE()
+{
+	//NOTE:
+	// enable typing in console. keyboard input
+	// will be routed to the console instead of to
+	// the game. the console cursor will be blinking
+	// to signify this.
+
+	KeybFlags->ConActive = 0xff;
+}
+
+
+// command "disable" ----------------------------------------------------------
+//
+PRIVATE
+void Cmd_DISABLE()
+{
+	//NOTE:
+	// disable typing in console. keyboard input
+	// will be routed to the game instead of to
+	// the console, even if the console is enabled.
+	// the console cursor will not be blinking
+	// to signify this.
+
+	KeybFlags->ConActive = 0x00;
+}
+#endif // !PARSEC_SERVER
 
 
 // command "hex" --------------------------------------------------------------
@@ -516,11 +750,195 @@ void Cmd_BASE()
 	CON_AddLine( base_str );
 }
 
+
+#ifndef PARSEC_SERVER
+// set video mode to specified mode number ------------------------------------
+//
+PRIVATE
+int Cmd_SetVidMode( char *modestr )
+{
+	ASSERT( modestr != NULL );
+	HANDLE_COMMAND_DOMAIN( modestr );
+
+	// determine whether specifier should be parsed instead of mode number
+	// (specifiers like "640x480x32" and all valid modifiers contain at
+	// least one char not allowed in a hexadecimal mode number)
+	int parsespec = FALSE;
+	char *scan = NULL;
+	for ( scan = modestr; *scan != 0; scan++ ) {
+		if ( *scan == ' ' )
+			continue;
+		if ( ( *scan >= '0' ) && ( *scan <= '9' ) )
+			continue;
+		if ( ( *scan >= 'a' ) && ( *scan <= 'f' ) )
+			continue;
+		if ( ( *scan >= 'A' ) && ( *scan <= 'F' ) )
+			continue;
+		parsespec = TRUE;
+		break;
+	}
+
+	int xres = 0, yres = 0;
+	bool fullscreen = false;
+	int bpp = 32;
+
+	if ( parsespec ) {
+
+		// read mode specifier
+		char *modespec = (char *) GetStringBehindCommand( modestr, FALSE );
+		if ( modespec != NULL ) {
+
+			// a modifier for explicit fullscreen/windowed modes may
+			// be appended to the specifier after a delimiting space
+			char *modifier = (char *) modespec;
+			while ( ( *modifier != ' ' ) && ( *modifier != 0 ) )
+				modifier++;
+
+			// if a mode is already active it is possible to just use a
+			// modifier to switch between windowed and fullscreen mode
+			int modifieronly = FALSE;
+			if ( !TextModeActive ) {
+				for ( scan = modespec; scan < modifier; scan++ ) {
+					if ( *scan == 'x' )
+						break;
+				}
+				if ( scan == modifier ) {
+					modifieronly = TRUE;
+					modifier = modespec;
+				}
+			}
+
+			// parse the (optional) modifier
+			int indxmodifier = -1;
+			if ( *modifier != 0 ) {
+
+				if ( !modifieronly ) {
+					// sever spec and modifier
+					*modifier++ = 0;
+					// strip intermediate spaces
+					while ( *modifier == ' ' )
+						modifier++;
+				}
+
+				// modifier may be "fullscreen" or "windowed"
+				if ( strcmp( modifier, "fullscreen" ) == 0 ) {
+					indxmodifier = 1;
+				} else if ( strcmp( modifier, "windowed" ) == 0 ) {
+					indxmodifier = 0;
+				} else {
+					CON_AddLine( mode_modifier_invalid );
+					return TRUE;
+				}
+			}
+
+			if (modifieronly) {
+				xres = GameScreenRes.width;
+				yres = GameScreenRes.height;
+				bpp = GameScreenBPP;
+			} else {
+				int modearray[] = {0, 0, 0};
+
+				VID_MapSpecifierToMode(modespec, modearray);
+
+				xres = modearray[0];
+				yres = modearray[1];
+				bpp = modearray[2];
+			}
+
+			if ( indxmodifier != -1 ) {
+				fullscreen = indxmodifier == 1 ? true : false;
+			} else {
+				fullscreen = !Op_WindowedMode ? true : false;
+			}
+		}
+
+	} else {
+
+		MSGOUT("Setting video mode using hex number no longer works!\n");
+	}
+
+	// switch to desired mode if mode number found. this doesn't mean that
+	// the mode is actually valid for the current video subsystem, if it
+	// was specified directly. (specifiers have been checked already.)
+	if ( xres != 0 && yres != 0 && bpp != 0 ) {
+		if ( !VID_HotChangeMode(xres, yres, fullscreen, bpp)) {
+			CON_AddLine( mode_number_invalid );
+		}
+	}
+
+	// recognize always (implicitly reserves domain)
+	return TRUE;
+}
+
+PRIVATE
+int Cmd_SetNetVer( char *netVersion_str ) {
+	ASSERT( netVersion_str != NULL );
+	HANDLE_COMMAND_DOMAIN( netVersion_str );
+
+	// eat whitespace behind command
+	const char *scan = GetStringBehindCommand( netVersion_str, FALSE );
+
+	if ( scan != NULL ) {
+		// convert the version string to an int.
+		int tmp_nver = 0;
+		errno = 0;
+		tmp_nver = strtol(netVersion_str, NULL, 10);
+		if(errno) {
+			CON_AddLine ("setnetver: unable to determine what version number you requested.");
+			return TRUE;
+		}
+		// set the internal networking minor version
+		clsv_protocol_minor_internal = tmp_nver;
+		// output to the user the danger of doing this.
+		CON_AddLine("******************* NOTE ******************");
+		CON_AddLine("!!! YOU ARE FORCING THE NETWORKING PROTOCOL");
+		CON_AddLine("!!! VERSION! THIS IS DANGEROUS AND CAN LEAD");
+		CON_AddLine("!!! TO CRASHES AND OTHER BAD BEHAVIOR!");
+		CON_AddLine("!!! DO THIS AT YOUR OWN RISK!!!!");
+		CON_AddLine("*******************************************");
+
+
+	} else {
+		CON_AddLine( "Network Minor Version Missing" );
+	}
+	return TRUE;
+}
+
+// connect to server ("connect") ----------------------------------------------
+//
+PRIVATE
+int Cmd_Connect( char *server )
+{
+	ASSERT( server != NULL );
+	HANDLE_COMMAND_DOMAIN( server );
+
+	// eat whitespace behind command
+	const char *scan = GetStringBehindCommand( server, FALSE );
+
+	if ( scan != NULL ) {
+		if ( NET_CommandConnect( scan ) ) {
+			MenuNotifyConnect();
+		}
+	} else {
+		CON_AddLine( server_name_missing );
+	}
+
+	// recognize always (implicitly reserves domain)
+	return TRUE;
+}
+#endif // !PARSEC_SERVER
+
+
 // close network connection ("disconnect") ------------------------------------
 //
 PRIVATE
 void Cmd_DISCONNECT()
 {
+#ifndef PARSEC_SERVER
+	if ( NET_CommandDisconnect() ) {
+		MenuNotifyDisconnect();
+	}
+#endif // !PARSEC_SERVER
 }
 
 
@@ -534,31 +952,53 @@ struct cmd_noparam_s {
 
 cmd_noparam_s cmd_noparam[] = {
 
-	//{ CM_REPINFO,				Cmd_QueryReplayInfo	   		},
-	//{ CM_REPSTOP,				Cmd_StopBatchReplay			},
+#ifndef PARSEC_SERVER
+	{ CM_REPINFO,				Cmd_QueryReplayInfo	   		},
+	{ CM_REPSTOP,				Cmd_StopBatchReplay			},
+#endif // !PARSEC_SERVER
 	{ CM_CLS,					Cmd_CLS						},
 	{ CM_CLEAR,					Cmd_CLS						},
+#ifndef PARSEC_SERVER
+	{ CM_HIDE,					Cmd_HIDE            		},
+#endif // !PARSEC_SERVER
 	{ CM_QUIT,					Cmd_QUIT            		},
 	{ CM_EXIT,					Cmd_QUIT            		},
+#ifndef PARSEC_SERVER
+	{ CM_EXITGAME,				Cmd_EXITGAME				},
+	{ CM_ENABLE,				Cmd_ENABLE					},
+	{ CM_DISABLE,				Cmd_DISABLE         		},
+#endif // !PARSEC_SERVER
 	{ CM_HEX,					Cmd_HEX             		},
 	{ CM_DEC,					Cmd_DEC             		},
 	{ CM_OCT,					Cmd_OCT						},
 	{ CM_BASE,					Cmd_BASE		   			},
+#ifndef PARSEC_SERVER
+	{ CM_FLASHWHITE,			Cmd_FLASHWHITE				},
+	{ CM_FLASHBLUE,				Cmd_FLASHBLUE				},
+#endif // !PARSEC_SERVER
 	{ CM_OBJECTCLEAR,			Cmd_OBJECTCLEAR				},
 	{ CM_OBJECTCOUNT,			Cmd_OBJECTCOUNT				},
 	{ CM_SHIPS,					Cmd_ShipInfo				},
 	{ CM_LISTCLASSES,			Cmd_ListClasses				},
 	{ CM_LISTTYPES,				Cmd_ListTypes				},
-	//{ CM_LISTTEXTMACS,			Cmd_ListSayMacros			},
-	//{ CM_LISTBINDINGS,			Cmd_ListKeyBindings			},
-	//{ CM_SETORIGIN,				Cmd_SetShipOrigin	   		},
+#ifndef PARSEC_SERVER
+	{ CM_LISTTEXTMACS,			Cmd_ListSayMacros			},
+	{ CM_LISTBINDINGS,			Cmd_ListKeyBindings			},
+	{ CM_SETORIGIN,				Cmd_SetShipOrigin	   		},
+#endif // !PARSEC_SERVER
 	{ CM_SHOWPOSITION,			Cmd_SHOWPOSITION			},
-	//{ CM_CLOSE,					Cmd_CloseOutputBatch		},
-	//{ CM_LISTGAMEFUNCKEYS,		Cmd_ListKeyFunctions		},
+#ifndef PARSEC_SERVER
+	{ CM_CLOSE,					Cmd_CloseOutputBatch		},
+	{ CM_LISTGAMEFUNCKEYS,		Cmd_ListKeyFunctions		},
+	{ CM_VID_LISTMODES,			Cmd_ListVidModes			},
+#endif // !PARSEC_SERVER
 	{ CM_DISCONNECT,			Cmd_DISCONNECT				},
-	//{ CM_TALKMODE,				Cmd_TALK					},
+	{ CM_TALKMODE,				Cmd_TALK					},
 	{ CM_RESCAN,				Cmd_RescanExternalCommands	},
-	//{ CM_LISTDEMOS,				Cmd_ListBinaryDemos			},
+#ifndef PARSEC_SERVER
+	{ CM_LISTDEMOS,				Cmd_ListBinaryDemos			},
+#endif // !PARSEC_SERVER
+
 };
 
 #define NUM_CMDS_NOPARAM		CALC_NUM_ARRAY_ENTRIES( cmd_noparam )
@@ -566,7 +1006,11 @@ cmd_noparam_s cmd_noparam[] = {
 
 // commands corresponding to functions with no parameters ---------------------
 //
+#ifndef PARSEC_SERVER
+int CheckCmdsNoParam( const char *command )
+#else
 int CheckCmdsNoParam( char *command )
+#endif
 {
 	//NOTE:
 	// this function returns TRUE if a valid command
@@ -586,7 +1030,11 @@ int CheckCmdsNoParam( char *command )
 		if ( strncmp( command, cmdstr, cmdlen ) == 0 ) {
 
 			// eat trailing whitespace
+#ifndef PARSEC_SERVER
+			const char *whsp = command + cmdlen;
+#else
 			char *whsp = command + cmdlen;
+#endif
 			for ( ; *whsp; whsp++ )
 				if ( *whsp != ' ' )
 					break;
@@ -617,27 +1065,43 @@ struct cmd_customstring_s {
 cmd_customstring_s cmd_customstring[] = {
 
 	{ CM_BUILD,					Cmd_BuildInfo				},
-	//{ CM_PATH_ANIM_INTRO,		Cmd_SetPathAnimIntro		},
-	//{ CM_PATH_ASTREAM_INTRO,	Cmd_SetPathAudioStreamIntro	},
-	//{ CM_PATH_ASTREAM_MENU,		Cmd_SetPathAudioStreamMenu	},
-	//{ CM_PATH_ASTREAM,			Cmd_SetPathAudioStreams		},
+	{ CM_PATH_ANIM_INTRO,		Cmd_SetPathAnimIntro		},
+	{ CM_PATH_ASTREAM_INTRO,	Cmd_SetPathAudioStreamIntro	},
+	{ CM_PATH_ASTREAM_MENU,		Cmd_SetPathAudioStreamMenu	},
+	{ CM_PATH_ASTREAM,			Cmd_SetPathAudioStreams		},
 	{ CM_WORKINGDIRECTORY,		Cmd_SetPathWorkingDirectory	},
 	{ CM_LISTINTCOMMANDS,		Cmd_ListIntCommands			},
 	{ CM_LISTSTDCOMMANDS,		Cmd_ListStdCommands			},
 	{ CM_LISTEXTCOMMS,			Cmd_ListExternalCommands	},
 	{ CM_DISPLAY,				Cmd_DisplayText				},
 	{ CM_CAT,					Cmd_CatExternalCommands		},
-	//{ CM_GAMELOOPBATCH,			Cmd_SetGameLoopBatchName	},		????
-	//{ CM_SAY,					Cmd_SayText					},
+#ifndef PARSEC_SERVER
+	{ CM_GAMELOOPBATCH,			Cmd_SetGameLoopBatchName	},
+	{ CM_SAY,					Cmd_SayText					},
+	{ CM_SET_MACRO,				Cmd_SetTextMacro			},
+#endif // !PARSEC_SERVER
 	{ CM_LISTDATA,				Cmd_ListDataTable			},
+#ifndef PARSEC_SERVER
+	{ CM_VID_SETMODE,			Cmd_SetVidMode				},
+	{ CM_CONNECT,				Cmd_Connect					},
+#endif // !PARSEC_SERVER
 	{ CM_WRITESTRING,			Cmd_WriteText				},
 	{ CM_CREATE,				Cmd_Create					},
 	{ CM_OPEN,					Cmd_Open					},
 	{ CM_RECDEM,				Cmd_Recdem					},
 	{ CM_RECORD,				Cmd_Record					},
 	{ CM_APPEND,				Cmd_Append					},
-	//{ CM_PLAYDEMO,				Cmd_PlayBinaryDemoFile		},
+#ifndef PARSEC_SERVER
+	{ CM_PLAYDEMO,				Cmd_PlayBinaryDemoFile		},
+#endif // !PARSEC_SERVER
 	{ CM_LOAD,					Cmd_ExecLoadCommand			},
+#ifndef PARSEC_SERVER
+	{ CM_DEFSHADER,				Cmd_DefShader				},
+	{ CM_SETSHADER,				Cmd_SetShader				},
+	{ CM_COLANIM,				Cmd_DefColAnim				},
+	{ CM_FACEINFO,				Cmd_FaceInfo				},
+	{ CM_SETNETVER,				Cmd_SetNetVer				},
+#endif // !PARSEC_SERVER
 };
 
 #define NUM_CMDS_CUSTOMSTRING	CALC_NUM_ARRAY_ENTRIES( cmd_customstring )
@@ -645,7 +1109,11 @@ cmd_customstring_s cmd_customstring[] = {
 
 // commands corresponding to functions taking an arbitrary string parameter ---
 //
+#ifndef PARSEC_SERVER
+int CheckCmdsCustomString( const char *command )
+#else
 int CheckCmdsCustomString( char *command )
+#endif
 {
 	ASSERT( command != NULL );
 
@@ -673,7 +1141,12 @@ int CheckCmdsCustomString( char *command )
 	// this behavior also depends on HANDLE_COMMAND_DOMAIN().
 
 	// check for commands in "custom string" table
+#ifndef PARSEC_SERVER
+	unsigned int num_custcommstr = NUM_CMDS_CUSTOMSTRING;
+	for ( unsigned int tid = 0; tid < num_custcommstr; tid++ ) {
+#else
 	for ( unsigned int tid = 0; tid < NUM_CMDS_CUSTOMSTRING; tid++ ) {
+#endif
 
 		const char *cmdstr = CMSTR( cmd_customstring[ tid ].commandid );
 		int  cmdlen  = CMLEN( cmd_customstring[ tid ].commandid );
@@ -681,7 +1154,7 @@ int CheckCmdsCustomString( char *command )
 		if ( strncmp( command, cmdstr, cmdlen ) == 0 ) {
 
 			ASSERT( cmd_customstring[ tid ].commandfunc != NULL );
-			return (*cmd_customstring[ tid ].commandfunc)( command + cmdlen );
+			return (*cmd_customstring[ tid ].commandfunc)( (char *) command + cmdlen );
 		}
 	}
 
@@ -699,7 +1172,11 @@ PRIVATE	int				max_user_commands = 32;
 
 // check user commands --------------------------------------------------------
 //
+#ifndef PARSEC_SERVER
+int CheckCmdsUserDefined( const char *command )
+#else
 int CheckCmdsUserDefined( char *command )
+#endif
 {
 	ASSERT( command != NULL );
 
@@ -723,7 +1200,7 @@ int CheckCmdsUserDefined( char *command )
 		if ( strncmp( command, cmdstr, cmdlen ) == 0 ) {
 
 			ASSERT( user_commands[ cid ].execute != NULL );
-			return (*user_commands[ cid ].execute)( command + cmdlen );
+			return (*user_commands[ cid ].execute)( (char *) command + cmdlen );
 		}
 	}
 
@@ -793,7 +1270,7 @@ int CON_ReplaceUserCommand( user_command_s* repcom )
 	// by this function. thus, the caller MUST ENSURE
 	// that this string is available indefinitely.
 	// (e.g., allocated statically.)
-	
+
 	//NOTE:
 	// the commlen field need not be valid, it will be
 	// set by this function. (in the original struct!)
@@ -820,7 +1297,11 @@ int CON_ReplaceUserCommand( user_command_s* repcom )
 
 // module registration function -----------------------------------------------
 //
+#ifdef PARSEC_SERVER
 REGISTER_MODULE( CON_COM_SV )
+#else
+REGISTER_MODULE( CON_COM )
+#endif
 {
 
 #ifdef PARSEC_DEBUG
@@ -836,6 +1317,5 @@ REGISTER_MODULE( CON_COM_SV )
 #endif // PARSEC_DEBUG
 
 }
-
 
 

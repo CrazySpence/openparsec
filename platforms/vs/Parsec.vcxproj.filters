@@ -138,8 +138,8 @@
     <ClCompile Include="..\..\src\parsec\aud_supp.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_act.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_act.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\con_aux.cpp">
       <Filter>parsec</Filter>
@@ -147,32 +147,32 @@
     <ClCompile Include="..\..\src\parsec\con_cani.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_com.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_com.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\con_conf.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_ext.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_ext.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\con_geom.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_info.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_info.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_int.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_int.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\con_kmap.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_list.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_list.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_load.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_load.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\con_main.cpp">
       <Filter>parsec</Filter>
@@ -189,8 +189,8 @@
     <ClCompile Include="..\..\src\parsec\con_shad.cpp">
       <Filter>parsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\con_std.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\con_std.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\con_tani.cpp">
       <Filter>parsec</Filter>

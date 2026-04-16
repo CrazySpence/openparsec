@@ -4,6 +4,7 @@
  * $Author: uberlinuxguy $ - $Date: 2004/09/26 03:43:34 $
  *
  * Orginally written by:
+ *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2002
  *   Copyright (c) Markus Hadwiger     <msh@parsec.org>   1998-2001
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -19,7 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <ctype.h>
@@ -40,17 +41,24 @@
 // global externals
 #include "globals.h"
 
+#ifndef PARSEC_SERVER
 // subsystem headers
 #include "aud_defs.h"
 
 // rendering subsystem
 #include "r_patch.h"
+#endif // !PARSEC_SERVER
 
 // local module header
+#ifndef PARSEC_SERVER
 #include "con_load.h"
+#else
+#include "con_load_sv.h"
+#endif
 
 // proprietary module headers
 #include "con_arg.h"
+#ifndef PARSEC_SERVER
 #include "con_aux.h"
 #include "con_ext.h"
 #include "con_main.h"
@@ -58,8 +66,19 @@
 #include "con_std.h"
 #include "e_color.h"
 #include "img_api.h"
+#else
+#include "con_aux_sv.h"
+#include "con_ext_sv.h"
+#include "con_main_sv.h"
+#include "con_std_sv.h"
+#include "net_limits.h"
+#include "net_defs.h"
+#include "e_gameserver.h"
+#endif
 #include "obj_clas.h"
+#ifndef PARSEC_SERVER
 #include "obj_ctrl.h"
+#endif
 #include "obj_cust.h"
 #include "obj_odt.h"
 #include "obj_type.h"
@@ -85,16 +104,21 @@ static char name_invalid[]			= "name invalid.";
 static char name_already_used[]		= "name must be unique.";
 static char filename_missing[]		= "filename missing.";
 static char filename_invalid[]		= "filename invalid.";
+#ifndef PARSEC_SERVER
 static char too_many_textures[]		= "too many textures.";
 static char too_many_texfonts[]		= "too many texfonts.";
+#endif // !PARSEC_SERVER
 static char too_many_objects[]		= "too many objects.";
 static char type_missing[]			= "type missing.";
 static char type_invalid[]			= "type invalid.";
 static char type_reused[]			= "type invalid. using old type.";
+#ifndef PARSEC_SERVER
 static char no_myship_subst[]		= "cannot substitute player ship object.";
 static char too_many_bitmaps[]		= "too many bitmaps.";
 static char too_many_samples[]		= "too many samples.";
+#endif // !PARSEC_SERVER
 static char object_not_found[]  	= "object data file not found.";
+#ifndef PARSEC_SERVER
 static char texture_invalid_file[]	= "texture file invalid or not found.";
 static char bitmap_invalid_file[]	= "bitmap file invalid or not found.";
 static char bitmap_geom_inval[]		= "bitmap geometry invalid.";
@@ -107,6 +131,7 @@ static char volume_invalid[]		= "volume invalid.";
 static char volume_range_error[]	= "volume out of range.";
 static char stdfreq_invalid[]		= "standard frequency invalid.";
 static char stereolevel_invalid[]	= "stereo priority level invalid.";
+#endif // !PARSEC_SERVER
 static char odt_invalid_file[]		= "odt file invalid.";
 static char odt_invalid_overwrite[]	= "invalid file used to overwrite existing object.";
 static char too_many_lod_fnames[]	= "stripping excessive lods.";
@@ -429,7 +454,11 @@ int ConLoadObject( char *name )
 	}
 
 	// check if object of same name already exists
+#ifndef PARSEC_SERVER
 	unsigned int insertindex = NumLoadedObjects;
+#else
+	int insertindex = NumLoadedObjects;
+#endif
 	for ( int oid = 0; oid < NumLoadedObjects; oid++ ) {
 		if ( stricmp( ObjectInfo[ oid ].name, name ) == 0 ) {
 			if ( AUX_ENABLE_OBJECT_OVERLOADING ) {
@@ -443,7 +472,11 @@ int ConLoadObject( char *name )
 	}
 
 	// set flag if new object should be appended
+#ifndef PARSEC_SERVER
 	int newobject = ( insertindex == (unsigned int)NumLoadedObjects );
+#else
+	int newobject = ( insertindex == NumLoadedObjects );
+#endif
 
 	// scan out all values to texture keys
 	if ( !ScanKeyValuePairs( object_key_value, NULL ) )
@@ -473,7 +506,11 @@ int ConLoadObject( char *name )
 	dword objloadflags = DetermineODTFlags( &object_key_value[ KEY_OBJ_FLAGS ] );
 
 	// parse shader
-	shader_s *shader =DetermineODTShader( &object_key_value[ KEY_OBJ_SHADER ] );
+#ifndef PARSEC_SERVER
+	shader_s *shader = DetermineODTShader( &object_key_value[ KEY_OBJ_SHADER ] );
+#else
+	shader_s *shader = NULL;
+#endif
 
 	// determine object's type id and prepare object loading
 	dword objtypeid;
@@ -500,6 +537,7 @@ int ConLoadObject( char *name )
 
 	} else {
 
+#ifndef PARSEC_SERVER
 		// prevent elimination of local player's ship by disallowing
 		// object substitution of player's ship class
 		if ( MyShip->ObjectClass == insertindex ) {
@@ -509,6 +547,7 @@ int ConLoadObject( char *name )
 				return FALSE;
 			}
 		}
+#endif // !PARSEC_SERVER
 
 		// check for optional type specifier
 		char *typestr = object_key_value[ KEY_OBJ_TYPE ].value;
@@ -533,15 +572,24 @@ int ConLoadObject( char *name )
 		}
 
 		// kill all instances of previous object
+#ifndef PARSEC_SERVER
 		int killcount = KillClassInstances( insertindex );
+#else
+		int killcount = TheWorld->KillClassInstances( insertindex );
+#endif
 		if ( killcount > 0 ) {
 			sprintf( paste_str, "number of removed class instances: %d.", killcount );
 			CON_AddLine( paste_str );
 		}
 
 		// free previous object's data
+#ifndef PARSEC_SERVER
 		FREEMEM( ObjClasses[ insertindex ] );
 		ObjClasses[ insertindex ] = NULL;
+#else
+		FREEMEM( TheWorld->ObjClasses[ insertindex ] );
+		TheWorld->ObjClasses[ insertindex ] = NULL;
+#endif
 	}
 
 	// save current loading params
@@ -623,6 +671,8 @@ int ConLoadObject( char *name )
 	return TRUE;
 }
 
+
+#ifndef PARSEC_SERVER
 
 // set texture's name ---------------------------------------------------------
 //
@@ -814,7 +864,7 @@ static byte*	char_sequence = NULL;
 //
 static byte special_chars[] = {
 
-//	ü,    ä,    Ä,    ö,    Ö,    Ü
+//	ï¿½,    ï¿½,    ï¿½,    ï¿½,    ï¿½,    ï¿½
 	0x81, 0x84, 0x8e, 0x94, 0x99, 0x9a
 };
 
@@ -823,7 +873,7 @@ static byte special_chars[] = {
 //
 //static byte alex_char_sequence[] = {
 //	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" \
-//	"1234567890  !\"§$%&/()=? <;:- *> .-#+öäü\'[]\\|~{}@"
+//	"1234567890  !\"$%&/()=? <;:- *> .-#+\'\\'[]\\|~{}@"
 //};*/
 
 
@@ -1528,11 +1578,19 @@ int ConLoadSample( char *name )
 	return TRUE;
 }
 
+#endif // !PARSEC_SERVER
+
 
 // main entry point for "load" command (load data via console) ----------------
 //
 int Cmd_ExecLoadCommand( char *command )
 {
+#ifdef PARSEC_SERVER
+	if ( TheServer->GetServerIsMaster() ) {
+		return false;
+	}
+#endif // PARSEC_SERVER
+
 	//NOTE:
 	//CONCOM:
 	// load_command ::= 'load' <data_type> <name> [<key> <value>]*
@@ -1550,6 +1608,7 @@ int Cmd_ExecLoadCommand( char *command )
 		return TRUE;
 	}
 
+#ifndef PARSEC_SERVER
 	// this flag is used for internal data reloading
 	if ( AUX_ALLOW_ONLY_TEXTURE_LOADING ) {
 		// disallow everything but textures
@@ -1557,6 +1616,7 @@ int Cmd_ExecLoadCommand( char *command )
 			return TRUE;
 		}
 	}
+#endif // !PARSEC_SERVER
 
 	// create pointer to list of parameters (first is always the name)
 	char *name = strtok( NULL, " " );
@@ -1571,6 +1631,8 @@ int Cmd_ExecLoadCommand( char *command )
 		CON_AddLine( name_invalid );
 		return TRUE;
 	}
+
+#ifndef PARSEC_SERVER
 
 	// dispatch to functions for handling different data types
 	if ( strcmp( datatype, datatype_object ) == 0 )
@@ -1594,14 +1656,43 @@ int Cmd_ExecLoadCommand( char *command )
 			MSGPUT( "." );
 	}
 
+#else // PARSEC_SERVER
+
+	// dispatch to functions for handling different data types
+	if ( strcmp( datatype, datatype_object ) == 0 )
+		ConLoadObject( name );
+	else if ( strcmp( datatype, datatype_texture ) == 0 )
+		CON_AddLine( "ignoring textures." );
+	else if ( strcmp( datatype, datatype_texfont ) == 0 )
+		CON_AddLine( "ignoring textfonts." );
+	else if ( strcmp( datatype, datatype_bitmap ) == 0 )
+		CON_AddLine( "ignoring bitmaps." );
+	else if ( strcmp( datatype, datatype_sample ) == 0 )
+		CON_AddLine( "ignoring samples." );
+	else
+		CON_AddLine( datatype_invalid );
+
+	// print dot for every loaded item in text-mode
+	// (well, also if one of the above routines fails...)
+	//if ( AUX_CMD_WRITE_ACTIVE_IN_TEXTMODE ) {
+		MSGPUT( "." );
+	//}
+
+#endif // PARSEC_SERVER
+
 	return TRUE;
 }
 
 
 // module registration function -----------------------------------------------
 //
+#ifdef PARSEC_SERVER
+REGISTER_MODULE( CON_LOAD_SV )
+#else
 REGISTER_MODULE( CON_LOAD )
+#endif
 {
+#ifndef PARSEC_SERVER
 	// file char sequence table
 	int numbasechars = ( 0x7f - 0x21 );
 	int numspecialchars = sizeof( special_chars );
@@ -1620,7 +1711,7 @@ REGISTER_MODULE( CON_LOAD )
 
 	ASSERT( storepos == ( numbasechars + numspecialchars ) );
 	num_charseq = storepos;
+#endif // !PARSEC_SERVER
 }
-
 
 

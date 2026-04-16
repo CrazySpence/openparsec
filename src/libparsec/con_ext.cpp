@@ -1,10 +1,9 @@
 /*
- * PARSEC - Server External Commands
+ * PARSEC - External Commands
  *
- * $Author: uberlinuxguy $ - $Date: 2004/09/15 12:25:44 $
+ * $Author: uberlinuxguy $ - $Date: 2004/09/15 12:25:23 $
  *
  * Orginally written by:
- *   Copyright (c) Clemens Beer        <cbx@parsec.org>   2001
  *   Copyright (c) Markus Hadwiger     <msh@parsec.org>   1996-2001
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,7 +19,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 // C library
 #include <ctype.h>
@@ -41,21 +40,32 @@
 #include "globals.h"
 
 // local module header
+#ifndef PARSEC_SERVER
+#include "con_ext.h"
+#else
 #include "con_ext_sv.h"
+#endif
 
 // proprietary module headers
-//#include "con_act.h"
+#ifndef PARSEC_SERVER
+#include "con_act.h"
+#include "con_aux.h"
+#include "con_list.h"
+#include "con_main.h"
+#include "con_std.h"
+#include "con_vald.h"
+#include "e_demo.h"
+#include "e_record.h"
+#include "e_replay.h"
+#else
 #include "con_aux_sv.h"
 #include "con_list_sv.h"
 #include "con_main_sv.h"
 #include "con_std_sv.h"
 #include "con_vald.h"		// shared !
-//#include "e_demo.h"
-//#include "e_record.h"
-//#include "e_replay.h"
+#endif
 #include "sys_file.h"
 #include "sys_path.h"
-
 
 
 // maximum depth of recursion in command batch files
@@ -74,6 +84,12 @@ static char con_extension[]		= CON_FILE_EXTENSION;
 static char invalid_batch_name[]= "invalid name specifier.";
 static char recursion_canceled[]= "command canceled due to recursion.";
 static char recursion_maxdepth[]= "maximum recursion depth reached.";
+#ifndef PARSEC_SERVER
+static char replaying_script[]	= "replay in progress (script).";
+static char replaying_binary[]	= "replay in progress (binary).";
+static char stopped_replay[]	= "replay has been stopped.";
+static char record_disallowed[]	= "recording not allowed (object camera is active).";
+#endif // !PARSEC_SERVER
 static char no_replay[]			= "no replay in progress.";
 
 static char con_file_wldcard1[]	= "*" CON_FILE_EXTENSION;
@@ -133,7 +149,8 @@ void AcquireModScripts()
 {
 	for ( int mod = 0; mod < mod_numnames; mod++ ) {
 
-		char *path = (char *) ALLOCMEM( strlen( mod_names[ mod ] ) + strlen( con_file_wldcard1 ) + 2 );
+		char *path = (char *) ALLOCMEM(
+			strlen( mod_names[ mod ] ) + strlen( con_file_wldcard1 ) + 2 );
 		if ( path == NULL ) {
 			OUTOFMEM( 0 );
 		}
@@ -236,19 +253,13 @@ FILE *OpenScript( char *script )
 	// the sequence of paths scanned in this function determines the
 	// precedence of console scripts of the same name but located in
 	// different directories.
-
-	//NOTE:
-	// the path search sequence is:
+	//
+	// path search sequence:
 	// 1. data package
 	// 2. root (local) directory
 	// 3. reference directory (refs)
 	// 4. standard directory (cons)
 	// 5. recording directory (recs)
-
-	//NOTE:
-	// to avoid inconsistencies the search order in E_RECORD::LoadPacket()
-	// and E_DEMO::DEMO_BinaryOpenDemo() should be consistent
-	// with the search order used here.
 
 	FILE *fp = NULL;
 
@@ -258,8 +269,11 @@ FILE *OpenScript( char *script )
 	// to ensure scripts with explicitly specified paths work
 	char *path = SYSs_ProcessPathString( paste_str );
 
+#ifndef PARSEC_SERVER
+	if ( !AUX_DISABLE_PACKAGE_SCRIPTS ) {
+#else
 	if ( SV_PACKAGE_SCRIPTS ) {
-
+#endif
 		// try to read from package first
 		if ( ( fp = SYS_fopen( path, "r" ) ) != NULL ) {
 			return fp;
@@ -382,8 +396,10 @@ int Cmd_CatExternalCommands( char *cstr )
 
 		if ( !packeof && !SYS_feof( fp ) ) {
 			cat_pos		   = SYS_ftell( fp );
+#ifndef PARSEC_SERVER
 			await_keypress = TRUE;
 			com_cont_func  = CatExternalCommands_ctd;
+#endif
 		}
 
 		SYS_fclose( fp );
@@ -429,13 +445,20 @@ void ExecConsoleFile( char *fname, int echo )
 
 		if ( !console_init_done ) {
 			// invocation from InitConsole() (exec init script)
-				MSGPUT( "Executing console script (%s)...", fname );
+			MSGPUT( "Executing console script (%s)...", fname );
 			CON_AddLine( paste_str );
 		} else {
+#ifndef PARSEC_SERVER
+			if ( !AUX_DISABLE_LEVEL_CONSOLE_MESSAGES ) {
+				// not invoked from InitConsole()
+				CON_AddMessage( paste_str );
+			}
+#else
 			if ( !SV_CONSOLE_LEVEL_MESSAGES ) {
 				// not invoked from InitConsole()
 				CON_AddMessage( paste_str );
 			}
+#endif
 		}
 
 		// disallow action commands
@@ -460,7 +483,17 @@ void ExecConsoleFile( char *fname, int echo )
 		if ( console_init_done && echo )
 			CON_AddLine( con_prompt );
 
+#ifndef PARSEC_SERVER
+		if ( TextModeActive ) {
+			if ( AUX_CMD_WRITE_ACTIVE_IN_TEXTMODE ) {
+				MSGOUT( "\nScript execution done." );
+			} else {
+				MSGOUT( "done." );
+			}
+		}
+#else
 		MSGOUT( "\nScript execution done." );
+#endif
 
 		SYS_fclose( fp );
 	}
@@ -521,12 +554,12 @@ int	ExecExternalLine( char *line, int echo )
 		}
 	}
 
-/*
+#ifndef PARSEC_SERVER
 	// count executed commands
 	if ( !DEMO_BinaryReplayActive() ) {
 		demoinfo_curline++;
 	}
-*/
+#endif
 
 	return exec;
 }
@@ -560,11 +593,12 @@ void ExecLines( int echo )
 		// execute current line
 		ExecExternalLine( com_line, echo );
 
+#ifndef PARSEC_SERVER
 		// stall recursion if idlewait specified
-		// FIXME: do we need the AC.WAIT command in the server ??
-		/*if ( CurActionWait > 0 ) {
+		if ( CurActionWait > 0 ) {
 			break;
-		}*/
+		}
+#endif
 	}
 
 	// go one recursion level up
@@ -602,12 +636,16 @@ int ExecExternalCommand( int extcom, int echo )
 		// exec all lines of this batch
 		ExecLines( echo );
 
+#ifndef PARSEC_SERVER
 		// keep file open if recursion stalled
-		// FIXME: do we need the AC.WAIT command in the server ??
-		//if ( CurActionWait == 0 ) {
+		if ( CurActionWait == 0 ) {
 			SYS_fclose( fp_for_level[ rec_depth ] );
 			fp_for_level[ rec_depth ] = NULL;
-		//}
+		}
+#else
+		SYS_fclose( fp_for_level[ rec_depth ] );
+		fp_for_level[ rec_depth ] = NULL;
+#endif
 
 		return TRUE;
 	}
@@ -658,12 +696,16 @@ int ExecExternalFile( char *command )
 		// exec all lines of this batch
 		ExecLines( FALSE );
 
+#ifndef PARSEC_SERVER
 		// keep file open if recursion stalled
-		// FIXME: do we need the AC.WAIT command in the server ??
-		//if ( CurActionWait == 0 ) {
+		if ( CurActionWait == 0 ) {
 			SYS_fclose( fp_for_level[ rec_depth ] );
 			fp_for_level[ rec_depth ] = NULL;
-		//}
+		}
+#else
+		SYS_fclose( fp_for_level[ rec_depth ] );
+		fp_for_level[ rec_depth ] = NULL;
+#endif
 
 		return TRUE;
 	}
@@ -757,17 +799,21 @@ int RestartExternalCommand( int echo )
 		// exec all lines of this batch
 		ExecLines( echo );
 
+#ifndef PARSEC_SERVER
 		// keep file open if recursion stalled
-		// FIXME: do we need the AC.WAIT command in the server ??
-		//if ( CurActionWait == 0 ) {
+		if ( CurActionWait == 0 ) {
 			SYS_fclose( fp_for_level[ rec_depth ] );
 			fp_for_level[ rec_depth ] = NULL;
-		/*} else {
+		} else {
 			// simulate unraveling of
 			// recursion to highest level
 			rec_depth = 0;
 			break;
-		}*/
+		}
+#else
+		SYS_fclose( fp_for_level[ rec_depth ] );
+		fp_for_level[ rec_depth ] = NULL;
+#endif
 
 	} while ( rec_depth > 0 );
 
@@ -777,11 +823,13 @@ int RestartExternalCommand( int echo )
 	// back to interactive console mode
 	con_non_interactive = FALSE;
 
+#ifndef PARSEC_SERVER
 	// ensure no dangling automatic actions
 	// if execution finished (not stalled)
 	if ( idle_reclevel == 0 ) {
-		//REPLAY_StopAutomaticActions();
+		REPLAY_StopAutomaticActions();
 	}
+#endif
 
 	return TRUE;
 }
@@ -930,6 +978,14 @@ int StartRecording( char *cstr, int savestate )
 
 	if ( !RecordingActive ) {
 
+#ifndef PARSEC_SERVER
+		// object camera must be off
+		if ( ObjCameraActive ) {
+			CON_AddLine( record_disallowed );
+			return TRUE;
+		}
+#endif // !PARSEC_SERVER
+
 		// fetch name for recording
 		char *name = strtok( cstr, " " );
 		if ( name == NULL ) {
@@ -955,16 +1011,20 @@ int StartRecording( char *cstr, int savestate )
 			RecordingActive   = TRUE;
 
 			// warn user if packet recording is off
+#ifndef PARSEC_SERVER
+			if ( NetConnected && !RecordRemotePackets ) {
+#else
 			if ( !RecordRemotePackets ) {
+#endif
 				CON_AddLine( "[warning]: remote packet recording is off." );
 			}
 
 			// save game state (data screenshot) if desired
 			if ( savestate ) {
-/*
+#ifndef PARSEC_SERVER
 				REC_InitMatrices();
 				SaveGameState();
-*/
+#endif
 				CON_AddLine( "game state saved." );
 			}
 
@@ -1022,19 +1082,20 @@ void CallExternalCommand( int extcom, int echo )
 	ASSERT( extcom >= 0 );
 	ASSERT( ( echo == FALSE ) || ( echo == TRUE ) );
 
-/*
+#ifndef PARSEC_SERVER
 	// init demo info
 	if ( !DEMO_BinaryReplayActive() ) {
 		DEMO_InitInfo();
 	}
-*/
+#endif
 
 	// assume action commands will be allowed
 	int actionflag = TRUE;
 
+#ifndef PARSEC_SERVER
 	// remember action wait
-	// FIXME: do we need the AC.WAIT command in the server ??
-	//int curactionwait = CurActionWait;
+	int curactionwait = CurActionWait;
+#endif
 
 	// handle non-recursive call
 	if ( rec_depth == 0 ) {
@@ -1044,7 +1105,8 @@ void CallExternalCommand( int extcom, int echo )
 			return;
 		}
 
-		/*if ( DEMO_BinaryReplayActive() ) {
+#ifndef PARSEC_SERVER
+		if ( DEMO_BinaryReplayActive() ) {
 
 			// disallow action commands to allow
 			// simultaneous playback of binary demo
@@ -1055,9 +1117,9 @@ void CallExternalCommand( int extcom, int echo )
 			// executed, conflicting with the current one.
 
 			// prevent batch execution from stalling
-			// FIXME: do we need the AC.WAIT command in the server ??
 			CurActionWait = 0;
-		}*/
+		}
+#endif
 	}
 
 	// check if maximum recursion depth reached
@@ -1067,8 +1129,8 @@ void CallExternalCommand( int extcom, int echo )
 		processing_batch = actionflag;
 
 		// check all recursion levels above this one
-		int lvl;
-        for ( lvl = 0; lvl < rec_depth; lvl++ )
+		int lvl = 0;
+		for ( lvl = 0; lvl < rec_depth; lvl++ )
 			if ( extcom_on_level[ lvl ] == extcom )
 				break;
 
@@ -1090,20 +1152,21 @@ void CallExternalCommand( int extcom, int echo )
 		// clear batch execution flag
 		processing_batch = FALSE;
 
+#ifndef PARSEC_SERVER
 		// distinguish script only/simultaneous binary replay
 		if ( actionflag == FALSE ) {
 
 			// restore wait interval if binary demo
 			// replay simultaneously in progress
-			// FIXME: do we need the AC.WAIT command in the server ??
-			//CurActionWait = curactionwait;
+			CurActionWait = curactionwait;
 
 		} else {
 
 			// ensure no dangling automatic actions
 			// (only if no simultaneous binary replay)
-			//REPLAY_StopAutomaticActions();
+			REPLAY_StopAutomaticActions();
 		}
+#endif
 	}
 }
 
@@ -1112,9 +1175,10 @@ void CallExternalCommand( int extcom, int echo )
 //
 void ScriptStopReplay()
 {
+#ifndef PARSEC_SERVER
 	// immediately stop idle waiting
-	// FIXME: do we need the AC.WAIT command in the server ??
-	//CurActionWait = 0;
+	CurActionWait = 0;
+#endif
 
 	// shut down recursive call stack
 	while ( idle_reclevel > 0 ) {
@@ -1129,8 +1193,10 @@ void ScriptStopReplay()
 	}
 	ASSERT( idle_reclevel == 0 );
 
+#ifndef PARSEC_SERVER
 	// kill dangling automatic actions
-	//REPLAY_StopAutomaticActions();
+	REPLAY_StopAutomaticActions();
+#endif
 }
 
 
@@ -1149,14 +1215,17 @@ void Cmd_CloseOutputBatch()
 //
 void Cmd_StopBatchReplay()
 {
-//	if ( !DEMO_ReplayActive() ) {
+#ifndef PARSEC_SERVER
+	if ( !DEMO_ReplayActive() ) {
 		CON_AddLine( no_replay );
-/*	} else {
+	} else {
 		// stop both binary replay and command batch replay
 		DEMO_StopReplay();
 		CON_AddLine( stopped_replay );
 	}
-*/
+#else
+	CON_AddLine( no_replay );
+#endif
 }
 
 
@@ -1164,12 +1233,16 @@ void Cmd_StopBatchReplay()
 //
 void Cmd_QueryReplayInfo()
 {
-	/*if ( ScriptReplayActive() )
+#ifndef PARSEC_SERVER
+	if ( ScriptReplayActive() )
 		CON_AddLine( replaying_script );
 	else if ( DEMO_BinaryReplayActive() )
 		CON_AddLine( replaying_binary );
-	else*/
+	else
 		CON_AddLine( no_replay );
+#else
+	CON_AddLine( no_replay );
+#endif
 }
 
 
@@ -1177,13 +1250,12 @@ void Cmd_QueryReplayInfo()
 //
 void Cmd_RescanExternalCommands()
 {
+#ifndef PARSEC_SERVER
 	// rebuild demo info
-	//DEMO_RegisterInitialDemos();
+	DEMO_RegisterInitialDemos();
+#endif
 
 	// rebuild script cache
 	BuildExternalCommandList();
 	CON_AddLine( "script cache rebuilt." );
 }
-
-
-
