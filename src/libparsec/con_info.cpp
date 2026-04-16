@@ -2051,7 +2051,7 @@ void DisplayFaceList( GenObject *gobj )
 #ifndef PARSEC_SERVER
 // command "faceinfo" to display various object face information --------------
 //
-int Cmd_FaceInfo( const char *command )
+int Cmd_FaceInfo( char *command )
 {
 	//NOTE:
 	//CONCOM:
@@ -2071,7 +2071,7 @@ int Cmd_FaceInfo( const char *command )
 	HANDLE_COMMAND_DOMAIN_SEP( command );
 
 	// scan out all values to keys
-	if ( !ScanKeyValuePairs( faceinfo_key_value, const_cast<char *>( command ) ) )
+	if ( !ScanKeyValuePairs( faceinfo_key_value, command ) )
 		return TRUE;
 
 	// get object class (either name or id)
