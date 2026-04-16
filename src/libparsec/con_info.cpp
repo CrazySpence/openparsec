@@ -2071,7 +2071,7 @@ int Cmd_FaceInfo( const char *command )
 	HANDLE_COMMAND_DOMAIN_SEP( command );
 
 	// scan out all values to keys
-	if ( !ScanKeyValuePairs( faceinfo_key_value, command ) )
+	if ( !ScanKeyValuePairs( faceinfo_key_value, const_cast<char *>( command ) ) )
 		return TRUE;
 
 	// get object class (either name or id)
