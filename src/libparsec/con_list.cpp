@@ -799,81 +799,11 @@ void Cmd_ListBinaryDemos()
 	CheckListContinuation( num_registered_demos, ListBinaryDemos_ctd );
 }
 #else // PARSEC_SERVER
-// display single video mode information (server) -----------------------------
-//
-PRIVATE
-int DispVidMode( int *cnt, int num )
-{
-	ASSERT( cnt != NULL );
-	ASSERT( num >= 0 );
-
-	if ( VID_MODE_AVAILABLE( num ) ) {
-
-		short bytesperscanline = HiresModes[ num ].bytesperscanline;
-		short colbits		   = HiresModes[ num ].colbits;
-
-		if ( HiresModes[ num ].flags & HIRESMODEFLAG_VISUALINFO ) {
-			bytesperscanline = 0;
-			colbits			 = HiresModes[ num ].visual_colbits;
-		}
-
-		if ( bytesperscanline > 0 ) {
-			sprintf( paste_str, "  mode: %4d x %4d %2dbpp %4dbpsl",
-				 	 HiresModes[ num ].xresolution,
-				 	 HiresModes[ num ].yresolution,
-				 	 colbits, bytesperscanline );
-		} else {
-			sprintf( paste_str, "  mode: %4d x %4d %2dbpp",
-				 	 HiresModes[ num ].xresolution,
-				 	 HiresModes[ num ].yresolution,
-				 	 colbits );
-		}
-
-		if ( VID_MODE_WINDOWED( num ) ) {
-			strcat( paste_str, " (windowed)" );
-		} else {
-			// display refresh rate if available (and not default)
-		}
-		if ( num == VidModeIndex ) {
-			paste_str[ 0 ] = '*';
-		}
-
-		return PrintListLine( cnt, paste_str );
-	}
-
-	return 1;
-}
-
-
-// continue video mode list (server) -------------------------------------------
-//
-PRIVATE
-void ListVidModes_ctd()
-{
-	// continued run
-	int cnt = 0;
-	while ( ( comm_to_print < MAX_NUM_GRAPH_MODES ) &&
-			( DispVidMode( &cnt, comm_to_print ) ) )
-		comm_to_print++;
-
-	CheckListEnd( MAX_NUM_GRAPH_MODES );
-}
-
-
-// list all available video modes ("vid.listmodes") (server) ------------------
+// list all available video modes ("vid.listmodes") -- server stub -------------
 //
 void Cmd_ListVidModes()
 {
-	// list entries already output
-	comm_to_print = 0;
-
-	// first run
-	int cnt = 0;
-	while ( ( comm_to_print < MAX_NUM_GRAPH_MODES ) &&
-			( DispVidMode( &cnt, comm_to_print ) ) )
-		comm_to_print++;
-
-	CheckListContinuation( MAX_NUM_GRAPH_MODES, ListVidModes_ctd );
+	// no video mode listing on server
 }
 #endif // PARSEC_SERVER
 

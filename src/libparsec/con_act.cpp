@@ -622,7 +622,11 @@ void ResetClassMapTable()
 {
 	// needed to preserve table across multiple
 	// demos that are played back-to-back
+#ifdef PARSEC_SERVER
+	if ( SV_CLASS_MAP_TABLE_DISABLE_RESET )
+#else
 	if ( AUX_DISABLE_CLASS_MAP_TABLE_RESET )
+#endif
 		return;
 
 	class_map_old_id = CLASS_ID_INVALID;
@@ -682,13 +686,18 @@ GenObject *CreateRecordedObject( dword objclass, Xmatrx startmatrx )
 	}
 
 	// create object corresponding to original class
+#ifdef PARSEC_SERVER
+	GenObject *obj = CreateObject( objclass, startmatrx, PLAYERID_SERVER );
+#else
 	GenObject *obj = CreateObject( objclass, startmatrx );
+#endif
 	if ( obj == NULL ) {
 
 		CON_AddLine( invalid_class );
 
 	} else {
 
+#ifndef PARSEC_SERVER
 		// play sound effects for certain types
 		switch ( obj->ObjectType ) {
 
@@ -707,6 +716,7 @@ GenObject *CreateRecordedObject( dword objclass, Xmatrx startmatrx )
 				AUD_Mine( obj );
 				break;
 		}
+#endif
 	}
 
 	return obj;
@@ -869,10 +879,12 @@ void AcCreateObject()
 PRIVATE
 void AcDestroyObjectList()
 {
+#ifndef PARSEC_SERVER
 	if ( ObjCameraActive ) {
 		CON_AddLine( no_objcam_allowed );
 		return;
 	}
+#endif
 
 	int32 listid;
 	if ( AcFetchIntParams( 1, &listid ) ) {
@@ -1901,6 +1913,7 @@ void AcSetMisslTarget()
 		scanpo->TargetObjNumber = target;
 
 #ifdef RECOVER_TARGET_ON_MISSILE_CREATION
+#ifndef PARSEC_SERVER
 
 		if ( TargetObjNumber != (dword)target ) {
 
@@ -1909,6 +1922,7 @@ void AcSetMisslTarget()
 			TargetObjNumber = target;
 			CON_AddLine( "recovering target." );
 		}
+#endif
 #endif
 
 	}
@@ -2760,7 +2774,9 @@ void AcIncludeDemo()
 	// occur in a compiled demo, since it will be substituted
 	// by the specified demo on compilation.
 
+#ifndef PARSEC_SERVER
 	CON_AddLine( only_for_compile );
+#endif
 }
 
 
@@ -3553,6 +3569,7 @@ int WriteActionPacketParam( FILE *fp )
 	int32 params[ 2 ];
 	if ( AcFetchIntParams( 2, params ) ) {
 
+#ifndef PARSEC_SERVER
 		// fetch packet
 		NetPacketExternal* ext_gamepacket = (NetPacketExternal*) ALLOCMEM( RECORD_PACKET_SIZE );
 		size_t psize = REC_FetchRemotePacket( ext_gamepacket, params[ 0 ], params[ 1 ] );
@@ -3569,6 +3586,9 @@ int WriteActionPacketParam( FILE *fp )
 		}
 
 		FREEMEM( ext_gamepacket );
+#else
+		ASSERT( FALSE );
+#endif
 
 	} else {
 
