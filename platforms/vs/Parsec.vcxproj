@@ -111,7 +111,7 @@
     <ClCompile Include="..\..\src\parsec\g_explod.cpp" />
     <ClCompile Include="..\..\src\parsec\g_gameloop.cpp" />
     <ClCompile Include="..\..\src\parsec\g_global.cpp" />
-    <ClCompile Include="..\..\src\parsec\g_laser.cpp" />
+    <ClCompile Include="..\..\src\libparsec\g_laser.cpp" />
     <ClCompile Include="..\..\src\parsec\g_planet.cpp" />
     <ClCompile Include="..\..\src\parsec\g_sfx.cpp" />
     <ClCompile Include="..\..\src\parsec\g_shkwav.cpp" />
