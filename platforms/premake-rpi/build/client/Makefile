@@ -770,7 +770,7 @@ $(OBJDIR)/part_api.o: ../../../../src/parsec/part_api.cpp
 $(OBJDIR)/nl_udp.o: ../../../../src/parsec/nl_udp.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/g_laser.o: ../../../../src/parsec/g_laser.cpp
+$(OBJDIR)/g_laser.o: ../../../../src/libparsec/g_laser.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_gameloop.o: ../../../../src/parsec/g_gameloop.cpp

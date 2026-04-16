@@ -644,7 +644,7 @@ $(OBJDIR)/g_gameloop.o: ../../../../src/parsec/g_gameloop.cpp
 $(OBJDIR)/g_global.o: ../../../../src/parsec/g_global.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/g_laser.o: ../../../../src/parsec/g_laser.cpp
+$(OBJDIR)/g_laser.o: ../../../../src/libparsec/g_laser.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_planet.o: ../../../../src/parsec/g_planet.cpp

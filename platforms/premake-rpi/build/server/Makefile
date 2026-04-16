@@ -99,6 +99,7 @@ OBJECTS := \
 	$(OBJDIR)/e_relist.o \
 	$(OBJDIR)/con_vald.o \
 	$(OBJDIR)/g_extra.o \
+	$(OBJDIR)/g_laser.o \
 	$(OBJDIR)/obj_clas.o \
 	$(OBJDIR)/obj_type.o \
 	$(OBJDIR)/e_simulator.o \
@@ -226,6 +227,9 @@ $(OBJDIR)/utl_logfile.o: ../../../../src/libparsec/utl_logfile.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_emp.o: ../../../../src/libparsec/g_emp.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/g_laser.o: ../../../../src/libparsec/g_laser.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_telep.o: ../../../../src/libparsec/g_telep.cpp
