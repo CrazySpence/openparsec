@@ -491,7 +491,11 @@ int LaserBeamAnimate( CustomObject *base )
 PUBLIC
 int KillLaserBeam( dword laserbeamobjno )
 {
+#ifdef PARSEC_SERVER
+	LaserBeam *laserbeam = (LaserBeam *) TheWorld->FetchObject( laserbeamobjno );
+#else
 	LaserBeam *laserbeam = (LaserBeam *) FetchObject( laserbeamobjno );
+#endif
 	if ( laserbeam == NULL)
 		return FALSE;
 
