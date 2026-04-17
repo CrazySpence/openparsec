@@ -956,9 +956,11 @@ struct RE_Planet : RE_Header {
 	int		hasring;				// 4 — ring enabled
 	geomv_t	ringinnerradius;		// 4 — ring inner radius
 	geomv_t	ringouterradius;		// 4 — ring outer radius
+	bams_t	ringtiltx;				// 4 — ring tilt around X axis
+	bams_t	ringtiltz;				// 4 — ring tilt around Z axis
 	char	ringtexname[ 64 ];		// 64 — ring texture name (MAX_RING_TEXNAME+1)
 	char	surtexname[ 64 ];		// 64 — surface texture name (MAX_SURF_TEXNAME+1)
-	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 64 + 64 = 166
+	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 64 + 64 = 174
 };
 
 

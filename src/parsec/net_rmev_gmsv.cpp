@@ -554,6 +554,8 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 	planet->HasRing			= pRE_Planet->hasring;
 	planet->RingInnerRadius	= pRE_Planet->ringinnerradius;
 	planet->RingOuterRadius	= pRE_Planet->ringouterradius;
+	planet->RingTiltX		= pRE_Planet->ringtiltx;
+	planet->RingTiltZ		= pRE_Planet->ringtiltz;
 	strncpy( planet->RingTexName, pRE_Planet->ringtexname, MAX_RING_TEXNAME );
 	planet->RingTexName[ MAX_RING_TEXNAME ] = 0;
 	// RingTexture is per-instance (not shared), safe to set directly

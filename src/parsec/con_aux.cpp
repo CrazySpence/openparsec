@@ -52,6 +52,8 @@
 #include "con_int.h"
 #include "e_supp.h"
 #include "net_rmev.h"
+#include "vid_supp.h"
+#include "vsdl_ogl.h"
 
 
 // flags
@@ -105,6 +107,17 @@ void FlushTexCache()
 		// precache textures
 		R_PrecacheTextures();
 	}
+}
+
+
+// apply aux_view_distance change: update far clip plane + rebuild projection matrix and view volume
+//
+PRIVATE
+void ApplyViewDistance()
+{
+	Far_View_Plane = (geomv_t) AUX_VIEW_DISTANCE;
+	VSDL_CalcProjectiveMatrix();
+	VID_SetViewingVolume();
 }
 
 
@@ -318,6 +331,7 @@ int_command_s verbose_aux_commands[] = {
 	{ 0x80,	"aux_debug_netstream_dump",					0, 15,	&AUX_DEBUG_NETSTREAM_DUMP,					NULL,				NULL },
 	{ 0x80, "aux_anisotropic_filtering",				0, 16,  &AUX_ANISOTROPIC_FILTERING,					NULL,				NULL },
 	{ 0x80, "aux_msaa",									0, 8,   &AUX_MSAA,									NULL,				NULL },
+	{ 0x80, "aux_view_distance",						2000, 131072, &AUX_VIEW_DISTANCE,					ApplyViewDistance,	NULL },
 };
 
 #define NUM_VERBOSE_AUX_COMMANDS	CALC_NUM_ARRAY_ENTRIES( verbose_aux_commands )

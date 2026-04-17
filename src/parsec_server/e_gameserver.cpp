@@ -996,6 +996,8 @@ key_value_s sv_planet_key_value[] = {
 	{ "ringtex",	NULL,	KEYVALFLAG_NONE				},
 	{ "ringinner",	NULL,	KEYVALFLAG_NONE				},
 	{ "ringouter",	NULL,	KEYVALFLAG_NONE				},
+	{ "ringtiltx",	NULL,	KEYVALFLAG_NONE				},
+	{ "ringtiltz",	NULL,	KEYVALFLAG_NONE				},
 
 	{ NULL,			NULL,	KEYVALFLAG_NONE				},
 };
@@ -1009,7 +1011,9 @@ enum {
 	KEY_PLANET_TEX,
 	KEY_PLANET_RINGTEX,
 	KEY_PLANET_RINGINNER,
-	KEY_PLANET_RINGOUTER
+	KEY_PLANET_RINGOUTER,
+	KEY_PLANET_RINGTILTX,
+	KEY_PLANET_RINGTILTZ
 };
 
 
@@ -1094,6 +1098,8 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 	// ringtex_spec			::= 'ringtex' <texname> (ring texture name without extension)
 	// ringinner_spec		::= 'ringinner' <float> (ring inner radius; 0 = use default)
 	// ringouter_spec		::= 'ringouter' <float> (ring outer radius; 0 = use default)
+	// ringtiltx_spec		::= 'ringtiltx' <float> (ring tilt around X axis, degrees; 0 = flat)
+	// ringtiltz_spec		::= 'ringtiltz' <float> (ring tilt around Z axis, degrees; 0 = flat)
 
 	ASSERT( sv_planet_command != NULL );
 	HANDLE_COMMAND_DOMAIN( sv_planet_command );
@@ -1154,6 +1160,13 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 	if ( sv_planet_key_value[ KEY_PLANET_RINGOUTER ].value != NULL )
 		ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_RINGOUTER ], &ringouter );
 
+	// parse ring tilt angles (degrees)
+	float ringtiltx_deg = 0.0f, ringtiltz_deg = 0.0f;
+	if ( sv_planet_key_value[ KEY_PLANET_RINGTILTX ].value != NULL )
+		ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_RINGTILTX ], &ringtiltx_deg );
+	if ( sv_planet_key_value[ KEY_PLANET_RINGTILTZ ].value != NULL )
+		ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_RINGTILTZ ], &ringtiltz_deg );
+
 	// create the planet
 	Planet *planet = TheGame->CreatePlanet( &pos_spec, rotspeed, hasring, size, surtexname );
 
@@ -1167,6 +1180,8 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 			planet->RingInnerRadius = FLOAT_TO_GEOMV( ringinner );
 		if ( ringouter > 0.0f )
 			planet->RingOuterRadius = FLOAT_TO_GEOMV( ringouter );
+		planet->RingTiltX = DEG_TO_BAMS( ringtiltx_deg );
+		planet->RingTiltZ = DEG_TO_BAMS( ringtiltz_deg );
 	}
 
 	return TRUE;

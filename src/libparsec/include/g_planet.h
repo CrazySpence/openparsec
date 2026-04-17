@@ -31,6 +31,8 @@ struct Planet : PlanetObject {
 	int			HasRing;
 	geomv_t		RingInnerRadius;
 	geomv_t		RingOuterRadius;
+	bams_t		RingTiltX;		// ring plane tilt around X axis (degrees → BAMS)
+	bams_t		RingTiltZ;		// ring plane tilt around Z axis (degrees → BAMS)
 	char		RingTexName[ MAX_RING_TEXNAME + 1 ];
 	TextureMap*	RingTexture;
 

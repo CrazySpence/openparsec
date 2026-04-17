@@ -101,7 +101,7 @@ int GetResolutionIndex(word xres, word yres)
 // some constant init values --------------------------------------------------
 //
 #define NEAR_VIEW_PLANE		FIXED_TO_GEOMV( 0x00013333 )
-#define FAR_VIEW_PLANE		FIXED_TO_GEOMV( 0x18000000 )
+#define FAR_VIEW_PLANE		FLOAT_TO_GEOMV( 32768.0f )
 
 
 // maximum bit depth possible on current display, set when initializing vid sys

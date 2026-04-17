@@ -238,8 +238,9 @@
 #define AUX_DEBUG_NETSTREAM_DUMP				AuxEnabling[ 200 ]
 #define AUX_ANISOTROPIC_FILTERING				AuxEnabling[ 201 ]
 #define AUX_MSAA								AuxEnabling[ 202 ]
+#define AUX_VIEW_DISTANCE						AuxEnabling[ 203 ]
 
-#define AUX_ARRAY_NUM_ENTRIES_USED				203	// UPDATE THIS!! <==
+#define AUX_ARRAY_NUM_ENTRIES_USED				204	// UPDATE THIS!! <==
 
 #if ( AUX_ARRAY_NUM_ENTRIES_USED > MAX_AUX_ENABLING )
 	#error "MAX_AUX_ENABLING too small!"

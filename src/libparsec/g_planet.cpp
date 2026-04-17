@@ -146,6 +146,8 @@ void PlanetInitType( CustomObject *base )
 	planet->HasRing		 	= FALSE;
 	planet->RingOuterRadius = FLOAT_TO_GEOMV( 600.0f );
 	planet->RingInnerRadius = FLOAT_TO_GEOMV( 300.0f );
+	planet->RingTiltX		= 0;
+	planet->RingTiltZ		= 0;
 
 	strncpy( planet->RingTexName, PLANET_RING_TEXTURE, MAX_RING_TEXNAME );
 	planet->RingTexName[ MAX_RING_TEXNAME ] = 0;
@@ -276,8 +278,19 @@ void PlanetDraw_Rings( Planet *planet )
 	vindxs[ dstindx + 1 ] = 0;
 	vindxs[ dstindx + 2 ] = 1;
 
-	// calculate transformation matrix
-	MtxMtxMUL( ViewCamera, planet->ObjPosition, DestXmatrx );
+	// calculate transformation matrix using position only (no planet rotation),
+	// then apply the fixed ring tilt angles so rings stay stationary while the
+	// planet surface spins beneath them
+	Xmatrx ring_matrix;
+	MakeIdMatrx( ring_matrix );
+	ring_matrix[ 0 ][ 3 ] = planet->ObjPosition[ 0 ][ 3 ];
+	ring_matrix[ 1 ][ 3 ] = planet->ObjPosition[ 1 ][ 3 ];
+	ring_matrix[ 2 ][ 3 ] = planet->ObjPosition[ 2 ][ 3 ];
+	if ( planet->RingTiltX != 0 )
+		ObjRotX( ring_matrix, planet->RingTiltX );
+	if ( planet->RingTiltZ != 0 )
+		ObjRotZ( ring_matrix, planet->RingTiltZ );
+	MtxMtxMUL( ViewCamera, ring_matrix, DestXmatrx );
 
 	// setup transformation matrix
 	D_LoadIterMatrix( DestXmatrx );
@@ -473,6 +486,8 @@ int PlanetPersistToStream( CustomObject *base, int tostream, void *rl )
 		re_planet->hasring        = planet->HasRing;
 		re_planet->ringinnerradius = planet->RingInnerRadius;
 		re_planet->ringouterradius = planet->RingOuterRadius;
+		re_planet->ringtiltx      = planet->RingTiltX;
+		re_planet->ringtiltz      = planet->RingTiltZ;
 		strncpy( re_planet->ringtexname, planet->RingTexName, sizeof( re_planet->ringtexname ) - 1 );
 		re_planet->ringtexname[ sizeof( re_planet->ringtexname ) - 1 ] = '\0';
 		strncpy( re_planet->surtexname, planet->SurfTexName, sizeof( re_planet->surtexname ) - 1 );
