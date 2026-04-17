@@ -564,6 +564,12 @@ void NET_RmEvList_Swap( RE_Header* relist, int incoming )
 				case RE_PLANET:
 				{
 					RE_Planet* re_plt = (RE_Planet*) relist;
+					re_plt->hostid         = NET_SWAP_32( re_plt->hostid );
+					re_plt->rotspeed       = NET_SWAP_32( re_plt->rotspeed );
+					re_plt->boundsphere    = NET_SWAP_32( re_plt->boundsphere );
+					re_plt->hasring        = NET_SWAP_32( re_plt->hasring );
+					re_plt->ringinnerradius = NET_SWAP_32( re_plt->ringinnerradius );
+					re_plt->ringouterradius = NET_SWAP_32( re_plt->ringouterradius );
 					if ( incoming ) {
 						Geomv_in( &re_plt->pos[ 0 ] );
 						Geomv_in( &re_plt->pos[ 1 ] );
