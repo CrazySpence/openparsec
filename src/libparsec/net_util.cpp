@@ -497,6 +497,9 @@ static const char *re_names[] = {
 	"RE_MAPOBJECT",
 	"RE_STARGATE",
 	"RE_CREATEMINE",
+	"RE_TELEPORTER",
+	"RE_GENERIC",
+	"RE_PLANET",
 };
 
 

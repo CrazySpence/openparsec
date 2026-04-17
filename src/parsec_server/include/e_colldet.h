@@ -2,6 +2,7 @@
 * PARSEC HEADER: G_CollDet.h
 */
 #include "g_emp.h"
+#include "g_planet.h"
 #include "g_telep.h"
 #ifndef _G_COLLDET_H_
 #define _G_COLLDET_H_
@@ -46,6 +47,12 @@ protected:
 
 	// ship collided with Teleporter
 	void _CollisionResponse_TelepShip( Teleporter *curtelep);
+
+	// check for Planet Collision
+	void _CheckShipPlanetCollision();
+
+	// ship collided with Planet
+	void _CollisionResponse_PlanetShip( Planet *curplanet );
 
 
     //Ship collided with missile

@@ -79,6 +79,7 @@ OBJECTS := \
 	$(OBJDIR)/net_util.o \
 	$(OBJDIR)/utl_logfile.o \
 	$(OBJDIR)/g_emp.o \
+	$(OBJDIR)/g_planet.o \
 	$(OBJDIR)/g_telep.o \
 	$(OBJDIR)/con_tab.o \
 	$(OBJDIR)/sl_path.o \
@@ -230,6 +231,9 @@ $(OBJDIR)/g_emp.o: ../../../../src/libparsec/g_emp.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_laser.o: ../../../../src/libparsec/g_laser.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/g_planet.o: ../../../../src/libparsec/g_planet.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_telep.o: ../../../../src/libparsec/g_telep.cpp

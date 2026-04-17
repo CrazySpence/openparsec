@@ -150,6 +150,7 @@ void ProcessRmEvList_PEER( NetPacket_PEER* pIntPkt )
 			case RE_SERVERLINKINFO:
 			case RE_MAPOBJECT:
 			case RE_STARGATE:
+			case RE_PLANET:
 				// remote event invalid in peer-to-peer mode
 				ASSERT( FALSE );
 				break;

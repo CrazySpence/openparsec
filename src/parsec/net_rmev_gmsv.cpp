@@ -77,6 +77,7 @@
 //#include "g_wfx.h"
 //#include "g_emp.h"
 //#include "g_swarm.h"
+#include "g_planet.h"
 #include "g_stgate.h"
 #include "g_telep.h"
 #include "g_extra.h"
@@ -288,6 +289,9 @@ void NET_ProcessRmEvList_GMSV( NetPacket_GMSV* gamepacket )
 				break;
 			case RE_GENERIC:
 				NET_ExecRmEvGeneric( (RE_Generic *)pREList);
+				break;
+			case RE_PLANET:
+				NET_ExecRmEvPlanet( (RE_Planet*) pREList );
 				break;
 			default:
 				MSGOUT( "ProcessRmEvList_GMSV(): unknown remote event (%d).", pREList->RE_Type );
@@ -505,6 +509,58 @@ void NET_ExecRmEvTeleporter( RE_Teleporter* pRE_Teleporter )
 	// notify the teleporter that it changed some properties.
 	TeleporterPropsChanged(teleporter);
 
+}
+
+// execute RE containing a planet ---------------------------------------------
+//
+void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
+{
+	ASSERT( pRE_Planet != NULL );
+	ASSERT( NetConnected );
+
+	// find existing planet by host object number
+	Planet* planet = NET_FindPlanet( pRE_Planet->hostid );
+
+	if ( planet == NULL ) {
+
+		MSGOUT( "adding planet at (%g %g %g)",
+			pRE_Planet->pos[ 0 ],
+			pRE_Planet->pos[ 1 ],
+			pRE_Planet->pos[ 2 ] );
+
+		dword objclass = OBJ_FetchObjectClassId( "planet" );
+		if ( objclass != CLASS_ID_INVALID ) {
+
+			Xmatrx startm;
+			MakeIdMatrx( startm );
+			startm[ 0 ][ 3 ] = pRE_Planet->pos[ 0 ];
+			startm[ 1 ][ 3 ] = pRE_Planet->pos[ 1 ];
+			startm[ 2 ][ 3 ] = pRE_Planet->pos[ 2 ];
+
+			planet = (Planet *) SummonObject( objclass, startm );
+		} else {
+			MSGOUT( "object class planet not found." );
+			return;
+		}
+	}
+
+	// update planet properties from RE
+	planet->ObjPosition[ 0 ][ 3 ] = pRE_Planet->pos[ 0 ];
+	planet->ObjPosition[ 1 ][ 3 ] = pRE_Planet->pos[ 1 ];
+	planet->ObjPosition[ 2 ][ 3 ] = pRE_Planet->pos[ 2 ];
+	planet->RotSpeed		= pRE_Planet->rotspeed;
+	planet->BoundingSphere	= pRE_Planet->boundsphere;
+	planet->HasRing			= pRE_Planet->hasring;
+	planet->RingInnerRadius	= pRE_Planet->ringinnerradius;
+	planet->RingOuterRadius	= pRE_Planet->ringouterradius;
+	strncpy( planet->RingTexName, pRE_Planet->ringtexname, MAX_RING_TEXNAME );
+	planet->RingTexName[ MAX_RING_TEXNAME ] = 0;
+
+	// store server's host obj id for future find operations
+	planet->HostObjNumber = pRE_Planet->hostid;
+
+	// re-fetch texture if needed
+	planet->RingTexture = FetchTextureMap( planet->RingTexName );
 }
 
 // exectue RE containing a stargate -------------------------------------------

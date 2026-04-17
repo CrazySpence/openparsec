@@ -53,6 +53,7 @@
 #include "net_csdf.h"
 #include "obj_cust.h"
 #include "obj_ctrl.h"
+#include "g_planet.h"
 #include "g_stgate.h"
 #include "g_telep.h"
 
@@ -152,6 +153,26 @@ Teleporter* NET_FindTeleporter( int id )
 		Teleporter *teleporter= (Teleporter*) walkobjs;
 		if ( id == teleporter->id ) {
 			return teleporter;
+		}
+	}
+
+	return NULL;
+}
+
+
+// try to find a planet object by its host object number ----------------------
+//
+Planet* NET_FindPlanet( dword hostid )
+{
+	GenObject* walkobjs = FetchFirstCustom();
+	for ( ; walkobjs; walkobjs = walkobjs->NextObj ) {
+
+		if ( walkobjs->ObjectType != planet_type_id ) {
+			continue;
+		}
+
+		if ( walkobjs->HostObjNumber == hostid ) {
+			return (Planet*) walkobjs;
 		}
 	}
 

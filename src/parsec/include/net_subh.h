@@ -56,6 +56,7 @@ void		NET_ExecRmEvMapObject			( RE_MapObject* pMapObject );
 void		NET_ExecRmEvStargate			( RE_Stargate* pRE_Stargate );
 void		NET_ExecRmEvTeleporter			( RE_Teleporter* pRE_Teleporter );
 void		NET_ExecRmEvGeneric			( RE_Generic* pRE_Generic );
+void		NET_ExecRmEvPlanet			( RE_Planet* pRE_Planet );
 	
 // utility functions (UTIL)
 

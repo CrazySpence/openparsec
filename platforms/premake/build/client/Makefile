@@ -647,7 +647,7 @@ $(OBJDIR)/g_global.o: ../../../../src/parsec/g_global.cpp
 $(OBJDIR)/g_laser.o: ../../../../src/libparsec/g_laser.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/g_planet.o: ../../../../src/parsec/g_planet.cpp
+$(OBJDIR)/g_planet.o: ../../../../src/libparsec/g_planet.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_sfx.o: ../../../../src/parsec/g_sfx.cpp

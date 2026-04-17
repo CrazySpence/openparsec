@@ -5,6 +5,7 @@
 #define _G_MAIN_H_
 
 #include "g_telep.h"
+#include "g_planet.h"
 
 // join position control ------------------------------------------------------
 //
@@ -230,6 +231,9 @@ public:
 	void CreateStargate( int serverid, Vector3* pos_spec, Vector3* dir_spec );
 
 	Teleporter * CreateTeleporter( int id,  Vector3* pos_spec, Vector3* expos_spec, float start_rot_phi, float start_rot_theta, float exit_rot_phi, float exit_rot_theta);
+
+	// create a planet at a position
+	Planet* CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring );
 
 	//void ModTeleporter( Teleporter *teleporter);
 

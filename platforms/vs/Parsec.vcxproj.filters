@@ -291,8 +291,8 @@
     <ClCompile Include="..\..\src\libparsec\g_laser.cpp">
       <Filter>libparsec</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\parsec\g_planet.cpp">
-      <Filter>parsec</Filter>
+    <ClCompile Include="..\..\src\libparsec\g_planet.cpp">
+      <Filter>libparsec</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\parsec\g_sfx.cpp">
       <Filter>parsec</Filter>
@@ -1049,8 +1049,8 @@
     <ClInclude Include="..\..\src\parsec\include\g_main_cl.h">
       <Filter>parsec\include</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\parsec\include\g_planet.h">
-      <Filter>parsec\include</Filter>
+    <ClInclude Include="..\..\src\libparsec\include\g_planet.h">
+      <Filter>libparsec\include</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\parsec\include\g_sfx.h">
       <Filter>parsec\include</Filter>

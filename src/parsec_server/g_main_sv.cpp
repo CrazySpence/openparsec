@@ -73,6 +73,7 @@
 #include "sys_refframe_sv.h"
 #include "g_emp.h"
 #include "g_wfx.h"
+#include "g_planet.h"
 
 #include "e_simplayerinfo.h"
 
@@ -373,6 +374,38 @@ Teleporter * G_Main::CreateTeleporter( int id,  Vector3* pos_spec, Vector3* expo
 		return teleporter;
 	} else {
 		MSGOUT( "object class teleporter could not be found.\n" );
+		return NULL;
+	}
+}
+
+// create a planet at a position ----------------------------------------------
+//
+Planet* G_Main::CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring )
+{
+	ASSERT( pos_spec != NULL );
+
+	dword objclass = OBJ_FetchObjectClassId( "planet" );
+	if ( objclass != CLASS_ID_INVALID ) {
+
+		Xmatrx startm;
+		MakeIdMatrx( startm );
+		startm[ 0 ][ 3 ] = pos_spec->X;
+		startm[ 1 ][ 3 ] = pos_spec->Y;
+		startm[ 2 ][ 3 ] = pos_spec->Z;
+
+		// create the object
+		Planet* planet = (Planet*)TheWorld->CreateObject( objclass, startm, PLAYERID_SERVER );
+
+		planet->RotSpeed = rotspeed;
+		planet->HasRing  = hasring;
+
+		// attach the created E_Distributable for the engine object
+		// planets are delivered reliably
+		planet->pDist = TheSimNetOutput->CreateDistributable( planet, TRUE );
+
+		return planet;
+	} else {
+		MSGOUT( "object class planet could not be found.\n" );
 		return NULL;
 	}
 }
@@ -911,7 +944,7 @@ void G_Main::_WalkCustomObjects()
 	CustomObject *precnode  = TheWorld->m_CustmObjects;
 	CustomObject *walkobjs = (CustomObject *)TheWorld->m_CustmObjects->NextObj;
 
-	// walk all lasers
+	// walk all custom objects
 	while ( walkobjs != NULL ) {
 		if ((walkobjs->ObjectType == emp_type_id[ 0 ]) ||
 			(walkobjs->ObjectType == emp_type_id[ 1 ]) ||
@@ -926,6 +959,10 @@ void G_Main::_WalkCustomObjects()
 					walkobjs = (CustomObject *)precnode->NextObj;
 					continue;
 				}
+		} else if ( walkobjs->ObjectType == planet_type_id ) {
+
+			// animate planet (rotation)
+			PlanetAnimate( walkobjs );
 		}
 
 		precnode  = walkobjs;

@@ -552,13 +552,27 @@ void NET_RmEvList_Swap( RE_Header* relist, int incoming )
 					}
 				}
 				break;
-				case RE_GENERIC: 
+				case RE_GENERIC:
 				{
 					RE_Generic *re_gen = (RE_Generic*)relist;
 					re_gen->HostObjId = NET_SWAP_32(re_gen->HostObjId);
 					re_gen->RE_ActionFlags = NET_SWAP_16(re_gen->RE_ActionFlags);
 					re_gen->Padding = NET_SWAP_32(re_gen->Padding);
 					re_gen->TargetId = NET_SWAP_32(re_gen->TargetId);
+				}
+				break;
+				case RE_PLANET:
+				{
+					RE_Planet* re_plt = (RE_Planet*) relist;
+					if ( incoming ) {
+						Geomv_in( &re_plt->pos[ 0 ] );
+						Geomv_in( &re_plt->pos[ 1 ] );
+						Geomv_in( &re_plt->pos[ 2 ] );
+					} else {
+						Geomv_out( &re_plt->pos[ 0 ] );
+						Geomv_out( &re_plt->pos[ 1 ] );
+						Geomv_out( &re_plt->pos[ 2 ] );
+					}
 				}
 				break;
 				//break;

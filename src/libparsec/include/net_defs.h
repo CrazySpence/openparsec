@@ -648,6 +648,7 @@ enum re_events {
     RE_CREATEMINE,
     RE_TELEPORTER,
     RE_GENERIC,
+	RE_PLANET,
 	RE_NUMEVENTS
 };
 	
@@ -943,6 +944,21 @@ struct RE_Generic: RE_Header{ //2
     dword       Padding; //4 - can be used for anything you desire.
 	word        RE_ActionFlags; //2
 }; //Size: 16 bytes
+
+
+// planet properties ----------------------------------------------------------
+//
+struct RE_Planet : RE_Header {
+	dword	hostid;					// 4 — unique object id (HostObjNumber)
+	float	pos[ 3 ];				// 12 — position
+	bams_t	rotspeed;				// 4 — rotation speed
+	float	boundsphere;			// 4 — bounding sphere radius
+	int		hasring;				// 4 — ring enabled
+	geomv_t	ringinnerradius;		// 4 — ring inner radius
+	geomv_t	ringouterradius;		// 4 — ring outer radius
+	char	ringtexname[ 64 ];		// 64 — ring texture name (MAX_RING_TEXNAME+1)
+	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 64 = 102
+};
 
 
 //NOTE:

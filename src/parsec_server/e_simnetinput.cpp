@@ -141,6 +141,7 @@ void E_SimNetInput::ProcessInputREList()
 			case RE_SERVERLINKINFO:
 			case RE_MAPOBJECT:
 			case RE_STARGATE:
+		case RE_PLANET:
 				// invalid/already processed remote events MUST not be in the input remote event l
 				ASSERT( FALSE );
 				break;

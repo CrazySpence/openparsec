@@ -425,7 +425,7 @@ $(OBJDIR)/obj_type.o: ../../../../src/libparsec/obj_type.cpp
 $(OBJDIR)/do_font.o: ../../../../src/parsec/do_font.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/g_planet.o: ../../../../src/parsec/g_planet.cpp
+$(OBJDIR)/g_planet.o: ../../../../src/libparsec/g_planet.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/aud_bkgn.o: ../../../../src/parsec/aud_bkgn.cpp

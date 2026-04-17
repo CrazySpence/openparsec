@@ -9,6 +9,7 @@
 // for server_s ---------------------------------------------------------------
 // 
 #include "net_csdf.h"
+#include "g_planet.h"
 #include "g_telep.h"
 #include "od_prim.h"
 
@@ -36,6 +37,7 @@ extern int			num_map_objs;
 int			NET_GetGameServerList();
 Stargate*	NET_FindStargate( word serverid );
 Teleporter* NET_FindTeleporter( int id );
+Planet*		NET_FindPlanet( dword hostid );
 
 
 #endif // _NET_UNIV_H_

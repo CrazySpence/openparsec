@@ -588,6 +588,92 @@ void G_CollDet::_CollisionResponse_TelepShip( Teleporter *curtelep )
 
 /// STOP HERE!!
 
+// planet collision detection -------------------------------------------------
+//
+void G_CollDet::_CheckShipPlanetCollision()
+{
+	// walk the list of custom objects looking for planets
+	ASSERT( TheWorld->m_CustmObjects != NULL );
+
+	CustomObject *precnode = TheWorld->m_CustmObjects;
+	CustomObject *walkobjs = (CustomObject *)TheWorld->m_CustmObjects->NextObj;
+
+	while ( walkobjs != NULL ) {
+		if ( walkobjs->ObjectType == planet_type_id ) {
+
+			Planet *tmpplanet = (Planet *)walkobjs;
+
+			// walk all ships and check for collisions
+			for ( cur_ship = TheWorld->FetchFirstShip(); cur_ship != NULL; ) {
+
+				// get pointer to next ship in list, as the current might get removed upon collision
+				ShipObject* nextship = (ShipObject *) cur_ship->NextObj;
+
+				// bounding sphere distance check
+				geomv_t dx = cur_ship->ObjPosition[ 0 ][ 3 ] - tmpplanet->ObjPosition[ 0 ][ 3 ];
+				geomv_t dy = cur_ship->ObjPosition[ 1 ][ 3 ] - tmpplanet->ObjPosition[ 1 ][ 3 ];
+				geomv_t dz = cur_ship->ObjPosition[ 2 ][ 3 ] - tmpplanet->ObjPosition[ 2 ][ 3 ];
+
+				Vector3 dvec;
+				dvec.X = dx;
+				dvec.Y = dy;
+				dvec.Z = dz;
+
+				geomv_t dist2    = DOT_PRODUCT( &dvec, &dvec );
+				geomv_t minDist  = tmpplanet->BoundingSphere + cur_ship->BoundingSphere;
+				geomv_t minDist2 = GEOMV_MUL( minDist, minDist );
+
+				if ( dist2 < minDist2 ) {
+					_CollisionResponse_PlanetShip( tmpplanet );
+				}
+
+				cur_ship = nextship;
+			}
+		}
+
+		precnode = walkobjs;
+		walkobjs = (CustomObject *)walkobjs->NextObj;
+	}
+}
+
+// ship collided with Planet --------------------------------------------------
+//
+void G_CollDet::_CollisionResponse_PlanetShip( Planet *curplanet )
+{
+	ASSERT( curplanet != NULL );
+	ASSERT( cur_ship != NULL );
+
+	// planet collision is always lethal — apply max damage
+	cur_ship->CurDamage = cur_ship->MaxDamage + 1;
+
+	int nClientID_Downed = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
+
+	// create the extras this client left
+	TheGameExtraManager->OBJ_CreateShipExtras( cur_ship );
+
+	E_SimPlayerInfo* pSimPlayerInfo = TheSimulator->GetSimPlayerInfo( nClientID_Downed );
+
+	// no kill credit for planet collision — attacker == victim
+	TheGame->RecordDeath( nClientID_Downed, nClientID_Downed );
+
+	// fill rudimentary RE
+	RE_PlayerStatus ps;
+	memset( &ps, 0, sizeof( RE_PlayerStatus ) );
+	ps.player_status = PLAYER_CONNECTED;
+	ps.senderid      = nClientID_Downed;
+	ps.params[ 0 ]   = SHIP_DOWNED;
+	pSimPlayerInfo->PerformUnjoin( &ps );
+
+	// ignore joins from client until he himself sent an unjoin
+	pSimPlayerInfo->IgnoreJoinUntilUnjoinFromClient();
+
+	// force a client resync of the downed client
+	TheSimulator->GetSimClientState( nClientID_Downed )->SetClientResync();
+
+	MSGOUT( "%s flew into a planet", TheConnManager->GetClientName( nClientID_Downed ) );
+}
+
+
 // emp collision detection ----------------------------------------------------
 //
 void G_CollDet::_CheckShipEmpCollision()
@@ -1381,5 +1467,8 @@ void G_CollDet::OBJ_CheckCollisions()
 
 	// check for Teleporter Collisions
 	_CheckShipTelepCollision();
+
+	// check for Planet Collisions
+	_CheckShipPlanetCollision();
 }
 
