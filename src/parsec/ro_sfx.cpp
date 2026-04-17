@@ -895,9 +895,16 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 {
 	ASSERT( planet != NULL );
 
-	// create vertex array
+	// Extra vertex slots for seam-duplicate vertices. Triangles that straddle
+	// the U=0/U=1 wrap seam need their low-U vertices duplicated with
+	// U += texwidth so the GPU interpolates within one copy of the texture
+	// rather than smearing across the whole width.  At MAX_SUBDIVISION_LEVEL=4
+	// the seam meridian has at most ~256 unique vertices, so 512 is generous.
+	const int SEAM_SLACK = 512;
+
+	// create vertex array with room for seam duplicates
 	IterArray3 *itarray = (IterArray3 *) ALLOCMEM(
-		(size_t)&((IterArray3*)0)->Vtxs[ sphere_numverts ] );
+		(size_t)&((IterArray3*)0)->Vtxs[ sphere_numverts + SEAM_SLACK ] );
 	if ( itarray == NULL )
 		OUTOFMEM( "no mem for vertex array." );
 
@@ -914,7 +921,7 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 	int texwidth  = 1 << itarray->texmap->Width;
 	int texheight = 1 << itarray->texmap->Height;
 
-	// fill vertex array
+	// fill original vertex array
 	for ( int vid = 0; vid < sphere_numverts; vid++ ) {
 
 		itarray->Vtxs[ vid ].X = FLOAT_TO_GEOMV( sphere_vertices[ vid ].X );
@@ -949,25 +956,81 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 		itarray->Vtxs[ vid ].A = 255;
 	}
 
+	// seam fix: build corrected index buffer
+	// For any triangle whose U range spans more than half the texture, the
+	// low-U vertices (near 0) get a seam-duplicate with U += texwidth so
+	// linear interpolation stays within one copy of the texture.
+	int numtriindxs = sphere_numtris * 3;
+	uint16 *vindxs = (uint16 *) ALLOCMEM( numtriindxs * sizeof( uint16 ) );
+	if ( vindxs == NULL )
+		OUTOFMEM( "no mem for seam-fix indexes." );
+
+	int *seam_dup = (int *) ALLOCMEM( sphere_numverts * sizeof( int ) );
+	if ( seam_dup == NULL )
+		OUTOFMEM( "no mem for seam dup map." );
+	for ( int i = 0; i < sphere_numverts; i++ )
+		seam_dup[ i ] = -1;
+
+	float half_tex = (float)texwidth * 0.5f;
+	int   numseamverts = sphere_numverts;	// grows as we add duplicates
+	int   dstvindx     = 0;
+
+	for ( int tri = 0; tri < sphere_numtris; tri++ ) {
+
+		if ( sphere_triinactive[ tri ] )
+			continue;
+
+		int idx[ 3 ] = {
+			sphere_indexes[ tri * 3 + 0 ],
+			sphere_indexes[ tri * 3 + 1 ],
+			sphere_indexes[ tri * 3 + 2 ]
+		};
+
+		float u0 = itarray->Vtxs[ idx[0] ].U;
+		float u1 = itarray->Vtxs[ idx[1] ].U;
+		float u2 = itarray->Vtxs[ idx[2] ].U;
+
+		float umax = ( u0 > u1 ) ? ( u0 > u2 ? u0 : u2 ) : ( u1 > u2 ? u1 : u2 );
+		float umin = ( u0 < u1 ) ? ( u0 < u2 ? u0 : u2 ) : ( u1 < u2 ? u1 : u2 );
+
+		if ( ( umax - umin ) > half_tex ) {
+			// triangle crosses seam — duplicate low-U vertices
+			for ( int k = 0; k < 3; k++ ) {
+				if ( itarray->Vtxs[ idx[k] ].U < half_tex ) {
+					int orig = idx[ k ];
+					if ( seam_dup[ orig ] == -1 ) {
+						ASSERT( numseamverts < sphere_numverts + SEAM_SLACK );
+						int dupid = numseamverts++;
+						itarray->Vtxs[ dupid ]   = itarray->Vtxs[ orig ];
+						itarray->Vtxs[ dupid ].U += (float)texwidth;
+						seam_dup[ orig ] = dupid;
+					}
+					idx[ k ] = seam_dup[ orig ];
+				}
+			}
+		}
+
+		vindxs[ dstvindx + 0 ] = (uint16) idx[ 0 ];
+		vindxs[ dstvindx + 1 ] = (uint16) idx[ 1 ];
+		vindxs[ dstvindx + 2 ] = (uint16) idx[ 2 ];
+		dstvindx += 3;
+	}
+
+	FREEMEM( seam_dup );
+
+	// update NumVerts to include seam duplicates
+	itarray->NumVerts = numseamverts;
+
 	// calculate transformation matrix
 	MtxMtxMUL( ViewCamera, planet->ObjPosition, DestXmatrx );
 
-	// setup transformation matrix
+	// setup transformation matrix and draw
 	D_LoadIterMatrix( DestXmatrx );
-///*
-	// draw array
 	D_LockIterArray3( itarray, 0, itarray->NumVerts );
-	RO_PlanetDrawSphereTris( itarray );
+	D_DrawIterArrayIndexed( ITERARRAY_MODE_TRIANGLES, dstvindx, vindxs, 0x3f );
 	D_UnlockIterArray();
-//*/
-/*
-	// turn off z-buffer
-	RO_DisableDepthBuffer( true, true );
-*/
-	// g400 driver bugs when rendering twice from locked array
-/*	D_LockIterArray3( itarray, 0, itarray->NumVerts );
-	RO_PlanetDrawSphereTrisWireFrame( itarray );
-	D_UnlockIterArray(); */
+
+	FREEMEM( vindxs );
 
 	// restore identity transformation
 	D_LoadIterMatrix( NULL );
