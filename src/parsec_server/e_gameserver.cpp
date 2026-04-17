@@ -984,6 +984,25 @@ enum {
 };
 
 
+// key table for "SV.PLANET" command ------------------------------------------
+//
+key_value_s sv_planet_key_value[] = {
+
+	{ "pos",		NULL,	KEYVALFLAG_PARENTHESIZE		},
+	{ "rotspeed",	NULL,	KEYVALFLAG_NONE				},
+	{ "ring",		NULL,	KEYVALFLAG_NONE				},
+
+	{ NULL,			NULL,	KEYVALFLAG_NONE				},
+};
+
+enum {
+
+	KEY_PLANET_POS,
+	KEY_PLANET_ROTSPEED,
+	KEY_PLANET_RING
+};
+
+
 // console command for specifying server links --------------------------------
 //
 PRIVATE
@@ -1049,6 +1068,59 @@ int Cmd_SV_LINK( char* sv_link_command )
 
 
 
+// console command for spawning a planet --------------------------------------
+//
+PRIVATE
+int Cmd_SV_PLANET( char* sv_planet_command )
+{
+	//NOTE:
+	//CONCOM:
+	// sv_planet_command	::= 'sv.planet' [<pos_spec>] [<rotspeed_spec>] [<ring_spec>]
+	// pos_spec				::= 'pos' '(' <float> <float> <float> ')'
+	// rotspeed_spec		::= 'rotspeed' <int>
+	// ring_spec			::= 'ring' <0|1>
+
+	ASSERT( sv_planet_command != NULL );
+	HANDLE_COMMAND_DOMAIN( sv_planet_command );
+
+	// scan out all values to keys
+	if ( !ScanKeyValuePairs( sv_planet_key_value, sv_planet_command ) )
+		return TRUE;
+
+	// parse position
+	Vector3 pos_spec;
+	if ( sv_planet_key_value[ KEY_PLANET_POS ].value != NULL ) {
+		if ( !ScanKeyValueFloatList( &sv_planet_key_value[ KEY_PLANET_POS ], (float*)&pos_spec.X, 3, 3 ) ) {
+			CON_AddLine( "position invalid" );
+			return TRUE;
+		}
+	} else {
+		pos_spec.X = ( RAND() % 1000 ) - 500;
+		pos_spec.Y = ( RAND() % 1000 ) - 500;
+		pos_spec.Z = ( RAND() % 1000 ) - 500;
+		pos_spec.VisibleFrame = 0;
+	}
+
+	// parse rotation speed (BAMS units, default 0x0010)
+	bams_t rotspeed = 0x0010;
+	if ( sv_planet_key_value[ KEY_PLANET_ROTSPEED ].value != NULL ) {
+		int rotspeed_int;
+		ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_ROTSPEED ], &rotspeed_int );
+		rotspeed = (bams_t) rotspeed_int;
+	}
+
+	// parse ring flag
+	int hasring = 0;
+	if ( sv_planet_key_value[ KEY_PLANET_RING ].value != NULL )
+		ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_RING ], &hasring );
+
+	// create the planet
+	TheGame->CreatePlanet( &pos_spec, rotspeed, hasring );
+
+	return TRUE;
+}
+
+
 REGISTER_MODULE( E_GAMESERVER )
 {
 	user_command_s regcom;
@@ -1072,6 +1144,13 @@ REGISTER_MODULE( E_GAMESERVER )
 	regcom.command	 = "sv.link";
 	regcom.numparams = 0;
 	regcom.execute	 = Cmd_SV_LINK;
+	regcom.statedump = NULL;
+	CON_RegisterUserCommand( &regcom );
+
+	// register "sv.planet" command
+	regcom.command	 = "sv.planet";
+	regcom.numparams = 0;
+	regcom.execute	 = Cmd_SV_PLANET;
 	regcom.statedump = NULL;
 	CON_RegisterUserCommand( &regcom );
 }

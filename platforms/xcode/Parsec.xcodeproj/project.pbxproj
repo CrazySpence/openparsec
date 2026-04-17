@@ -10,6 +10,8 @@
 		4AD72FAB18A6C15000E60FFE /* g_telep.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA25B87818A1D1D700DC2E29 /* g_telep.cpp */; };
 		DAB31AD02F8EF5C200C9E2B0 /* g_laser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31ACF2F8EF5C200C9E2B0 /* g_laser.cpp */; };
 		DAB31AD12F8EF5C200C9E2B0 /* g_laser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31ACF2F8EF5C200C9E2B0 /* g_laser.cpp */; };
+		DAB31AD32F8EF5C200C9E2B0 /* g_planet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */; };
+		DAB31AD42F8EF5C200C9E2B0 /* g_planet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */; };
 		DAE465061C73F56F004D4351 /* libncurses.5.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DAE465051C73F56F004D4351 /* libncurses.5.4.dylib */; };
 		FA17FD5216BB0C1D0003E370 /* g_emp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA17FD5116BB0C1D0003E370 /* g_emp.cpp */; };
 		FA17FD5316BB0C530003E370 /* g_emp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA17FD5116BB0C1D0003E370 /* g_emp.cpp */; };
@@ -344,6 +346,7 @@
 		FA0681F61B2A7987002EFDF3 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
 		FA17FD5116BB0C1D0003E370 /* g_emp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_emp.cpp; sourceTree = "<group>"; };
 		FA25B87818A1D1D700DC2E29 /* g_telep.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_telep.cpp; sourceTree = "<group>"; };
+		DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_planet.cpp; sourceTree = "<group>"; };
 		FA25B87A18A1D1EA00DC2E29 /* g_telep.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_telep.h; sourceTree = "<group>"; };
 		FA371574164DD36800230CE8 /* con_aux_sv.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = con_aux_sv.cpp; sourceTree = "<group>"; };
 		FA37157B164DD36800230CE8 /* con_main_sv.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; path = con_main_sv.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -1137,6 +1140,7 @@
 				FAFEF882163BE1CF0056CECD /* e_relist.cpp */,
 				FA17FD5116BB0C1D0003E370 /* g_emp.cpp */,
 				FAFEF883163BE1CF0056CECD /* g_extra.cpp */,
+				DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */,
 				FA25B87818A1D1D700DC2E29 /* g_telep.cpp */,
 				FAFEF884163BE1CF0056CECD /* include */,
 				FAFEF8DE163BE1CF0056CECD /* net_pckt_gmsv.cpp */,
@@ -1320,7 +1324,6 @@
 				FAFEF9BE163BE1CF0056CECD /* g_explod.cpp */,
 				FAFEF9BF163BE1CF0056CECD /* g_gameloop.cpp */,
 				FAFEF9C0163BE1CF0056CECD /* g_global.cpp */,
-				FAFEF9C2163BE1CF0056CECD /* g_planet.cpp */,
 				FAFEF9C3163BE1CF0056CECD /* g_sfx.cpp */,
 				FAFEF9C4163BE1CF0056CECD /* g_shkwav.cpp */,
 				FAFEF9C5163BE1CF0056CECD /* g_stars.cpp */,
@@ -1763,6 +1766,7 @@
 				FAE69E1616A7631200C1AC79 /* MasterServer.cpp in Sources */,
 				FAE69E1716A7631200C1AC79 /* MasterServerItem.cpp in Sources */,
 				FA17FD5316BB0C530003E370 /* g_emp.cpp in Sources */,
+				DAB31AD42F8EF5C200C9E2B0 /* g_planet.cpp in Sources */,
 				01BEE07E91EB14B134037CCC /* g_wfx.cpp in Sources */,
 				20A08DF2E4ACB16E979AEF57 /* g_stgate.cpp in Sources */,
 				910EFD4E17A3A4403231B7DE /* con_std.cpp in Sources */,
@@ -1858,7 +1862,7 @@
 				FAFEFD9C163BE1D00056CECD /* g_explod.cpp in Sources */,
 				FAFEFD9D163BE1D00056CECD /* g_gameloop.cpp in Sources */,
 				FAFEFD9E163BE1D00056CECD /* g_global.cpp in Sources */,
-				FAFEFDA0163BE1D00056CECD /* g_planet.cpp in Sources */,
+				DAB31AD32F8EF5C200C9E2B0 /* g_planet.cpp in Sources */,
 				FAFEFDA1163BE1D00056CECD /* g_sfx.cpp in Sources */,
 				FAFEFDA2163BE1D00056CECD /* g_shkwav.cpp in Sources */,
 				FAFEFDA3163BE1D00056CECD /* g_stars.cpp in Sources */,
