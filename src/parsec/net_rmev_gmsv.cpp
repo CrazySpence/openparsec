@@ -562,9 +562,10 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 	planet->SurfTexName[ MAX_SURF_TEXNAME ] = 0;
 	if ( planet->SurfTexName[ 0 ] != '\0' ) {
 		planet->SurfTexture = FetchTextureMap( planet->SurfTexName );
-		if ( planet->SurfTexture != NULL && planet->NumFaces > 0 ) {
-			planet->FaceList[ 0 ].TexMap = planet->SurfTexture;
-		} else if ( planet->SurfTexture == NULL ) {
+		// NOTE: do NOT write to FaceList[0].TexMap — it is shared class data
+		// and writing here would change the texture for all planet instances.
+		// PlanetDraw does a save/restore around R_DrawPlanet instead.
+		if ( planet->SurfTexture == NULL ) {
 			MSGOUT( "planet surface texture '%s' not found.", planet->SurfTexName );
 		}
 	}

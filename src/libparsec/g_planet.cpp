@@ -301,8 +301,22 @@ int PlanetDraw( void *param )
 	ASSERT( param != NULL );
 	Planet *planet = (Planet *) param;
 
+	// temporarily override FaceList[0].TexMap for this instance only.
+	// FaceList is shared class-level data, so we save and restore around
+	// the draw call to keep each planet's texture independent.
+	TextureMap *saved_texmap = NULL;
+	if ( planet->SurfTexture != NULL && planet->NumFaces > 0 ) {
+		saved_texmap = planet->FaceList[ 0 ].TexMap;
+		planet->FaceList[ 0 ].TexMap = planet->SurfTexture;
+	}
+
 	// draw sphere
 	R_DrawPlanet( planet );
+
+	// restore shared FaceList so other instances are unaffected
+	if ( saved_texmap != NULL ) {
+		planet->FaceList[ 0 ].TexMap = saved_texmap;
+	}
 
 	if ( planet->HasRing ) {
 		//PlanetDraw_Rings( planet );
@@ -346,9 +360,8 @@ void PlanetInstantiate( CustomObject *base )
 	// (can happen when NET_ExecRmEvPlanet sets SurfTexName before SummonObject)
 	if ( planet->SurfTexName[ 0 ] != '\0' ) {
 		planet->SurfTexture = FetchTextureMap( planet->SurfTexName );
-		if ( planet->SurfTexture != NULL && planet->NumFaces > 0 ) {
-			planet->FaceList[ 0 ].TexMap = planet->SurfTexture;
-		}
+		// NOTE: do NOT write to FaceList[0].TexMap here — FaceList is
+		// shared class data.  PlanetDraw handles the per-instance override.
 	}
 }
 
