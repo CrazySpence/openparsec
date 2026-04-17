@@ -558,9 +558,8 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 
 	// store server's host obj id for future find operations
 	planet->HostObjNumber = pRE_Planet->hostid;
-
-	// re-fetch texture if needed
-	planet->RingTexture = FetchTextureMap( planet->RingTexName );
+	// NOTE: planet->RingTexture is loaded by PlanetInstantiate (callback_instant)
+	// when the object is first created via SummonObject above.
 }
 
 // exectue RE containing a stargate -------------------------------------------
