@@ -304,8 +304,11 @@ int PlanetDraw( void *param )
 	// temporarily override FaceList[0].TexMap for this instance only.
 	// FaceList is shared class-level data, so we save and restore around
 	// the draw call to keep each planet's texture independent.
+	// NOTE: do NOT guard on NumFaces — R_DrawPlanet zeroes NumFaces every
+	// frame to suppress standard polygon rendering, but FaceList itself
+	// remains a valid pointer into the class data regardless.
 	TextureMap *saved_texmap = NULL;
-	if ( planet->SurfTexture != NULL && planet->NumFaces > 0 ) {
+	if ( planet->SurfTexture != NULL && planet->FaceList != NULL ) {
 		saved_texmap = planet->FaceList[ 0 ].TexMap;
 		planet->FaceList[ 0 ].TexMap = planet->SurfTexture;
 	}
@@ -314,7 +317,7 @@ int PlanetDraw( void *param )
 	R_DrawPlanet( planet );
 
 	// restore shared FaceList so other instances are unaffected
-	if ( saved_texmap != NULL ) {
+	if ( planet->SurfTexture != NULL && planet->FaceList != NULL ) {
 		planet->FaceList[ 0 ].TexMap = saved_texmap;
 	}
 
