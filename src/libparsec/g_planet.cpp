@@ -154,6 +154,9 @@ void PlanetInitType( CustomObject *base )
 
 	planet->NumOrbitShips	= 0;
 
+	planet->SurfTexName[ 0 ] = '\0';
+	planet->SurfTexture      = NULL;
+
 #ifdef PARSEC_SERVER
 	planet->pDist = NULL;
 #endif
@@ -338,6 +341,15 @@ void PlanetInstantiate( CustomObject *base )
 	if ( planet->RingTexture == NULL ) {
 		MSGOUT( "texture '%s' was not found.", planet->RingTexName );
 	}
+
+	// apply surface texture override if a name was already set
+	// (can happen when NET_ExecRmEvPlanet sets SurfTexName before SummonObject)
+	if ( planet->SurfTexName[ 0 ] != '\0' ) {
+		planet->SurfTexture = FetchTextureMap( planet->SurfTexName );
+		if ( planet->SurfTexture != NULL && planet->NumFaces > 0 ) {
+			planet->FaceList[ 0 ].TexMap = planet->SurfTexture;
+		}
+	}
 }
 
 // callback type and flags ----------------------------------------------------
@@ -436,6 +448,8 @@ int PlanetPersistToStream( CustomObject *base, int tostream, void *rl )
 		re_planet->ringouterradius = planet->RingOuterRadius;
 		strncpy( re_planet->ringtexname, planet->RingTexName, sizeof( re_planet->ringtexname ) - 1 );
 		re_planet->ringtexname[ sizeof( re_planet->ringtexname ) - 1 ] = '\0';
+		strncpy( re_planet->surtexname, planet->SurfTexName, sizeof( re_planet->surtexname ) - 1 );
+		re_planet->surtexname[ sizeof( re_planet->surtexname ) - 1 ] = '\0';
 	}
 
 	return (int)size;

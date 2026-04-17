@@ -232,8 +232,9 @@ public:
 
 	Teleporter * CreateTeleporter( int id,  Vector3* pos_spec, Vector3* expos_spec, float start_rot_phi, float start_rot_theta, float exit_rot_phi, float exit_rot_theta);
 
-	// create a planet at a position
-	Planet* CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring );
+	// create a planet at a position; size=0 keeps class default; surtexname=NULL keeps default
+	Planet* CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring,
+						  geomv_t size = GEOMV_0, const char* surtexname = NULL );
 
 	//void ModTeleporter( Teleporter *teleporter);
 

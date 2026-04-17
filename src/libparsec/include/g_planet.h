@@ -10,6 +10,7 @@
 //
 #define MAX_PLANET_NAME			255
 #define MAX_RING_TEXNAME		63
+#define MAX_SURF_TEXNAME		63
 
 #define PLANET_RING_SEGMENTS	128
 
@@ -35,6 +36,9 @@ struct Planet : PlanetObject {
 
 	char    	Name[ MAX_PLANET_NAME + 1 ];
 	int			NumOrbitShips;
+
+	char		SurfTexName[ MAX_SURF_TEXNAME + 1 ];
+	TextureMap*	SurfTexture;
 
 #ifdef PARSEC_SERVER
 	E_Distributable *pDist;

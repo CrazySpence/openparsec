@@ -380,7 +380,8 @@ Teleporter * G_Main::CreateTeleporter( int id,  Vector3* pos_spec, Vector3* expo
 
 // create a planet at a position ----------------------------------------------
 //
-Planet* G_Main::CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring )
+Planet* G_Main::CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring,
+							  geomv_t size, const char* surtexname )
 {
 	ASSERT( pos_spec != NULL );
 
@@ -398,6 +399,16 @@ Planet* G_Main::CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring )
 
 		planet->RotSpeed = rotspeed;
 		planet->HasRing  = hasring;
+
+		// override bounding sphere (visual radius) if requested
+		if ( size > GEOMV_0 )
+			planet->BoundingSphere = size;
+
+		// set surface texture name if provided
+		if ( surtexname != NULL && surtexname[ 0 ] != '\0' ) {
+			strncpy( planet->SurfTexName, surtexname, MAX_SURF_TEXNAME );
+			planet->SurfTexName[ MAX_SURF_TEXNAME ] = '\0';
+		}
 
 		// attach the created E_Distributable for the engine object
 		// planets are delivered reliably

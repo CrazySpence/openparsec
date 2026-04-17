@@ -991,6 +991,8 @@ key_value_s sv_planet_key_value[] = {
 	{ "pos",		NULL,	KEYVALFLAG_PARENTHESIZE		},
 	{ "rotspeed",	NULL,	KEYVALFLAG_NONE				},
 	{ "ring",		NULL,	KEYVALFLAG_NONE				},
+	{ "size",		NULL,	KEYVALFLAG_NONE				},
+	{ "tex",		NULL,	KEYVALFLAG_NONE				},
 
 	{ NULL,			NULL,	KEYVALFLAG_NONE				},
 };
@@ -999,7 +1001,9 @@ enum {
 
 	KEY_PLANET_POS,
 	KEY_PLANET_ROTSPEED,
-	KEY_PLANET_RING
+	KEY_PLANET_RING,
+	KEY_PLANET_SIZE,
+	KEY_PLANET_TEX
 };
 
 
@@ -1075,10 +1079,12 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 {
 	//NOTE:
 	//CONCOM:
-	// sv_planet_command	::= 'sv.planet' [<pos_spec>] [<rotspeed_spec>] [<ring_spec>]
+	// sv_planet_command	::= 'sv.planet' [<pos_spec>] [<rotspeed_spec>] [<ring_spec>] [<size_spec>] [<tex_spec>]
 	// pos_spec				::= 'pos' '(' <float> <float> <float> ')'
 	// rotspeed_spec		::= 'rotspeed' <int>
 	// ring_spec			::= 'ring' <0|1>
+	// size_spec			::= 'size' <float>   (visual radius; 0 = use class default)
+	// tex_spec				::= 'tex' <texname>  (surface texture name without extension)
 
 	ASSERT( sv_planet_command != NULL );
 	HANDLE_COMMAND_DOMAIN( sv_planet_command );
@@ -1114,8 +1120,21 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 	if ( sv_planet_key_value[ KEY_PLANET_RING ].value != NULL )
 		ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_RING ], &hasring );
 
+	// parse visual radius (0 = keep OD2 class default)
+	geomv_t size = GEOMV_0;
+	if ( sv_planet_key_value[ KEY_PLANET_SIZE ].value != NULL ) {
+		float size_f = 0.0f;
+		ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_SIZE ], &size_f );
+		size = FLOAT_TO_GEOMV( size_f );
+	}
+
+	// parse surface texture name
+	const char *surtexname = NULL;
+	if ( sv_planet_key_value[ KEY_PLANET_TEX ].value != NULL )
+		surtexname = sv_planet_key_value[ KEY_PLANET_TEX ].value;
+
 	// create the planet
-	TheGame->CreatePlanet( &pos_spec, rotspeed, hasring );
+	TheGame->CreatePlanet( &pos_spec, rotspeed, hasring, size, surtexname );
 
 	return TRUE;
 }

@@ -77,6 +77,7 @@
 //#include "g_wfx.h"
 //#include "g_emp.h"
 //#include "g_swarm.h"
+#include "e_supp.h"
 #include "g_planet.h"
 #include "g_stgate.h"
 #include "g_telep.h"
@@ -555,6 +556,18 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 	planet->RingOuterRadius	= pRE_Planet->ringouterradius;
 	strncpy( planet->RingTexName, pRE_Planet->ringtexname, MAX_RING_TEXNAME );
 	planet->RingTexName[ MAX_RING_TEXNAME ] = 0;
+
+	// apply surface texture if server specified one
+	strncpy( planet->SurfTexName, pRE_Planet->surtexname, MAX_SURF_TEXNAME );
+	planet->SurfTexName[ MAX_SURF_TEXNAME ] = 0;
+	if ( planet->SurfTexName[ 0 ] != '\0' ) {
+		planet->SurfTexture = FetchTextureMap( planet->SurfTexName );
+		if ( planet->SurfTexture != NULL && planet->NumFaces > 0 ) {
+			planet->FaceList[ 0 ].TexMap = planet->SurfTexture;
+		} else if ( planet->SurfTexture == NULL ) {
+			MSGOUT( "planet surface texture '%s' not found.", planet->SurfTexName );
+		}
+	}
 
 	// store server's host obj id for future find operations
 	planet->HostObjNumber = pRE_Planet->hostid;

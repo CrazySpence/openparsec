@@ -957,7 +957,8 @@ struct RE_Planet : RE_Header {
 	geomv_t	ringinnerradius;		// 4 — ring inner radius
 	geomv_t	ringouterradius;		// 4 — ring outer radius
 	char	ringtexname[ 64 ];		// 64 — ring texture name (MAX_RING_TEXNAME+1)
-	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 64 = 102
+	char	surtexname[ 64 ];		// 64 — surface texture name (MAX_SURF_TEXNAME+1)
+	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 64 + 64 = 166
 };
 
 

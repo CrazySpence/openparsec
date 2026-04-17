@@ -111,6 +111,7 @@ static size_t re_sizes[] = {
     sizeof( RE_CreateMine ),
 	sizeof( RE_Teleporter),
 	sizeof( RE_Generic),
+	sizeof( RE_Planet),
 };
 
 
