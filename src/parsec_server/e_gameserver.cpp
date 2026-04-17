@@ -993,6 +993,9 @@ key_value_s sv_planet_key_value[] = {
 	{ "ring",		NULL,	KEYVALFLAG_NONE				},
 	{ "size",		NULL,	KEYVALFLAG_NONE				},
 	{ "tex",		NULL,	KEYVALFLAG_NONE				},
+	{ "ringtex",	NULL,	KEYVALFLAG_NONE				},
+	{ "ringinner",	NULL,	KEYVALFLAG_NONE				},
+	{ "ringouter",	NULL,	KEYVALFLAG_NONE				},
 
 	{ NULL,			NULL,	KEYVALFLAG_NONE				},
 };
@@ -1003,7 +1006,10 @@ enum {
 	KEY_PLANET_ROTSPEED,
 	KEY_PLANET_RING,
 	KEY_PLANET_SIZE,
-	KEY_PLANET_TEX
+	KEY_PLANET_TEX,
+	KEY_PLANET_RINGTEX,
+	KEY_PLANET_RINGINNER,
+	KEY_PLANET_RINGOUTER
 };
 
 
@@ -1083,8 +1089,11 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 	// pos_spec				::= 'pos' '(' <float> <float> <float> ')'
 	// rotspeed_spec		::= 'rotspeed' <int>
 	// ring_spec			::= 'ring' <0|1>
-	// size_spec			::= 'size' <float>   (visual radius; 0 = use class default)
-	// tex_spec				::= 'tex' <texname>  (surface texture name without extension)
+	// size_spec			::= 'size' <float>      (visual radius; 0 = use class default)
+	// tex_spec				::= 'tex' <texname>     (surface texture name without extension)
+	// ringtex_spec			::= 'ringtex' <texname> (ring texture name without extension)
+	// ringinner_spec		::= 'ringinner' <float> (ring inner radius; 0 = use default)
+	// ringouter_spec		::= 'ringouter' <float> (ring outer radius; 0 = use default)
 
 	ASSERT( sv_planet_command != NULL );
 	HANDLE_COMMAND_DOMAIN( sv_planet_command );
@@ -1133,8 +1142,32 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 	if ( sv_planet_key_value[ KEY_PLANET_TEX ].value != NULL )
 		surtexname = sv_planet_key_value[ KEY_PLANET_TEX ].value;
 
+	// parse ring texture name
+	const char *ringtexname = NULL;
+	if ( sv_planet_key_value[ KEY_PLANET_RINGTEX ].value != NULL )
+		ringtexname = sv_planet_key_value[ KEY_PLANET_RINGTEX ].value;
+
+	// parse ring inner/outer radii
+	float ringinner = 0.0f, ringouter = 0.0f;
+	if ( sv_planet_key_value[ KEY_PLANET_RINGINNER ].value != NULL )
+		ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_RINGINNER ], &ringinner );
+	if ( sv_planet_key_value[ KEY_PLANET_RINGOUTER ].value != NULL )
+		ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_RINGOUTER ], &ringouter );
+
 	// create the planet
-	TheGame->CreatePlanet( &pos_spec, rotspeed, hasring, size, surtexname );
+	Planet *planet = TheGame->CreatePlanet( &pos_spec, rotspeed, hasring, size, surtexname );
+
+	// apply ring params on returned object
+	if ( planet != NULL ) {
+		if ( ringtexname != NULL ) {
+			strncpy( planet->RingTexName, ringtexname, MAX_RING_TEXNAME );
+			planet->RingTexName[ MAX_RING_TEXNAME ] = '\0';
+		}
+		if ( ringinner > 0.0f )
+			planet->RingInnerRadius = FLOAT_TO_GEOMV( ringinner );
+		if ( ringouter > 0.0f )
+			planet->RingOuterRadius = FLOAT_TO_GEOMV( ringouter );
+	}
 
 	return TRUE;
 }

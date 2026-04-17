@@ -172,11 +172,18 @@ static float  orbit_depth = 1.0f;
 //
 void PlanetDraw_Rings( Planet *planet )
 {
+	// skip if no ring texture is loaded
+	if ( planet->RingTexture == NULL )
+		return;
+
 	// create vertex array
 	IterArray3 *itarray = (IterArray3 *) ALLOCMEM(
 		(size_t)&((IterArray3*)0)->Vtxs[ PLANET_RING_SEGMENTS * 2 ] );
 	if ( itarray == NULL )
 		OUTOFMEM( 0 );
+
+	// texwidth for circumferential U coordinate
+	int texwidth = 1 << planet->RingTexture->Width;
 
 	itarray->NumVerts	= PLANET_RING_SEGMENTS * 2;
 	itarray->arrayinfo	= ITERARRAY_USE_COLOR |
@@ -184,12 +191,11 @@ void PlanetDraw_Rings( Planet *planet )
 	itarray->flags		= ITERFLAG_Z_DIV_XYZ | ITERFLAG_Z_DIV_UVW |
 						  ITERFLAG_Z_TO_DEPTH;
 	itarray->itertype	= iter_texrgba | iter_alphablend;
-	itarray->raststate	= rast_zcompare/*rast_zbuffer */| rast_texclamp |
-						  rast_chromakeyoff;
+	itarray->raststate	= rast_zcompare | rast_texclamp | rast_chromakeyoff;
 	itarray->rastmask	= rast_nomask;
 	itarray->texmap		= planet->RingTexture;
 
-	bams_t angleoffs 	= BAMS_DEG360 / PLANET_RING_SEGMENTS;
+	bams_t angleoffs = BAMS_DEG360 / PLANET_RING_SEGMENTS;
 	int seg = 0;
 	for ( seg = 0; seg < PLANET_RING_SEGMENTS; seg++ ) {
 
@@ -198,31 +204,36 @@ void PlanetDraw_Rings( Planet *planet )
 		bams_t angle = seg * angleoffs;
 
 		sincosval_s sincos;
-
 		GetSinCos( angle, &sincos );
 
-		byte r = 110;
-		byte g = 80;
-		byte b = 180;
-		byte a = 180;
+		// white vertex colour so the ring texture's own colours are used as-is;
+		// alpha gives overall ring translucency (0xb0 ≈ 69%)
+		byte r = 255;
+		byte g = 255;
+		byte b = 255;
+		byte a = 0xb0;
 
-		// fill vertex array
-		itarray->Vtxs[ vid ].X = GEOMV_MUL( planet->BoundingSphere + planet->RingOuterRadius, sincos.cosval );
+		// U wraps around the circumference; V maps inner→outer ring edge
+		int u = ( seg * texwidth ) / PLANET_RING_SEGMENTS;
+
+		// inner vertex (closest to planet surface)
+		itarray->Vtxs[ vid ].X = GEOMV_MUL( planet->BoundingSphere + planet->RingInnerRadius, sincos.cosval );
 		itarray->Vtxs[ vid ].Y = GEOMV_0;
-		itarray->Vtxs[ vid ].Z = GEOMV_MUL( planet->BoundingSphere + planet->RingOuterRadius, sincos.sinval );
+		itarray->Vtxs[ vid ].Z = GEOMV_MUL( planet->BoundingSphere + planet->RingInnerRadius, sincos.sinval );
 		itarray->Vtxs[ vid ].W = GEOMV_1;
-		itarray->Vtxs[ vid ].U = 0;
+		itarray->Vtxs[ vid ].U = u;
 		itarray->Vtxs[ vid ].V = 0;
 		itarray->Vtxs[ vid ].R = r;
 		itarray->Vtxs[ vid ].G = g;
 		itarray->Vtxs[ vid ].B = b;
 		itarray->Vtxs[ vid ].A = a;
 
-		itarray->Vtxs[ vid + 1 ].X = GEOMV_MUL( planet->BoundingSphere + planet->RingInnerRadius, sincos.cosval );
+		// outer vertex (farthest from planet surface)
+		itarray->Vtxs[ vid + 1 ].X = GEOMV_MUL( planet->BoundingSphere + planet->RingOuterRadius, sincos.cosval );
 		itarray->Vtxs[ vid + 1 ].Y = GEOMV_0;
-		itarray->Vtxs[ vid + 1 ].Z = GEOMV_MUL( planet->BoundingSphere + planet->RingInnerRadius, sincos.sinval );
+		itarray->Vtxs[ vid + 1 ].Z = GEOMV_MUL( planet->BoundingSphere + planet->RingOuterRadius, sincos.sinval );
 		itarray->Vtxs[ vid + 1 ].W = GEOMV_1;
-		itarray->Vtxs[ vid + 1 ].U = 0;
+		itarray->Vtxs[ vid + 1 ].U = u;
 		itarray->Vtxs[ vid + 1 ].V = PLANET_RING_TEX_HEIGHT;
 		itarray->Vtxs[ vid + 1 ].R = r;
 		itarray->Vtxs[ vid + 1 ].G = g;
@@ -322,7 +333,7 @@ int PlanetDraw( void *param )
 	}
 
 	if ( planet->HasRing ) {
-		//PlanetDraw_Rings( planet );
+		PlanetDraw_Rings( planet );
 	}
 
 	if ( orbit_depth == 1.0f ) {

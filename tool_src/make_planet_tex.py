@@ -394,16 +394,146 @@ def gen_ocean(seed: int = 6) -> list:
 
 
 # ---------------------------------------------------------------------------
+# Ring texture generators  (64 wide × 64 tall — matches PLANET_RING_TEX_HEIGHT)
+#
+# V axis: row 0 = ring inner edge (closest to planet),
+#         row 63 = ring outer edge (farthest from planet)
+# U axis: wraps around the circumference (256 segments → 64 texels repeating)
+# ---------------------------------------------------------------------------
+
+RWIDTH, RHEIGHT = 64, 64
+
+
+def _ring_band(v_norm: float, bands: list) -> float:
+    """Return 0..1 density for a set of (centre_v, width, peak) band specs."""
+    total = 0.0
+    for (cen, wid, peak) in bands:
+        dist = abs(v_norm - cen)
+        if dist < wid:
+            total += peak * (1.0 - dist / wid) ** 2
+    return clamp(total)
+
+
+def gen_ring_saturn(seed: int = 10) -> list:
+    """Saturn-like rings: warm tan/beige bands with dark Cassini-style gaps."""
+    # band layout: (centre_v, half-width, peak_density)
+    bands = [
+        (0.08, 0.07, 1.0),   # inner dense band
+        (0.22, 0.08, 0.85),  # B ring
+        (0.32, 0.02, 0.10),  # Cassini division (gap)
+        (0.42, 0.09, 0.70),  # A ring
+        (0.58, 0.05, 0.45),  # outer band
+        (0.72, 0.06, 0.25),  # faint outer ring
+        (0.88, 0.08, 0.12),  # diffuse edge
+    ]
+    tan   = (210, 185, 130)
+    beige = (235, 215, 165)
+    dark  = ( 30,  25,  18)
+
+    pixels = []
+    for row in range(RHEIGHT):
+        v = row / RHEIGHT
+        for col in range(RWIDTH):
+            u = col / RWIDTH
+            density = _ring_band(v, bands)
+            # slight noise variation around circumference
+            noise = value_noise(u * 16, v * 4, seed) * 0.15
+            density = clamp(density + noise - 0.07)
+            c = lerp_colour(dark, lerp_colour(tan, beige, value_noise(u * 8, v * 8, seed + 1)), density)
+            pixels.append(c)
+    return pixels
+
+
+def gen_ring_ice(seed: int = 11) -> list:
+    """Bright icy rings — blue-white uniform bands, like Uranus."""
+    bands = [
+        (0.12, 0.08, 1.0),
+        (0.30, 0.05, 0.80),
+        (0.45, 0.10, 0.90),
+        (0.65, 0.06, 0.60),
+        (0.82, 0.07, 0.35),
+    ]
+    ice_white = (230, 245, 255)
+    ice_blue  = (140, 195, 230)
+    gap       = ( 20,  30,  45)
+
+    pixels = []
+    for row in range(RHEIGHT):
+        v = row / RHEIGHT
+        for col in range(RWIDTH):
+            u = col / RWIDTH
+            density = _ring_band(v, bands)
+            shimmer = value_noise(u * 20, v * 6, seed) * 0.12
+            density = clamp(density + shimmer - 0.05)
+            c = lerp_colour(gap, lerp_colour(ice_blue, ice_white, density), density)
+            pixels.append(c)
+    return pixels
+
+
+def gen_ring_dust(seed: int = 12) -> list:
+    """Faint reddish-brown dust ring — single diffuse band, like Mars's Phobos ring."""
+    bands = [
+        (0.50, 0.45, 0.55),   # single wide diffuse band
+    ]
+    dust  = (160,  90,  50)
+    dark  = ( 15,  10,   8)
+
+    pixels = []
+    for row in range(RHEIGHT):
+        v = row / RHEIGHT
+        for col in range(RWIDTH):
+            u = col / RWIDTH
+            density = _ring_band(v, bands)
+            wisp = fbm(u * 12, v * 6, octaves=4, seed=seed) * 0.3
+            density = clamp(density * 0.7 + wisp)
+            c = lerp_colour(dark, dust, density)
+            pixels.append(c)
+    return pixels
+
+
+def gen_ring_dense(seed: int = 13) -> list:
+    """Thick opaque ring, deep orange — like a young protoplanetary disc."""
+    bands = [
+        (0.10, 0.09, 1.00),
+        (0.28, 0.12, 0.95),
+        (0.48, 0.10, 0.85),
+        (0.65, 0.12, 0.75),
+        (0.83, 0.10, 0.55),
+    ]
+    inner = (200,  80,  20)
+    outer = (140,  55,  15)
+    dark  = ( 25,  15,   8)
+
+    pixels = []
+    for row in range(RHEIGHT):
+        v = row / RHEIGHT
+        for col in range(RWIDTH):
+            u = col / RWIDTH
+            density = _ring_band(v, bands)
+            n = fbm(u * 10, v * 5, octaves=5, seed=seed) * 0.2
+            density = clamp(density + n - 0.08)
+            base_col = lerp_colour(inner, outer, v)
+            c = lerp_colour(dark, base_col, density)
+            pixels.append(c)
+    return pixels
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 TEXTURES = [
-    ("planet_terra.tga", gen_terra,  1),
-    ("planet_mars.tga",  gen_mars,   2),
-    ("planet_gas.tga",   gen_gas,    3),
-    ("planet_ice.tga",   gen_ice,    4),
-    ("planet_lava.tga",  gen_lava,   5),
-    ("planet_ocean.tga", gen_ocean,  6),
+    ("planet_terra.tga", gen_terra,  1, WIDTH, HEIGHT),
+    ("planet_mars.tga",  gen_mars,   2, WIDTH, HEIGHT),
+    ("planet_gas.tga",   gen_gas,    3, WIDTH, HEIGHT),
+    ("planet_ice.tga",   gen_ice,    4, WIDTH, HEIGHT),
+    ("planet_lava.tga",  gen_lava,   5, WIDTH, HEIGHT),
+    ("planet_ocean.tga", gen_ocean,  6, WIDTH, HEIGHT),
+    # ring textures — 64×64
+    ("ring_saturn.tga",  gen_ring_saturn, 10, RWIDTH, RHEIGHT),
+    ("ring_ice.tga",     gen_ring_ice,    11, RWIDTH, RHEIGHT),
+    ("ring_dust.tga",    gen_ring_dust,   12, RWIDTH, RHEIGHT),
+    ("ring_dense.tga",   gen_ring_dense,  13, RWIDTH, RHEIGHT),
 ]
 
 
@@ -411,20 +541,20 @@ def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out_dir, exist_ok=True)
 
-    for filename, gen_fn, seed in TEXTURES:
+    for filename, gen_fn, seed, w, h in TEXTURES:
         path = os.path.join(out_dir, filename)
-        print(f"Generating {filename} ({WIDTH}x{HEIGHT})...", end=" ", flush=True)
+        print(f"Generating {filename} ({w}x{h})...", end=" ", flush=True)
         pixels = gen_fn(seed)
         # TGA stores rows bottom-to-top; we generate top-to-bottom, so flip
-        rows = [pixels[r * WIDTH:(r + 1) * WIDTH] for r in range(HEIGHT)]
+        rows = [pixels[r * w:(r + 1) * w] for r in range(h)]
         rows_flipped = list(reversed(rows))
         flat = [px for row in rows_flipped for px in row]
-        write_tga(path, WIDTH, HEIGHT, flat)
+        write_tga(path, w, h, flat)
         print("done")
 
     print(f"\nAll textures written to: {os.path.abspath(out_dir)}")
-    print("\nTo use in-game, copy the .tga files into the game assets directory")
-    print("then reference them with:  sv.planet ... tex planet_terra")
+    print("\nPlanet surface:  sv.planet ... tex planet_terra")
+    print("Planet with ring: sv.planet ... ring 1 ringtex ring_saturn ringinner 80 ringouter 300")
     print("(omit the .tga extension — the engine appends it)")
 
 

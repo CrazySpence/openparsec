@@ -556,6 +556,12 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 	planet->RingOuterRadius	= pRE_Planet->ringouterradius;
 	strncpy( planet->RingTexName, pRE_Planet->ringtexname, MAX_RING_TEXNAME );
 	planet->RingTexName[ MAX_RING_TEXNAME ] = 0;
+	// RingTexture is per-instance (not shared), safe to set directly
+	if ( planet->RingTexName[ 0 ] != '\0' ) {
+		planet->RingTexture = FetchTextureMap( planet->RingTexName );
+		if ( planet->RingTexture == NULL )
+			MSGOUT( "planet ring texture '%s' not found.", planet->RingTexName );
+	}
 
 	// apply surface texture if server specified one
 	strncpy( planet->SurfTexName, pRE_Planet->surtexname, MAX_SURF_TEXNAME );
@@ -572,8 +578,6 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 
 	// store server's host obj id for future find operations
 	planet->HostObjNumber = pRE_Planet->hostid;
-	// NOTE: planet->RingTexture is loaded by PlanetInstantiate (callback_instant)
-	// when the object is first created via SummonObject above.
 }
 
 // exectue RE containing a stargate -------------------------------------------
