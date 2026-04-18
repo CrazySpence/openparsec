@@ -271,9 +271,13 @@ void SlideInFloatingMenu()
 
 	FadeInStatusWindow();
 
-	FadeInBackground();
-	SlideInShip();
-	SlideInRing();
+	if ( !NetJoined ) {
+		// In a live networked game the rendered game world is the background —
+		// skip the menu backdrop, ship viewer and ring so they don't cover it.
+		FadeInBackground();
+		SlideInShip();
+		SlideInRing();
+	}
 }
 
 
