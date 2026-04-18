@@ -537,6 +537,16 @@ long int SYS_GetFileLength( const char *filename )
 		return SYS_SysGetFileLength( filename );
 	}
 
+	// gamedata/ override — must mirror SYS_fopen so buffer sizes match the actual file
+	{
+		char overridepath[ 512 ];
+		snprintf( overridepath, sizeof( overridepath ), "gamedata/%s", filename );
+		long int sz = SYS_SysGetFileLength( overridepath );
+		if ( sz >= 0 ) {
+			return sz;
+		}
+	}
+
 	fetchitem_s	*fetchitem = FetchItemByName( filename );
 	if ( fetchitem != NULL ) {
 		return fetchitem->item->flength;
@@ -556,6 +566,18 @@ FILE *SYS_fopen( const char *filename, const char *mode )
 
 	if ( AUX_DISABLE_PACKAGE_DATA_FILES ) {
 		return fopen( filename, mode );
+	}
+
+	// "gamedata/" folder acts as an override layer: any file placed there shadows
+	// the packed .dat archives, allowing hi-res asset replacements without repacking.
+	// Existing loose files (e.g. planet TGAs) still work via the bare fallback below.
+	{
+		char overridepath[ 512 ];
+		snprintf( overridepath, sizeof( overridepath ), "gamedata/%s", filename );
+		FILE *fp = fopen( overridepath, mode );
+		if ( fp != NULL ) {
+			return fp;
+		}
 	}
 
 	// open package for reading at correct offset if file found as item

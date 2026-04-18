@@ -882,7 +882,7 @@ void E_SimClientNetOutput::_ClearUpdates()
 //
 int E_SimClientNetOutput::_HasUpdates()
 {
-	return ( ( m_nNumDistsForNextPacket > 0 ) || ( m_nNumClients > 0 ) || m_bIncludeGameState || m_bIncludeKillStats );
+	return ( ( m_nNumDistsForNextPacket > 0 ) || ( m_nNumClients > 0 ) || m_bIncludeGameState || m_bIncludeKillStats || m_bIncludeStateSync );
 }
 
 

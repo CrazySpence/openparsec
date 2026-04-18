@@ -383,9 +383,11 @@ PRIVATE
 void RO_AcquirePanoramaObjects()
 {
 	// class ids of panorama objects
-	static dword pobjid1 = CLASS_ID_INVALID;
-	static dword pobjid2 = CLASS_ID_INVALID;
-	static dword pobjid3 = CLASS_ID_INVALID;
+	static dword pobjid1    = CLASS_ID_INVALID;
+	static dword pobjid1_hi = CLASS_ID_INVALID;
+	static dword pobjid2    = CLASS_ID_INVALID;
+	static dword pobjid3    = CLASS_ID_INVALID;
+	static dword pobjid3_hi = CLASS_ID_INVALID;
 	
 	// nebula layer may be switched using aux-flag
 	int nebulaid = AUXDATA_BACKGROUND_NEBULA_ID;
@@ -393,8 +395,10 @@ void RO_AcquirePanoramaObjects()
 	static int lastnebulaid = -1;
 	if ( lastnebulaid != nebulaid ) {
 		lastnebulaid = nebulaid;
-		pobjid1 = CLASS_ID_INVALID;
-		pobjid3 = CLASS_ID_INVALID;
+		pobjid1    = CLASS_ID_INVALID;
+		pobjid1_hi = CLASS_ID_INVALID;
+		pobjid3    = CLASS_ID_INVALID;
+		pobjid3_hi = CLASS_ID_INVALID;
 		
 		// HACK: load the level for a specific nebula id
 		if( !AUX_DISABLE_LEVEL_SYNC ) {
@@ -408,7 +412,11 @@ void RO_AcquirePanoramaObjects()
 	} else {
 		pobjname1[ 9 ] = 0;
 	}
-	
+
+	// hi-res variant name for layer 1 (e.g. "panorama1_hi" or "panorama1_01_hi")
+	char pobjname1_hi[ 32 ];
+	snprintf( pobjname1_hi, sizeof( pobjname1_hi ), "%s_hi", pobjname1 );
+
 	// object for stars layer depends on current resolution
 	static resinfo_s lastscreenres;
 	if (lastscreenres != GameScreenRes) {
@@ -427,9 +435,20 @@ void RO_AcquirePanoramaObjects()
 		pobjname3[ 9 ] = 0;
 	}
 
+	// hi-res variant name for layer 3 (e.g. "panorama3_hi" or "panorama3_01_hi")
+	char pobjname3_hi[ 32 ];
+	snprintf( pobjname3_hi, sizeof( pobjname3_hi ), "%s_hi", pobjname3 );
+
 	// acquire layer 1 if not disabled (nebula)
+	// prefer hi-res variant at 720p and above; fall back to standard if absent
 	if ( !AUX_DISABLE_PANORAMIC_LAYER_1 ) {
-		panorama_layer1 = OBJ_ReacquireObjectClass( &pobjid1, pobjname1 );
+		panorama_layer1 = NULL;
+		if ( Screen_Height >= 720 ) {
+			panorama_layer1 = OBJ_ReacquireObjectClass( &pobjid1_hi, pobjname1_hi );
+		}
+		if ( panorama_layer1 == NULL ) {
+			panorama_layer1 = OBJ_ReacquireObjectClass( &pobjid1, pobjname1 );
+		}
 	}
 
 	// acquire layer 2 if not disabled (stars)
@@ -437,9 +456,16 @@ void RO_AcquirePanoramaObjects()
 		panorama_layer2 = OBJ_ReacquireObjectClass( &pobjid2, pobjname2 );
 	}
 
-	// acquire layer 1 if not disabled (detail objects)
+	// acquire layer 3 if not disabled (detail objects)
+	// prefer hi-res variant at 720p and above; fall back to standard if absent
 	if ( !AUX_DISABLE_PANORAMIC_LAYER_3 ) {
-		panorama_layer3 = OBJ_ReacquireObjectClass( &pobjid3, pobjname3 );
+		panorama_layer3 = NULL;
+		if ( Screen_Height >= 720 ) {
+			panorama_layer3 = OBJ_ReacquireObjectClass( &pobjid3_hi, pobjname3_hi );
+		}
+		if ( panorama_layer3 == NULL ) {
+			panorama_layer3 = OBJ_ReacquireObjectClass( &pobjid3, pobjname3 );
+		}
 	}
 }
 
