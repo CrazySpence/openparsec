@@ -189,7 +189,6 @@ void NET_ProcessRmEvList_GMSV( NetPacket_GMSV* gamepacket )
 				
 			case RE_STATESYNC:
 
-				MSGOUT( "statesync: RE_STATESYNC arrived, NetConnected=%d", NetConnected );
 				if ( NetConnected ) {
 					NET_ExecRmEvStateSync( pREList, ownerid );
 				}

@@ -525,7 +525,6 @@ int E_SimClientNetOutput::_FillAndSend_State( E_REList* pReliable, E_REList* pUn
 	   // include a StateSync ?
 	    if (m_bIncludeStateSync != SEND_MODE_NONE) {
 	        E_SimClientState* pSimClientState = TheSimulator->GetSimClientState( m_nDestClientID );
-	        MSGOUT( "statesync: sending to client %d (nebula=%d)", m_nDestClientID, TheGame->m_NebulaID );
 	        E_REList* relist = ( m_bIncludeStateSync == SEND_MODE_UNRELIABLE ? pUnreliable : pReliable );
 	        if(!relist->RmEvStateSync(RMEVSTATE_NEBULAID,TheGame->m_NebulaID)) {
 	            DBGTXT( MSGOUT( "E_SimClientNetOutput::_FillPacketForClient(): packet choke" ); );
