@@ -20,7 +20,10 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
+
+// vapor trails are purely client-side (visual only, never network-synced)
+#ifndef PARSEC_SERVER
 
 // C library
 #include <stddef.h>
@@ -176,7 +179,7 @@ int VaporTrail_Draw( void* param )
 {
 	if(headless_bot)
 		return TRUE;
-	
+
 	ASSERT( param != NULL );
 	VaporTrail *vapor = (VaporTrail *) param;
 
@@ -635,4 +638,4 @@ REGISTER_MODULE( G_VAPOR )
 }
 
 
-
+#endif // !PARSEC_SERVER
