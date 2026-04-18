@@ -413,6 +413,12 @@ int PlanetAnimate( CustomObject *base )
 	// simply rotate around Z
 #ifndef PARSEC_SERVER
 	ObjRotZ( planet->ObjPosition, planet->RotSpeed * CurScreenRefFrames );
+
+	// Register the draw callback here rather than in PlanetCollide so that
+	// planets remain visible when InFloatingMenu is true.  OBJ_CheckCollisions
+	// (and therefore PlanetCollide) is skipped while the floating menu is open,
+	// but OBJ_AnimateCustomObjects always runs, so this is the safe place.
+	CALLBACK_RegisterCallback( callback_type, PlanetDraw, (void *) base );
 #else
 	ObjRotZ( planet->ObjPosition, planet->RotSpeed * TheSimulator->GetThisFrameRefFrames() );
 #endif
@@ -448,10 +454,9 @@ int PlanetCollide( CustomObject *base )
 	ASSERT( base != NULL );
 
 #ifndef PARSEC_SERVER
-	// always register the draw callback so the planet renders
-	CALLBACK_RegisterCallback( callback_type, PlanetDraw, (void *) base );
-
 	// proximity warning — only meaningful when the local ship exists
+	// (draw callback is registered in PlanetAnimate so it fires even when
+	// InFloatingMenu is true and OBJ_CheckCollisions is skipped)
 	if ( headless_bot || MyShip == NULL )
 		return TRUE;
 
