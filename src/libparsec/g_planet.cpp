@@ -464,8 +464,8 @@ int PlanetCollide( CustomObject *base )
 	float dist = sqrt( dx*dx + dy*dy + dz*dz );
 
 	float radius   = GEOMV_TO_FLOAT( planet->BoundingSphere );
-	float warn_far = radius * 4.0f;	// outer edge of warning zone
-	float warn_mid = radius * 2.0f;	// inner edge — full red
+	float warn_far = radius * 1.5f;	// outer edge of warning zone
+	float warn_mid = radius * 1.1f;	// inner edge — full red (kill happens at 1.0x)
 
 	if ( dist < warn_far ) {
 		// depth in warning zone: 0.0 = outer edge, 1.0 = at surface
