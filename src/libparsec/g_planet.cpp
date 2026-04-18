@@ -440,7 +440,7 @@ void PlanetDestroy( CustomObject *base )
 
 // planet collision callback --------------------------------------------------
 // On the server, collision detection is handled by G_CollDet::_CheckShipPlanetCollision().
-// This callback is a no-op on the server; on the client it registers the draw callback.
+// On the client: registers the draw callback and computes proximity warning.
 //
 PRIVATE
 int PlanetCollide( CustomObject *base )
@@ -448,8 +448,41 @@ int PlanetCollide( CustomObject *base )
 	ASSERT( base != NULL );
 
 #ifndef PARSEC_SERVER
-	// register the drawing callback for the planet and the red overlay
+	// always register the draw callback so the planet renders
 	CALLBACK_RegisterCallback( callback_type, PlanetDraw, (void *) base );
+
+	// proximity warning — only meaningful when the local ship exists
+	if ( headless_bot || MyShip == NULL )
+		return TRUE;
+
+	Planet *planet = (Planet *) base;
+
+	// distance from ship to planet centre
+	float dx = MyShip->ObjPosition[ 0 ][ 3 ] - planet->ObjPosition[ 0 ][ 3 ];
+	float dy = MyShip->ObjPosition[ 1 ][ 3 ] - planet->ObjPosition[ 1 ][ 3 ];
+	float dz = MyShip->ObjPosition[ 2 ][ 3 ] - planet->ObjPosition[ 2 ][ 3 ];
+	float dist = sqrt( dx*dx + dy*dy + dz*dz );
+
+	float radius   = GEOMV_TO_FLOAT( planet->BoundingSphere );
+	float warn_far = radius * 4.0f;	// outer edge of warning zone
+	float warn_mid = radius * 2.0f;	// inner edge — full red
+
+	if ( dist < warn_far ) {
+		// depth in warning zone: 0.0 = outer edge, 1.0 = at surface
+		float depth = ( warn_far - dist ) / ( warn_far - warn_mid );
+		if ( depth > 1.0f ) depth = 1.0f;
+
+		// keep strongest warning across all planets this frame
+		if ( depth > ( 1.0f - orbit_depth ) )
+			orbit_depth = 1.0f - depth;
+
+		// rate-limited warning message — at most once every ~300 frames (~5 s)
+		static dword last_warn_frame = 0;
+		if ( ( CurVisibleFrame - last_warn_frame ) > 300 ) {
+			last_warn_frame = CurVisibleFrame;
+			ShowMessage( "WARNING: Entering planetary gravity well!" );
+		}
+	}
 #endif
 
 	return TRUE;
