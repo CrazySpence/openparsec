@@ -22,9 +22,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-// vapor trails are purely client-side (visual only, never network-synced)
-#ifndef PARSEC_SERVER
-
 // C library
 #include <stddef.h>
 #include <stdio.h>
@@ -636,6 +633,3 @@ REGISTER_MODULE( G_VAPOR )
 	// register object type
 	VaporTrailRegisterCustomType();
 }
-
-
-#endif // !PARSEC_SERVER

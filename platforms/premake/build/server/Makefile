@@ -139,7 +139,6 @@ OBJECTS := \
 	$(OBJDIR)/g_planet.o \
 	$(OBJDIR)/g_stgate.o \
 	$(OBJDIR)/g_telep.o \
-	$(OBJDIR)/g_vapor.o \
 	$(OBJDIR)/g_wfx.o \
 	$(OBJDIR)/net_pckt_gmsv.o \
 	$(OBJDIR)/net_stream.o \
@@ -286,9 +285,6 @@ $(OBJDIR)/g_planet.o: ../../../../src/libparsec/g_planet.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_telep.o: ../../../../src/libparsec/g_telep.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/g_vapor.o: ../../../../src/libparsec/g_vapor.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_wfx.o: ../../../../src/libparsec/g_wfx.cpp

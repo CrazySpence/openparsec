@@ -118,7 +118,7 @@
     <ClCompile Include="..\..\src\parsec\g_stars.cpp" />
     <ClCompile Include="..\..\src\parsec\g_supp.cpp" />
     <ClCompile Include="..\..\src\parsec\g_swarm.cpp" />
-    <ClCompile Include="..\..\src\libparsec\g_vapor.cpp" />
+    <ClCompile Include="..\..\src\parsec\g_vapor.cpp" />
     <ClCompile Include="..\..\src\parsec\h_cockpt.cpp" />
     <ClCompile Include="..\..\src\parsec\h_drwhud.cpp" />
     <ClCompile Include="..\..\src\parsec\h_frmplt.cpp" />
@@ -374,7 +374,7 @@
     <ClInclude Include="..\..\src\parsec\include\g_stars.h" />
     <ClInclude Include="..\..\src\parsec\include\g_supp.h" />
     <ClInclude Include="..\..\src\parsec\include\g_swarm.h" />
-    <ClInclude Include="..\..\src\libparsec\include\g_vapor.h" />
+    <ClInclude Include="..\..\src\parsec\include\g_vapor.h" />
     <ClInclude Include="..\..\src\libparsec\include\g_wfx.h" />
     <ClInclude Include="..\..\src\parsec\include\h_cockpt.h" />
     <ClInclude Include="..\..\src\parsec\include\h_drwhud.h" />
