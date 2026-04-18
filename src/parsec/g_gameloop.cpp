@@ -580,6 +580,16 @@ void Gm_SpecialKeyFunctions()
 				if ( DEMO_ReplayActive() ) {
 					// stop demo replay if active
 					DEMO_StopReplay();
+				} else if ( NetJoined && FloatingMenu && !InFloatingMenu ) {
+					// In a live network game: open the floating menu without
+					// unjoining.  The ship stays in space and remains
+					// vulnerable — the game loop keeps running and
+					// NETs_MaintainNet() continues to tick every frame.
+					// The player can quit properly from the menu, which
+					// sets ExitGameLoop and triggers NETs_Unjoin as normal.
+					DepressedKeys->key_ShootWeapon = 0;
+					InFloatingMenu = FloatingMenu;
+					ActivateFloatingMenu( TRUE );
 				} else {
 					// set flag to exit game-loop
 					ExitGameLoop = 1;

@@ -902,6 +902,16 @@ void MENU_FloatingMenuEnterGame()
 
 #endif
 
+	if ( NetJoined ) {
+
+		// Player opened the menu mid-game (ship is still live in space).
+		// Just close the overlay and hand control back — no re-spawn needed.
+		EntryMode		= FALSE;
+		InFloatingMenu	= FALSE;
+		ExitGameLoop	= 0;
+		return;
+	}
+
 	// init ship stuff
 	ASSERT( LocalShipClass < MAX_DISTINCT_OBJCLASSES );
 	ASSERT( ObjClassShipIndex[ LocalShipClass ] < NumShipClasses );
