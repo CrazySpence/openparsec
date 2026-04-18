@@ -464,24 +464,28 @@ int PlanetCollide( CustomObject *base )
 	float dist = sqrt( dx*dx + dy*dy + dz*dz );
 
 	float radius   = GEOMV_TO_FLOAT( planet->BoundingSphere );
-	float warn_far = radius * 1.5f;	// outer edge of warning zone
-	float warn_mid = radius * 1.1f;	// inner edge — full red (kill happens at 1.0x)
+	float warn_far = radius * 1.5f;	// message-only warning zone outer edge
 
+	// warning message — no red yet, just text
 	if ( dist < warn_far ) {
-		// depth in warning zone: 0.0 = outer edge, 1.0 = at surface
-		float depth = ( warn_far - dist ) / ( warn_far - warn_mid );
-		if ( depth > 1.0f ) depth = 1.0f;
-
-		// keep strongest warning across all planets this frame
-		if ( depth > ( 1.0f - orbit_depth ) )
-			orbit_depth = 1.0f - depth;
-
-		// rate-limited warning message — at most once every ~300 frames (~5 s)
 		static dword last_warn_frame = 0;
 		if ( ( CurVisibleFrame - last_warn_frame ) > 300 ) {
 			last_warn_frame = CurVisibleFrame;
 			ShowMessage( "WARNING: Entering planetary gravity well!" );
 		}
+	}
+
+	// subtle red tint only within 50 units of the surface — max 15% opacity,
+	// like skimming the upper atmosphere
+	float atmo_margin = 50.0f;
+	if ( dist < radius + atmo_margin ) {
+		float depth = ( radius + atmo_margin - dist ) / atmo_margin;
+		if ( depth > 1.0f ) depth = 1.0f;
+
+		// 0.037 maps to R≈38 out of 255 at full depth (≈15%)
+		float new_orbit = 1.0f - depth * 0.037f;
+		if ( new_orbit < orbit_depth )
+			orbit_depth = new_orbit;
 	}
 #endif
 
