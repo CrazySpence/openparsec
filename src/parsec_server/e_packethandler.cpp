@@ -1504,6 +1504,14 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 						ship->Weapons  = rec.Weapons;
 						ship->Specials = rec.Specials;
 						MSGOUT( "transit: restored loadout for %s (client %d)", rname, nClientID );
+
+						// notify the client of its restored weapons/specials so it can
+						// update MyShip->Weapons locally (the stream only carries ammo counts)
+						E_ClientInfo* pClientInfo = TheConnManager->GetClientInfo( nClientID );
+						char wcmd[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+						snprintf( wcmd, sizeof(wcmd), "TRANSIT_WEAPONS %x %x",
+								  (unsigned)rec.Weapons, (unsigned)rec.Specials );
+						Send_COMMAND_Datagram( wcmd, &pClientInfo->m_node, nClientID );
 					}
 				}
 			}

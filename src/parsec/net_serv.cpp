@@ -1440,6 +1440,19 @@ int NET_ServerParseMessage( char* msg )
 								srv_version_major, 
 								srv_name );
 
+	// transit weapons restore — server telling us what weapons we have after a stargate jump
+	} else if ( strncmp( recvline, "TRANSIT_WEAPONS ", 16 ) == 0 ) {
+
+		unsigned weapons = 0, specials = 0;
+		if ( sscanf( recvline, "TRANSIT_WEAPONS %x %x", &weapons, &specials ) == 2 ) {
+			if ( MyShip != NULL ) {
+				MyShip->Weapons  = (dword)weapons;
+				MyShip->Specials = (dword)specials;
+				MSGOUT( "transit: client restored weapons %x specials %x", weapons, specials );
+			}
+		}
+		return TRUE;
+
 	} else {
 
 		//NOTE:
