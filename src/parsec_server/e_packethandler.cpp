@@ -1499,9 +1499,10 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 						ship->NumMines      = (word)( rec.NumMines      < ship->MaxNumMines      ? rec.NumMines      : ship->MaxNumMines );
 						ship->CurEnergy     = ( rec.CurEnergy < ship->MaxEnergy ? rec.CurEnergy : ship->MaxEnergy );
 						ship->CurShield     = ( rec.CurShield < ship->MaxShield ? rec.CurShield : ship->MaxShield );
-						// only grant weapons the destination ship class supports
-						ship->Weapons  = rec.Weapons  & ship->Weapons;
-						ship->Specials = rec.Specials & ship->Specials;
+						// restore weapons/specials directly — the source server already
+						// validated the player legitimately had these
+						ship->Weapons  = rec.Weapons;
+						ship->Specials = rec.Specials;
 						MSGOUT( "transit: restored loadout for %s (client %d)", rname, nClientID );
 					}
 				}
