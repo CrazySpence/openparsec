@@ -346,12 +346,16 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 	m_bIncludeDestClientState &= _ShouldSendHeartbeat();
 #endif // LAG_CLIENT_STATE
 
-	if(!pSimClientState->HasState()) {
+	// Only send state sync after the client has completed the join handshake.
+    // RE_STATESYNC is silently dropped on the client until NetConnected is TRUE,
+    // which the client sets only after receiving RE_JOINED — so sending it
+    // before join just marks SetState() and the sync is never applied.
+    if( pSimClientState->HasJoined() && !pSimClientState->HasState() ) {
         size_t state_size = E_REList::RmEvGetSizeFromType(RE_STATESYNC) * 7; //We current send 7 states to the client
         if(_ReserveForOutput( state_size )) {
             m_bIncludeStateSync = SEND_MODE_RELIABLE;
         }
-        
+
     }
     
     // check whether to include the gamestate ( RE_GameState ) in a heartbeat packet

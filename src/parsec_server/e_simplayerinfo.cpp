@@ -226,6 +226,11 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 
 	MSGOUT( "joined client %d", m_nClientID );
 
+	// Mark the client as joined so _PrepareClientUpdateInfo will now queue
+	// the state sync. Before this point the client ignores RE_STATESYNC
+	// (it checks NetConnected, which it sets only on receiving RE_JOINED).
+	pSimClientState->SetJoined();
+
 	// give UI feedback when player has joined
 	GAMECODE ( UI_PlayerJoinedFeedback( playerstatus ) );
 

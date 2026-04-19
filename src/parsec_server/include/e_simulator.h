@@ -114,6 +114,7 @@ protected:
 
 	bool_t						m_ResyncClient;
     bool_t                      m_ClientHasStateSync;
+    bool_t                      m_ClientHasJoined;
 
 public:
 	E_SimClientState()
@@ -126,6 +127,7 @@ public:
 		m_ResyncClient			   = TRUE;
 		m_LastSwitchToSimRefFrame  = -1;
         m_ClientHasStateSync       = FALSE;
+        m_ClientHasJoined          = FALSE;
         m_SkipLerp					= 0;
 	}
 
@@ -149,6 +151,7 @@ public:
 		m_ResyncClient				= TRUE;
 		m_LastSwitchToSimRefFrame	= -1;
         m_ClientHasStateSync       = FALSE;
+        m_ClientHasJoined          = FALSE;
         m_SkipLerp					= 0;
 	}
 
@@ -195,8 +198,14 @@ public:
     
     // Check whether state variables (nebula id, ammo pack sizes) have been sent
     int HasState() { return m_ClientHasStateSync; }
-    
+
     void SetState() { m_ClientHasStateSync = TRUE; }
+
+    // Check/set whether the client has completed the join handshake.
+    // State sync must not be sent before join: the client ignores RE_STATESYNC
+    // until NetConnected is TRUE, which it sets only after receiving RE_JOINED.
+    int  HasJoined() { return m_ClientHasJoined; }
+    void SetJoined() { m_ClientHasJoined = TRUE; }
 
 protected:
 	// calculate the newest smooothing target
