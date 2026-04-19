@@ -554,6 +554,7 @@ int E_SimClientNetOutput::_FillAndSend_State( E_REList* pReliable, E_REList* pUn
 	            DBGTXT( MSGOUT( "E_SimClientNetOutput::_FillPacketForClient(): packet choke" ); );
 				return FALSE;
 	        }
+	        MSGOUT( "state sync: sending to client %d (nebula=%d)", m_nDestClientID, TheGame->m_NebulaID );
 	        pSimClientState->SetState();
 	    }
 
