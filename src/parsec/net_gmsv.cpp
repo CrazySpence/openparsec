@@ -526,6 +526,30 @@ void JumpToCurJumpServer()
 	// remember if we were joined before the transition
 	int oldjoinedstate = NetJoined;
 
+	// persist loadout to master server for transit restoration.
+	// must be done before NETs_Unjoin() and InitFloatingMyShip() reset the ship.
+	if ( MyShip != NULL && Masters[ 0 ] != NULL ) {
+		char ms_resolved[ MAX_IPADDR_LEN + 1 ];
+		node_t masternode;
+		if ( NET_ResolveHostName( Masters[ 0 ], ms_resolved, &masternode ) ) {
+			UDP_StoreNodePort( &masternode, DEFAULT_MASTERSERVER_UDP_PORT );
+			char cmd[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+			snprintf( cmd, sizeof(cmd),
+				"TRANSIT_SAVE %s %x %x %x %x %x %x %x %x",
+				LocalPlayerName,
+				(unsigned)MyShip->NumMissls,
+				(unsigned)MyShip->NumHomMissls,
+				(unsigned)MyShip->NumPartMissls,
+				(unsigned)MyShip->NumMines,
+				(unsigned)MyShip->CurEnergy,
+				(unsigned)MyShip->CurShield,
+				(unsigned)MyShip->Weapons,
+				(unsigned)MyShip->Specials );
+			Send_COMMAND_Datagram( cmd, &masternode, FALSE );
+			MSGOUT( "transit: sent SAVE for %s", LocalPlayerName );
+		}
+	}
+
 	// ensure that we are not joined during server transition
 	if ( NetJoined ) {
 		NETs_Unjoin( USER_EXIT );

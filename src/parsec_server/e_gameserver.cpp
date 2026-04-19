@@ -83,6 +83,7 @@
 #include "e_connmanager.h"
 #include "e_packethandler.h"
 #include "e_simulator.h"
+#include "e_relist.h"
 #include "e_simnetinput.h"
 #include "e_simnetoutput.h"
 #include "sys_refframe_sv.h"
@@ -190,9 +191,10 @@ int	ServerConfig::GetSimFrequency()
 
 // default ctor ---------------------------------------------------------------
 //
-E_GameServer::E_GameServer() : 
+E_GameServer::E_GameServer() :
 m_bQuit( false )
 {
+	m_nTransitPending = 0;
 }
 
 // default dtor ---------------------------------------------------------------
@@ -749,6 +751,58 @@ int E_GameServer::_MaintainHousekeeping()
 	return TRUE;
 }
 
+// send an RE list as a datagram to the master server -------------------------
+//
+void E_GameServer::SendToMaster( E_REList* relist )
+{
+	if ( !m_bMasterServer_NodeValid )
+		return;
+	ThePacketHandler->Send_STREAM_Datagram( relist, &m_MasterServer_Node, PLAYERID_SERVER );
+}
+
+
+// register that we are waiting for a transit record for this player ----------
+//
+void E_GameServer::RegisterPendingTransit( const char* name, int nClientID )
+{
+	ASSERT( name != NULL );
+
+	// update if already present
+	for ( int i = 0; i < m_nTransitPending; i++ ) {
+		if ( strncmp( m_TransitPending[ i ].name, name, MAX_PLAYER_NAME ) == 0 ) {
+			m_TransitPending[ i ].nClientID = nClientID;
+			return;
+		}
+	}
+
+	// add new entry if space available
+	if ( m_nTransitPending < MAX_TRANSIT_PENDING ) {
+		strncpy( m_TransitPending[ m_nTransitPending ].name, name, 31 );
+		m_TransitPending[ m_nTransitPending ].name[ 31 ] = '\0';
+		m_TransitPending[ m_nTransitPending ].nClientID = nClientID;
+		m_nTransitPending++;
+	}
+}
+
+
+// consume (look up and remove) a pending transit entry -----------------------
+// returns nClientID, or -1 if not found
+//
+int E_GameServer::ConsumePendingTransit( const char* name )
+{
+	ASSERT( name != NULL );
+	for ( int i = 0; i < m_nTransitPending; i++ ) {
+		if ( strncmp( m_TransitPending[ i ].name, name, MAX_PLAYER_NAME ) == 0 ) {
+			int nClientID = m_TransitPending[ i ].nClientID;
+			// remove by swapping with last entry
+			m_TransitPending[ i ] = m_TransitPending[ --m_nTransitPending ];
+			return nClientID;
+		}
+	}
+	return -1;
+}
+
+
 // run the SERVER frame -------------------------------------------------------
 //
 refframe_t E_GameServer::ServerFrame()
@@ -778,7 +832,7 @@ refframe_t E_GameServer::ServerFrame()
 	} else {
 		// TODO: Master server stuff....
 		TheMaster->RemoveStaleEntries();
-
+		TheMaster->RemoveStalePlayerRecords();
 	}
 	// increment the serverframe counter
 	//MSGOUT( "m_nServerFrame++" );

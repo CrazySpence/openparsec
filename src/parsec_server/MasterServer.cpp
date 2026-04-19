@@ -97,6 +97,63 @@ void MasterServer::_init(){
 	last_check=0;
 	ServerList.clear();
 	ServerList.resize(0);
+	PlayerRecords.clear();
+}
+
+
+// save (or refresh) a player transit record ----------------------------------
+//
+void MasterServer::SavePlayerRecord( const PlayerRecord& rec )
+{
+	// update existing record if player already has one
+	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
+		  it != PlayerRecords.end(); ++it ) {
+		if ( strncmp( it->name, rec.name, MAX_PLAYER_NAME ) == 0 ) {
+			*it = rec;
+			MSGOUT( "transit: updated record for %s", rec.name );
+			return;
+		}
+	}
+	// new record
+	PlayerRecords.push_back( rec );
+	MSGOUT( "transit: stored record for %s", rec.name );
+}
+
+
+// claim (retrieve and delete) a player transit record -------------------------
+//
+bool MasterServer::ClaimPlayerRecord( const char* name, PlayerRecord* out )
+{
+	ASSERT( name != NULL );
+	ASSERT( out  != NULL );
+
+	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
+		  it != PlayerRecords.end(); ++it ) {
+		if ( strncmp( it->name, name, MAX_PLAYER_NAME ) == 0 ) {
+			*out = *it;
+			PlayerRecords.erase( it );
+			MSGOUT( "transit: claimed record for %s", name );
+			return true;
+		}
+	}
+	return false;
+}
+
+
+// remove records older than 5 minutes ----------------------------------------
+//
+void MasterServer::RemoveStalePlayerRecords()
+{
+	time_t now = time( NULL );
+	std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
+	while ( it != PlayerRecords.end() ) {
+		if ( now - it->timestamp > 300 ) {
+			MSGOUT( "transit: expiring stale record for %s", it->name );
+			it = PlayerRecords.erase( it );
+		} else {
+			++it;
+		}
+	}
 }
 
 int MasterServer::RemoveStaleEntries(){

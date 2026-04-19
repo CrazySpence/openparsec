@@ -58,8 +58,9 @@
 #include "e_connmanager.h"
 #include "e_gameserver.h"
 #include "e_simulator.h"
-//#include "e_packethandler.h"
-//#include "e_relist.h"
+#include "e_packethandler.h"
+#include "e_relist.h"
+#include "net_csdf.h"
 //#include "sys_refframe_sv.h"
 
 // reset all player fields to defaults ( not connected ) ----------------------
@@ -222,11 +223,27 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 	// display object id of remote player's ship
 	//FIXME: this could go into UI_PlayerJoinedFeedback
 	DBGTXT( MSGOUT( "player %s joined and got object id %d.", TheConnManager->GetClientName( m_nClientID ), m_nShipID ); );
-	
+
 	MSGOUT( "joined client %d", m_nClientID );
 
 	// give UI feedback when player has joined
 	GAMECODE ( UI_PlayerJoinedFeedback( playerstatus ) );
+
+	// query master server for a saved transit loadout for this player.
+	// the response is async — _Handle_COMMAND_MASV applies it when it arrives.
+	{
+		const char* pname = TheConnManager->GetClientName( m_nClientID );
+		if ( pname != NULL && pname[0] != '\0' && TheServer->HasMasterServerNode() ) {
+			char cmd[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+			snprintf( cmd, sizeof(cmd), "TRANSIT_QUERY %s", pname );
+			E_REList* pRE = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+			pRE->NET_Append_RE_CommandInfo( cmd );
+			TheServer->SendToMaster( pRE );
+			pRE->Release();
+			TheServer->RegisterPendingTransit( pname, m_nClientID );
+			MSGOUT( "transit: sent QUERY for %s", pname );
+		}
+	}
 }
 
 

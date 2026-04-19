@@ -147,6 +147,15 @@ protected: 	// data
 	Teleporter			*m_Teleporters[MAX_NUM_TELEP];
 	int					m_nNumTeleporters;
 
+	// pending transit lookups: players awaiting a loadout response from master
+	struct TransitPendingEntry {
+		char name[ 32 ]; // MAX_PLAYER_NAME + 1
+		int  nClientID;
+	};
+	static const int MAX_TRANSIT_PENDING = 16;
+	TransitPendingEntry m_TransitPending[ MAX_TRANSIT_PENDING ];
+	int                 m_nTransitPending;
+
 	bool_t				m_bQuit;
 protected: 	// methods
 
@@ -205,6 +214,12 @@ public: 	// methods
 	refframe_t  GetMasterServerFrameTime()  { return m_MasterServer_FrameTime; }
 
 	void		SetQuitFlag()				{ m_bQuit = TRUE; }
+
+	// transit loadout helpers
+	bool		HasMasterServerNode()		{ return ( m_bMasterServer_NodeValid == TRUE ); }
+	void		SendToMaster( class E_REList* relist );
+	void		RegisterPendingTransit( const char* name, int nClientID );
+	int			ConsumePendingTransit( const char* name );
 };
 
 #endif // _E_GAMESERVER_H_

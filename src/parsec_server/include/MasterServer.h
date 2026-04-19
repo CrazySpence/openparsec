@@ -11,8 +11,26 @@
 #include "e_gameserver.h"
 #include "MasterServerItem.h"
 
-// C++ STL vector for the resolution list
+// C++ STL
 #include <vector>
+#include <time.h>
+
+
+// per-player transit loadout record ------------------------------------------
+//
+struct PlayerRecord {
+	char     name[ MAX_PLAYER_NAME + 1 ];
+	time_t   timestamp;
+	word     NumMissls;
+	word     NumHomMissls;
+	word     NumPartMissls;
+	word     NumMines;
+	fixed_t  CurEnergy;
+	geomv_t  CurShield;
+	dword    Weapons;
+	dword    Specials;
+};
+
 
 /*
  *
@@ -26,8 +44,13 @@ public:
 
 	int RemoveStaleEntries();
 
+	// player transit loadout registry
+	void SavePlayerRecord( const PlayerRecord& rec );
+	bool ClaimPlayerRecord( const char* name, PlayerRecord* out );
+	void RemoveStalePlayerRecords();
 
 	std::vector<MasterServerItem>		ServerList;
+	std::vector<PlayerRecord>			PlayerRecords;
 private:
 	int last_check;
 };

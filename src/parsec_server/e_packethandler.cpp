@@ -1267,6 +1267,32 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 					}*/
 					//MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Got LIST from client %s\n", clientIP);
 				}
+
+				// TRANSIT_QUERY — game server asking for a player's saved loadout
+				{
+					char qname[ MAX_PLAYER_NAME + 1 ];
+					if ( _ParseTransitQuery( re_commandinfo->command, qname ) ) {
+						PlayerRecord rec;
+						if ( TheMaster->ClaimPlayerRecord( qname, &rec ) ) {
+							char resp[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+							snprintf( resp, sizeof(resp),
+								"TRANSIT_RESPONSE %s %x %x %x %x %x %x %x %x",
+								rec.name,
+								(unsigned)rec.NumMissls,
+								(unsigned)rec.NumHomMissls,
+								(unsigned)rec.NumPartMissls,
+								(unsigned)rec.NumMines,
+								(unsigned)rec.CurEnergy,
+								(unsigned)rec.CurShield,
+								(unsigned)rec.Weapons,
+								(unsigned)rec.Specials );
+							ThePacketHandler->Send_COMMAND_Datagram( resp, clientnode, PLAYERID_MASTERSERVER );
+							MSGOUT( "transit: sent RESPONSE for %s to game server", qname );
+						}
+						return;
+					}
+				}
+
 				if ( _ParseHBPacket_MASTER(re_commandinfo->command)) {
 					//MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Got HB from client: %s\n", clientIP);
 					return;
@@ -1296,6 +1322,95 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 	UPDTXT2( m_pInputREList->Dump(); );
 
 }
+
+// parse TRANSIT_SAVE command (client → master) --------------------------------
+// format: "TRANSIT_SAVE <name> <missls> <hommissls> <partmissls> <mines> <energy> <shield> <weapons> <specials>"
+// all numeric fields are hex
+//
+int E_PacketHandler::_ParseTransitSave( const char* cmd, PlayerRecord* out )
+{
+	ASSERT( cmd != NULL );
+	ASSERT( out != NULL );
+
+	char prefix[ 16 ];
+	unsigned missls, hommissls, partmissls, mines, energy, shield, weapons, specials;
+
+	if ( sscanf( cmd, "%15s %31s %x %x %x %x %x %x %x %x",
+				 prefix, out->name,
+				 &missls, &hommissls, &partmissls, &mines,
+				 &energy, &shield, &weapons, &specials ) != 10 )
+		return FALSE;
+
+	if ( strcmp( prefix, "TRANSIT_SAVE" ) != 0 )
+		return FALSE;
+
+	out->name[ MAX_PLAYER_NAME ] = '\0';
+	out->timestamp    = time( NULL );
+	out->NumMissls    = (word) missls;
+	out->NumHomMissls = (word) hommissls;
+	out->NumPartMissls= (word) partmissls;
+	out->NumMines     = (word) mines;
+	out->CurEnergy    = (fixed_t)  energy;
+	out->CurShield    = (geomv_t)  shield;
+	out->Weapons      = (dword)    weapons;
+	out->Specials     = (dword)    specials;
+	return TRUE;
+}
+
+
+// parse TRANSIT_QUERY command (game server → master) -------------------------
+// format: "TRANSIT_QUERY <name>"
+//
+int E_PacketHandler::_ParseTransitQuery( const char* cmd, char* name_out )
+{
+	ASSERT( cmd != NULL );
+	ASSERT( name_out != NULL );
+
+	char prefix[ 16 ];
+	if ( sscanf( cmd, "%15s %31s", prefix, name_out ) != 2 )
+		return FALSE;
+
+	if ( strcmp( prefix, "TRANSIT_QUERY" ) != 0 )
+		return FALSE;
+
+	name_out[ MAX_PLAYER_NAME ] = '\0';
+	return TRUE;
+}
+
+
+// parse TRANSIT_RESPONSE command (master → game server) ----------------------
+// format: "TRANSIT_RESPONSE <name> <missls> <hommissls> <partmissls> <mines> <energy> <shield> <weapons> <specials>"
+//
+int E_PacketHandler::_ParseTransitResponse( const char* cmd, char* name_out, PlayerRecord* out )
+{
+	ASSERT( cmd != NULL );
+	ASSERT( name_out != NULL );
+	ASSERT( out != NULL );
+
+	char prefix[ 20 ];
+	unsigned missls, hommissls, partmissls, mines, energy, shield, weapons, specials;
+
+	if ( sscanf( cmd, "%19s %31s %x %x %x %x %x %x %x %x",
+				 prefix, name_out,
+				 &missls, &hommissls, &partmissls, &mines,
+				 &energy, &shield, &weapons, &specials ) != 10 )
+		return FALSE;
+
+	if ( strcmp( prefix, "TRANSIT_RESPONSE" ) != 0 )
+		return FALSE;
+
+	name_out[ MAX_PLAYER_NAME ] = '\0';
+	out->NumMissls    = (word) missls;
+	out->NumHomMissls = (word) hommissls;
+	out->NumPartMissls= (word) partmissls;
+	out->NumMines     = (word) mines;
+	out->CurEnergy    = (fixed_t)  energy;
+	out->CurShield    = (geomv_t)  shield;
+	out->Weapons      = (dword)    weapons;
+	out->Specials     = (dword)    specials;
+	return TRUE;
+}
+
 
 // do safe parsing of new challenge from MASV ---------------------------------
 //
@@ -1356,9 +1471,37 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 	// parse for challenge request
 	int nMASVChallenge = 0;
 	if ( _ParseMASVChallenge( re_commandinfo->command, &nMASVChallenge ) ) {
-		
-		// set the new challenge
 		TheServer->SetMasterServerChallenge( nMASVChallenge );
+		return;
+	}
+
+	// TRANSIT_RESPONSE — master returning a saved transit loadout for a player
+	{
+		char rname[ MAX_PLAYER_NAME + 1 ];
+		PlayerRecord rec;
+		if ( _ParseTransitResponse( re_commandinfo->command, rname, &rec ) ) {
+			int nClientID = TheServer->ConsumePendingTransit( rname );
+			if ( nClientID >= 0 ) {
+				E_SimPlayerInfo* pinfo = TheSimulator->GetSimPlayerInfo( nClientID );
+				if ( pinfo != NULL ) {
+					ShipObject* ship = pinfo->GetShipObject();
+					if ( ship != NULL ) {
+						// apply, capping each value at the class maximum
+						ship->NumMissls     = (word)( rec.NumMissls     < ship->MaxNumMissls     ? rec.NumMissls     : ship->MaxNumMissls );
+						ship->NumHomMissls  = (word)( rec.NumHomMissls  < ship->MaxNumHomMissls  ? rec.NumHomMissls  : ship->MaxNumHomMissls );
+						ship->NumPartMissls = (word)( rec.NumPartMissls < ship->MaxNumPartMissls ? rec.NumPartMissls : ship->MaxNumPartMissls );
+						ship->NumMines      = (word)( rec.NumMines      < ship->MaxNumMines      ? rec.NumMines      : ship->MaxNumMines );
+						ship->CurEnergy     = ( rec.CurEnergy < ship->MaxEnergy ? rec.CurEnergy : ship->MaxEnergy );
+						ship->CurShield     = ( rec.CurShield < ship->MaxShield ? rec.CurShield : ship->MaxShield );
+						// only grant weapons the destination ship class supports
+						ship->Weapons  = rec.Weapons  & ship->Weapons;
+						ship->Specials = rec.Specials & ship->Specials;
+						MSGOUT( "transit: restored loadout for %s (client %d)", rname, nClientID );
+					}
+				}
+			}
+			return;
+		}
 	}
 }
 
@@ -1474,15 +1617,23 @@ void E_PacketHandler::_Handle_COMMAND_MASTER( NetPacket_GMSV* gamepacket, int bu
 		MSGOUT("List Request from client %s\n", clientIP);
 		return;
 	}
+
+	// TRANSIT_SAVE — client persisting its loadout before a stargate jump
+	{
+		PlayerRecord rec;
+		if ( _ParseTransitSave( re_commandinfo->command, &rec ) ) {
+			TheMaster->SavePlayerRecord( rec );
+			return;
+		}
+	}
+
 	if ( _ParseHBPacket_MASTER(re_commandinfo->command)) {
 		MSGOUT("E_PacketHandler::_Handle_COMMAND_MASTER(): Got HB from client: %s\n", clientIP);
 		return;
 	} else {
-		MSGOUT("E_PacketHandler::_Handle_COMMAND_MASTER(): Failed to parse HeartBeat Packet from: %s\n", clientIP);
+		MSGOUT("E_PacketHandler::_Handle_COMMAND_MASTER(): Unknown packet '%s' from client %s\n", re_commandinfo->command, clientIP);
 		return;
 	}
-	MSGOUT("E_PacketHandler::_Handle_COMMAND_MASTER(): Unimplemented packet %s from client %s\n", re_commandinfo->command, clientIP);
-
 }
 
 // handle a stream packet -----------------------------------------------------

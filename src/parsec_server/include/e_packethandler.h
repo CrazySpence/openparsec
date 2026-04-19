@@ -9,6 +9,7 @@
 // forward decls --------------------------------------------------------------
 //
 struct PacketChainBlock;
+struct PlayerRecord;
 class NET_PacketDriver;
 class E_ClientChallengeInfo;
 class E_ClientConnectInfo;
@@ -141,6 +142,11 @@ protected:
 
 	// do safe parsing of new challenge from MASV
 	int _ParseMASVChallenge( char* recvline, int* pChallenge );
+
+	// parse transit loadout command strings
+	int _ParseTransitSave    ( const char* cmd, PlayerRecord* out );
+	int _ParseTransitQuery   ( const char* cmd, char* name_out );
+	int _ParseTransitResponse( const char* cmd, char* name_out, PlayerRecord* out );
 };
 
 
