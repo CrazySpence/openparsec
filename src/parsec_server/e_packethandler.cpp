@@ -650,9 +650,15 @@ int E_PacketHandler::Send_COMMAND_Datagram( const char* clientcommand, node_t* n
 	// fill game data header
 	ThePacketDriver->FillStdGameHeader( PKTP_COMMAND, gamepacket );
 
+	// if WE are the master server, identify ourselves properly so the
+	// receiving game server routes this into _Handle_COMMAND_MASV()
+	if ( TheServer->GetServerIsMaster() ) {
+		gamepacket->SendPlayerId = PLAYERID_MASTERSERVER;
+	}
+
 	if ( nClientID == PLAYERID_MASTERSERVER ) {
 
-		UPDTXT2( MSGOUT( "DATAGRAM: PKTP_COMMAND S -> M: node: %s msg: %d cmd: '%s'", 
+		UPDTXT2( MSGOUT( "DATAGRAM: PKTP_COMMAND S -> M: node: %s msg: %d cmd: '%s'",
 						NODE_Print( node ), 
 						nClientID, 
 						clientcommand ); );
