@@ -73,12 +73,13 @@ make           # builds both
 
 ### Raspberry Pi
 
-Use `platforms/premake-rpi/` instead of `platforms/premake/`. You will need
-the Broadcom GLES packages in addition to SDL2 and SDL2\_mixer.
+> ⚠️ The Raspberry Pi build (`platforms/premake-rpi/`) has not been actively
+> tested on recent hardware or OS versions and may require additional work.
 
 ### ChromeOS
 
-Enable the Linux environment and follow the Linux instructions above.
+> ⚠️ ChromeOS support has not been actively tested in recent years and may
+> require additional work.
 
 ---
 
@@ -118,7 +119,7 @@ files to configure your server.
 | `sv.conf simfreq <hz>` | `sv.conf simfreq 100` | Physics simulation rate (default 100) |
 | `sv.serverid <n>` | `sv.serverid 1` | Unique numeric ID for this server. Used by stargates to identify link targets |
 | `sv.netconf.port <port>` | `sv.netconf.port 7777` | UDP port to listen on (default 7777) |
-| `nebula.id <n>` | `nebula.id 3` | Background nebula / skybox (1–6, see table below) |
+| `nebula.id <n>` | `nebula.id 3` | Background nebula / skybox (2–5, see table below) |
 | `sv.game.killlimit <n>` | `sv.game.killlimit 15` | Kills required to end a round |
 | `sv.game.timelimit <sec>` | `sv.game.timelimit 600` | Round time limit in seconds |
 | `sv.game.restart.timeout <sec>` | `sv.game.restart.timeout 10` | Seconds between round end and restart |
@@ -131,12 +132,10 @@ files to configure your server.
 
 | ID | Appearance |
 |----|------------|
-| 1 | Purple |
 | 2 | Green |
 | 3 | Red |
 | 4 | Grey |
 | 5 | Blue |
-| 6 | Orange |
 
 ### _level.con reference
 
@@ -191,19 +190,46 @@ tp.create pos ( 500 500 500 ) expos ( 200 2000 2000 ) exit_rot_phi 50 exit_rot_t
 Decorative (and collidable) planets.
 
 ```
-sv.planet pos ( <x> <y> <z> ) rotspeed <n> ring <0/1>
+sv.planet pos ( <x> <y> <z> ) rotspeed <n> ring <0/1> size <f> tex <name> ringtex <name>
 ```
 
 | Parameter | Description |
 |-----------|-------------|
 | `pos` | Centre position in world space |
-| `rotspeed` | Rotation speed (arbitrary units; 8–16 is typical) |
-| `ring` | `1` to add a Saturn-style ring, `0` for none |
+| `rotspeed` | Rotation speed in BAMS units (8–16 is typical) |
+| `ring` | `1` to add a ring, `0` for none |
+| `size` | Visual radius as a float; omit to use the class default |
+| `tex` | Surface texture name (without extension) — see table below |
+| `ringtex` | Ring texture name (without extension) — see table below |
+| `ringinner` | Ring inner radius (float); omit to use default |
+| `ringouter` | Ring outer radius (float); omit to use default |
+| `ringtiltx` | Ring tilt around X axis in degrees |
+| `ringtiltz` | Ring tilt around Z axis in degrees |
+
+**Surface textures (`tex`):**
+
+| Name | Description |
+|------|-------------|
+| `planet_terra` | Earth-like green/blue |
+| `planet_ocean` | Ocean world |
+| `planet_mars` | Red desert |
+| `planet_ice` | Ice world |
+| `planet_gas` | Gas giant |
+| `planet_lava` | Lava world |
+
+**Ring textures (`ringtex`):**
+
+| Name | Description |
+|------|-------------|
+| `ring_saturn` | Classic Saturn rings |
+| `ring_ice` | Icy rings |
+| `ring_dust` | Thin dust ring |
+| `ring_dense` | Dense opaque ring |
 
 Example:
 ```
-sv.planet pos ( 0 0 2000 )    rotspeed 16 ring 1
-sv.planet pos ( -3000 500 1000 ) rotspeed 8  ring 0
+sv.planet pos ( 0 0 2000 )       rotspeed 16 ring 1 tex planet_terra ringtex ring_saturn
+sv.planet pos ( -3000 500 1000 ) rotspeed 8  ring 0 tex planet_mars
 ```
 
 ---
@@ -257,7 +283,13 @@ queries the master on join and restores the loadout. Records expire after
 **Example three-server layout:**
 
 ```
-settings.con (Enyo,     serverid 1, nebula 5)    → sv.link serverid 2
-settings.con (McAulliffe, serverid 2, nebula 2)  → sv.link serverid 1, sv.link serverid 3
-settings.con (Gimle,    serverid 3, nebula 3)    → sv.link serverid 2
+; Enyo (serverid 1, nebula 5) — _level.con
+sv.link serverid 2  pos ( 500  0  1000 ) dir ( 0 0 1 )   ; gate to McAuliffe
+
+; McAuliffe (serverid 2, nebula 2) — _level.con
+sv.link serverid 1  pos ( -500 0  1000 ) dir ( 0 0 1 )   ; gate back to Enyo
+sv.link serverid 3  pos (  500 0  1000 ) dir ( 0 0 1 )   ; gate to Gimle
+
+; Gimle (serverid 3, nebula 3) — _level.con
+sv.link serverid 2  pos ( 500  0  1000 ) dir ( 0 0 1 )   ; gate back to McAuliffe
 ```
