@@ -287,7 +287,9 @@ void SLm_InitFileSystem()
 		SYS_OverridePackage( package_name_2, package_name_3 );
 	}
 
-	if(!SYS_CheckDataVersion()){
+	// Version check is only meaningful when .dat packages are present.
+	// If no packages loaded (all assets in gamedata/), skip it gracefully.
+	if( !no_pack && !SYS_CheckDataVersion()){
 		MSGOUT("ERROR: OpenParsec Data File Version Mismatch!");
 		exit(1);
 	}
