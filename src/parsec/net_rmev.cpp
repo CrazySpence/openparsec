@@ -1155,15 +1155,14 @@ void NET_ExecRmEvStateSync( RE_Header *rmev, int ownerid )
 		// always display a sync message
 		MSGOUT( "state sync: %d=%d.", re_ss->StateKey, re_ss->StateValue );
 
-		// When the nebula ID arrives from the server, immediately apply the
-		// corresponding environment script (fog colour, ambient, etc.).
-		// LVL_LoadIntLevel() is normally blocked while connected to a server,
-		// so we use the forced variant here — the server is authoritative and
-		// the script is safe to run: LVL_LoadLevel temporarily clears the
-		// network-connected flag, and server-only commands are no-ops on client.
-		if ( re_ss->StateKey == RMEVSTATE_NEBULAID ) {
-			LVL_LoadIntLevelForced( re_ss->StateValue );
-		}
+		// Note: for RMEVSTATE_NEBULAID we deliberately do NOT call
+		// LVL_LoadIntLevelForced here. The level scripts (intlev*.con) spawn
+		// teleporters and stargates as client-local objects, which is only
+		// correct in singleplayer/LAN. While connected to a game server those
+		// objects are server-authoritative; calling LVL_LoadLevel would kill
+		// the server-replicated instances and re-spawn wrong local ones.
+		// The skybox/panorama in ro_sfx.cpp reads AUXDATA_BACKGROUND_NEBULA_ID
+		// directly every frame, so updating the value above is sufficient.
 	}
 
 	RMEVTXT( MSGOUT( "--executing RE_STATESYNC: %d=%d (%d).", re_ss->StateKey, re_ss->StateValue, ownerid ); );

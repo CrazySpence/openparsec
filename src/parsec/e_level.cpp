@@ -240,25 +240,6 @@ int LVL_LoadIntLevel( int level )
 }
 
 
-// internal level loading function — forced variant ---------------------------
-// Same as LVL_LoadIntLevel but bypasses the NET_ConnectedGMSV() guard.
-// Use when a trusted server message (e.g. RE_STATESYNC) dictates the nebula
-// and we must apply the environment script regardless of connection state.
-//
-PUBLIC
-int LVL_LoadIntLevelForced( int level )
-{
-	int rc = 0;
-	if ( cur_int_level != level ) {
-		char levelname[ 128 ];
-		sprintf( levelname, "intlev%d.con", level );
-		rc = LVL_LoadLevel( levelname );
-
-		cur_int_level = level;
-	}
-	return rc;
-}
-
 
 // console command for loading a level ----------------------------------------
 //

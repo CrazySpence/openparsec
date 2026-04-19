@@ -10,7 +10,6 @@
 //
 int LVL_LoadLevel	      ( const char* levelname );
 int LVL_LoadIntLevel      ( int level );
-int LVL_LoadIntLevelForced( int level );
 int LVL_SaveLevel	      ( const char* levelname );
 
 
