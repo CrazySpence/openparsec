@@ -35,6 +35,9 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR
   
   File ..\..\openparsec-assets\init.con
+  File lib\x64\MSVCP140.dll
+  File lib\x64\VCRUNTIME140.dll
+  File lib\x64\VCRUNTIME140_1.dll
   File lib\x64\libFLAC-8.dll
   File lib\x64\libmodplug-1.dll
   File lib\x64\libmpg123-0.dll

@@ -24,6 +24,17 @@ jobs:
       - name: Build app for release
         run: msbuild Parsec.vcxproj -t:rebuild -property:Configuration=Release /p:Platform=x64
 
+      - name: Copy MSVC runtime DLLs
+        shell: powershell
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath  = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $crt     = Get-ChildItem "$vsPath\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT" | Sort-Object Name | Select-Object -Last 1
+          Write-Host "Copying from $($crt.FullName)"
+          Copy-Item "$($crt.FullName)\MSVCP140.dll"      lib\x64\
+          Copy-Item "$($crt.FullName)\VCRUNTIME140.dll"  lib\x64\
+          Copy-Item "$($crt.FullName)\VCRUNTIME140_1.dll" lib\x64\ -ErrorAction SilentlyContinue
+
       - name: Install NSIS
         run: choco install nsis -y
         
