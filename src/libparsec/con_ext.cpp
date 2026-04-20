@@ -96,6 +96,7 @@ static char con_file_wldcard1[]	= "*" CON_FILE_EXTENSION;
 static char con_file_wldcard2[] = REFCON_COMMANDS_DIR "*" CON_FILE_EXTENSION;
 static char con_file_wldcard3[] = STDCON_COMMANDS_DIR "*" CON_FILE_EXTENSION;
 static char con_file_wldcard4[] = RECORD_COMMANDS_DIR "*" CON_FILE_EXTENSION;
+static char con_file_wldcard5[] = "gamedata/*" CON_FILE_EXTENSION;
 
 // name of batch command file to execute on every gameloop start
 char gameloop_start_script[ PATH_MAX + 1 ] = "";
@@ -180,6 +181,13 @@ void BuildExternalCommandList()
 	num_external_commands = 0;
 
 	SYS_AcquirePackageScripts( COMTYPE_PACKAGE );
+
+	// gamedata/ acts as an override layer for package assets.  When .dat files
+	// are absent, scripts that were previously discovered via packages need to
+	// be found here instead.  Scripts registered from gamedata/ use the same
+	// COMTYPE_PACKAGE type so OpenScript() searches them via SYS_fopen(), which
+	// checks gamedata/ first.
+	SYSs_AcquireScriptPath( con_file_wldcard5, COMTYPE_PACKAGE, NULL );
 
 	if ( mod_override ) {
 		AcquireModScripts();

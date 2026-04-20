@@ -179,8 +179,25 @@ int SYSs_AcquireScriptPath( char *path, int comtype, char *prefix )
 
 #else // SYSTEM_COMPILER_MSVC
 
+	// On POSIX, opendir() takes a directory path — not a glob pattern.
+	// Extract the directory component by stripping everything from the last
+	// '/' to the end (the "*<ext>" part).  If there is no '/', the pattern
+	// refers to the current directory.
+	char dir_buf[ 512 ];
+	strncpy( dir_buf, path, sizeof( dir_buf ) - 1 );
+	dir_buf[ sizeof( dir_buf ) - 1 ] = 0;
+	char *last_slash = strrchr( dir_buf, '/' );
+	if ( last_slash ) {
+		*last_slash = 0;
+	} else {
+		strcpy( dir_buf, "." );
+	}
+
+	// Determine the required file extension from the pattern (e.g. ".con").
+	const char *req_ext = strrchr( path, '.' );
+
 	// open script directory
-	DIR *dirp = opendir( path );
+	DIR *dirp = opendir( dir_buf );
 
 	if ( dirp != NULL ) {
 
@@ -190,6 +207,17 @@ int SYSs_AcquireScriptPath( char *path, int comtype, char *prefix )
 		// read script names up to maximum number
 		while ( ( direntp = readdir( dirp ) ) &&
 				( num_external_commands < MAX_EXTERNAL_COMMANDS ) ) {
+
+			// filter by required extension
+			if ( req_ext != NULL ) {
+				const char *fname = direntp->d_name;
+				int flen = (int)strlen( fname );
+				int extlen = (int)strlen( req_ext );
+				if ( flen < extlen )
+					continue;
+				if ( strcasecmp( fname + flen - extlen, req_ext ) != 0 )
+					continue;
+			}
 
 			char *prefixed = direntp->d_name;
 
@@ -202,7 +230,6 @@ int SYSs_AcquireScriptPath( char *path, int comtype, char *prefix )
 
 			// skip extension
 			int len = strlen( prefixed ) - 4;
-			ASSERT( len >= 0 );
 
 			// release-safe
 			if ( len < 0 )
