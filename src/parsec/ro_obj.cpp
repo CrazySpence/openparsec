@@ -1085,22 +1085,8 @@ void R_DrawWorld( const Camera camera )
 				// draw explosion bitmap frame
 				DrawExpAnim( shippo );
 
-				// create explosion particles if correct frame
-				if ( ( ecount / EXPL_REF_SPEED == BM_EXPLPARTCLFRAME ) ) {
-
-					if ( shippo->DelayExplosion == 0 ) {
-
-						// start particle explosion
-						if ( !AUX_USE_SIMPLE_EXPLOSION )
-							SFX_ParticleExplosion( shippo );
-
-						// let the ship lose its extras at the same time
-						OBJ_CreateShipExtras( shippo );
-
-						// only once
-						shippo->DelayExplosion = -1;
-					}
-				}
+				// particle explosion is now triggered in OBJ_CheckExplosions
+				// (game loop) so it fires regardless of ship visibility
 
 			} else {
 				// render ship if not exploding right now

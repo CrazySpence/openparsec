@@ -49,6 +49,8 @@
 
 // proprietary module headers
 #include "con_aux.h"
+#include "g_sfx.h"
+#include "gd_bmap.h"
 #include "h_supp.h"
 #include "obj_ctrl.h"
 #include "obj_xtra.h"
@@ -95,6 +97,10 @@ void LetShipExplode( ShipObject *shippo )
 	ASSERT( !NetConnected );
 	ASSERT( shippo != MyShip );
 	ASSERT( shippo->ExplosionCount == 0 );
+
+	// randomise secondary explosion offsets per-ship at kill time
+	for ( int i = 0; i < 5; i++ )
+		shippo->ExplDfac[ i ] = RAND() % 7 + 3;
 
 	// this actually starts the explosion
 	shippo->ExplosionCount = MAX_EXPLOSION_COUNT;
@@ -419,6 +425,18 @@ void OBJ_CheckExplosions()
 				shippo->ObjPosition[ 0 ][ 3 ] += dirvec.X;
 				shippo->ObjPosition[ 1 ][ 3 ] += dirvec.Y;
 				shippo->ObjPosition[ 2 ][ 3 ] += dirvec.Z;
+			}
+
+			// fire particle sphere explosion at the correct animation frame;
+			// done here in the game loop so it fires regardless of visibility
+			if ( ( shippo->ExplosionCount / EXPL_REF_SPEED == BM_EXPLPARTCLFRAME ) &&
+			     ( shippo->DelayExplosion == 0 ) ) {
+
+				if ( !AUX_USE_SIMPLE_EXPLOSION )
+					SFX_ParticleExplosion( shippo );
+
+				OBJ_CreateShipExtras( shippo );
+				shippo->DelayExplosion = -1;
 			}
 
 			// animate explosion

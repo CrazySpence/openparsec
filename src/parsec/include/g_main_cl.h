@@ -211,8 +211,12 @@ public:
 			
 			// start explosion by setting count greater than zero
 			if ( shippo->ExplosionCount == 0 ) {
+				// randomise secondary explosion offsets per-ship at kill time
+				// so they are ready whether the ship is visible or not
+				for ( int i = 0; i < 5; i++ )
+					shippo->ExplDfac[ i ] = RAND() % 7 + 3;
 				shippo->ExplosionCount = MAX_EXPLOSION_COUNT;
-				
+
 				AUD_ShipDestroyed( shippo );
 			}
 		}

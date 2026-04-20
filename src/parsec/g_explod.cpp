@@ -82,11 +82,11 @@ void DrawParticleBaseExplosion( const ShipObject *shippo )
 {
 	if ( shippo->ExplosionCount == MAX_EXPLOSION_COUNT ) {
 
-		static int dfac_1 = RAND() % 7 + 3;
-		static int dfac_2 = RAND() % 7 + 3;
-		static int dfac_3 = RAND() % 7 + 3;
-		static int dfac_4 = RAND() % 7 + 3;
-		static int dfac_5 = RAND() % 7 + 3;
+		int dfac_1 = shippo->ExplDfac[0] >= 1 ? shippo->ExplDfac[0] : 3;
+		int dfac_2 = shippo->ExplDfac[1] >= 1 ? shippo->ExplDfac[1] : 3;
+		int dfac_3 = shippo->ExplDfac[2] >= 1 ? shippo->ExplDfac[2] : 3;
+		int dfac_4 = shippo->ExplDfac[3] >= 1 ? shippo->ExplDfac[3] : 3;
+		int dfac_5 = shippo->ExplDfac[4] >= 1 ? shippo->ExplDfac[4] : 3;
 
 		// alter basic attributes
 		float ref_z = 600;//400;//spreadfire_ref_z * 2;
@@ -218,19 +218,20 @@ void DrawBitmapExplosion( const ShipObject *shippo )
 	// draw secondary explosion bitmaps
 	if ( !AUX_USE_SIMPLE_EXPLOSION ) {
 
-		static int dfac_1 = 1;
-		static int dfac_2 = 1;
-		static int dfac_3 = 1;
-		static int dfac_4 = 1;
-		static int dfac_5 = 1;
+		// use per-ship randomisation set at kill time (ExplDfac[0..4])
+		// this ensures correct offsets even when the explosion started off-screen
+		int dfac_1 = shippo->ExplDfac[0];
+		int dfac_2 = shippo->ExplDfac[1];
+		int dfac_3 = shippo->ExplDfac[2];
+		int dfac_4 = shippo->ExplDfac[3];
+		int dfac_5 = shippo->ExplDfac[4];
 
-		if ( shippo->ExplosionCount == MAX_EXPLOSION_COUNT ) {
-			dfac_1 = RAND() % 7 + 3;
-			dfac_2 = RAND() % 7 + 3;
-			dfac_3 = RAND() % 7 + 3;
-			dfac_4 = RAND() % 7 + 3;
-			dfac_5 = RAND() % 7 + 3;
-		}
+		// guard against uninitialised values (should not happen, but be safe)
+		if ( dfac_1 < 1 ) dfac_1 = 1;
+		if ( dfac_2 < 1 ) dfac_2 = 1;
+		if ( dfac_3 < 1 ) dfac_3 = 1;
+		if ( dfac_4 < 1 ) dfac_4 = 1;
+		if ( dfac_5 < 1 ) dfac_5 = 1;
 
 		dword _scalewidth  = scalewidth  / 2;
 		dword _scaleheight = scaleheight / 2;

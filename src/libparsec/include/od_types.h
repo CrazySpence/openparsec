@@ -138,6 +138,9 @@ struct ShipObject : GenObject {
 	// used by particle system to start explosion
 	int			DelayExplosion;
 
+	// per-ship randomisation factors for secondary explosion bitmap offsets
+	int			ExplDfac[5];
+
 	// weapons availability state
 	dword		Weapons;
 
