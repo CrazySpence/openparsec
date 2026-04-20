@@ -49,10 +49,7 @@ Section "" ;No components page, name is not important
   File ..\..\openparsec-assets\LICENSE.artwork_sound
   File ..\..\openparsec-assets\openparsec.ico
   ;File ..\..\openparsec-assets\parsecrc.con
-  File ..\..\openparsec-assets\pscdata0.dat
-  File ..\..\openparsec-assets\pscdata1.dat
-  File ..\..\openparsec-assets\pscdata2.dat
-  File ..\..\openparsec-assets\pscdata3.dat
+
   File ..\..\openparsec-assets\README.md
   File lib\x64\SDL2.dll
   File lib\x64\SDL2_mixer.dll
