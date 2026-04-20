@@ -36,6 +36,9 @@ jobs:
           Copy-Item "$($crt.FullName)\VCRUNTIME140_1.dll" lib\x64\ -ErrorAction SilentlyContinue
 
 
+      - name: Install NSIS
+        run: choco install nsis -y
+
       - name: Create nsis installer
         uses: joncloud/makensis-action@v3.3
         with: 
