@@ -481,6 +481,25 @@ int E_SimClientNetOutput::_FillAndSend_PNSS( E_REList* pReliable, E_REList* pUnr
 	//       than 10 (=1000/92) players connected. strip size of RE_PlayerAndShipStatus and increase max.
 	//       packetsize to ~1400 bytes ( should be MTU of Ethernet packet minus PPP/IP/UDP headers )
 
+	// If a reliable statesync is pending, include it in pReliable NOW so it shares
+	// FIFO[0] with the first PNSS chunk and is transmitted on this tick.
+	// _FillAndSend_State runs after a Clear() which resets m_CurPos, so any FIFO
+	// entry it creates (FIFO[1]) has its data wiped before it can be transmitted.
+	if ( m_bIncludeStateSync == SEND_MODE_RELIABLE ) {
+		E_SimClientState* pSimClientState = TheSimulator->GetSimClientState( m_nDestClientID );
+		if ( pReliable->RmEvStateSync( RMEVSTATE_NEBULAID,    TheGame->m_NebulaID )       &&
+		     pReliable->RmEvStateSync( RMEVSTATE_ENERGYBOOST, TheGame->EnergyExtraBoost ) &&
+		     pReliable->RmEvStateSync( RMEVSTATE_REPAIRBOOST, TheGame->RepairExtraBoost ) &&
+		     pReliable->RmEvStateSync( RMEVSTATE_DUMBPACK,    TheGame->DumbPackNumMissls )&&
+		     pReliable->RmEvStateSync( RMEVSTATE_HOMPACK,     TheGame->HomPackNumMissls ) &&
+		     pReliable->RmEvStateSync( RMEVSTATE_SWARMPACK,   TheGame->SwarmPackNumMissls)&&
+		     pReliable->RmEvStateSync( RMEVSTATE_PROXPACK,    TheGame->ProxPackNumMines ) ) {
+			MSGOUT( "state sync: sending to client %d (nebula=%d)", m_nDestClientID, TheGame->m_NebulaID );
+			pSimClientState->SetState();
+			m_bIncludeStateSync = SEND_MODE_NONE;
+		}
+	}
+
 	// calculate how many clients we can send in a single packet.
 	int max_packet_clients = floor(NET_MAX_DATA_LENGTH/sizeof(RE_PlayerAndShipStatus));
 

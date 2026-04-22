@@ -111,7 +111,7 @@ struct ShockWave : CustomObject {
 	Xmatrx		WorldXmatrx;	// object- to worldspace matrix
 	Vertex3		ViewVtxs[ 4 ];	// vertices in worldspace
 	TextureMap*	texmap;
-	GenObject*	owner;
+	Vertex3		OwnerPos;		// world-space origin captured at creation (owner may be freed before delay fires)
 	int			vtxsvalid;
 	long		alive;
 	int			delay;
@@ -214,6 +214,17 @@ int ShockWaveDraw( void* param )
 
 	ASSERT( shockwave->texmap != NULL );
 
+	// guard against near-clip artifact: if any world-space vertex projects to
+	// view-space Z <= 0 (behind or on the camera near plane), skip drawing this
+	// frame rather than letting the renderer divide by zero and streak to infinity
+	for ( int i = 0; i < 4; i++ ) {
+		Vertex3 viewVtx;
+		MtxVctMUL( ViewCamera, &shockwave->ViewVtxs[ i ], &viewVtx );
+		if ( viewVtx.Z <= GEOMV_0 ) {
+			return TRUE;
+		}
+	}
+
 	// setup transformation matrix (shockwaves are defined
 	// in world-space, so transform is world->view)
 	D_LoadIterMatrix( ViewCamera );
@@ -306,8 +317,8 @@ int ShockWaveAnimate( CustomObject *base )
     	Xmatrx    ViewXmatrx, invViewCamera;
 		Vertex3   Pos, viewPos;
 
-		// get object position vector
-		FetchTVector( shockwave->owner->ObjPosition, &Pos );
+		// use position captured at creation — owner may already be freed
+		Pos = shockwave->OwnerPos;
 		MtxVctMUL( ViewCamera, &Pos, &viewPos );
 
 		MakeIdMatrx( ViewXmatrx );
@@ -407,7 +418,9 @@ void CreateShockWave( GenObject *owner, int delay )
 	ShockWave *shockwave = (ShockWave *) CreateVirtualObject( shockwave_type_id );
 	ASSERT( shockwave != NULL );
 
-	shockwave->owner	 = owner;
+	// capture world-space position now while owner is guaranteed alive;
+	// owner may be freed before the delay fires (delay can exceed ship lifetime)
+	FetchTVector( owner->ObjPosition, &shockwave->OwnerPos );
 	shockwave->vtxsvalid = FALSE;
 	shockwave->alive	 = 0;
 	shockwave->delay	 = delay;

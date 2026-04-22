@@ -50,6 +50,7 @@
 // proprietary module headers
 #include "con_aux.h"
 #include "g_sfx.h"
+#include "g_shkwav.h"
 #include "gd_bmap.h"
 #include "h_supp.h"
 #include "obj_ctrl.h"
@@ -425,6 +426,14 @@ void OBJ_CheckExplosions()
 				shippo->ObjPosition[ 0 ][ 3 ] += dirvec.X;
 				shippo->ObjPosition[ 1 ][ 3 ] += dirvec.Y;
 				shippo->ObjPosition[ 2 ][ 3 ] += dirvec.Z;
+			}
+
+			// create shockwave on the first frame of explosion;
+			// done here in the game loop so it fires regardless of visibility
+			if ( shippo->ExplosionCount == MAX_EXPLOSION_COUNT ) {
+				if ( AUX_EXPLOSION_DRAW_SHOCKWAVE ) {
+					ExplosionShockWave( shippo );
+				}
 			}
 
 			// fire particle sphere explosion at the correct animation frame;

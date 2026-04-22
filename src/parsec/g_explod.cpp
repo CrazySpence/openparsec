@@ -63,7 +63,6 @@
 #include "part_api.h"
 #include "part_def.h"
 #include "part_sys.h"
-#include "g_shkwav.h"
 
 
 
@@ -288,11 +287,6 @@ void DrawBitmapExplosion( const ShipObject *shippo )
 void DrawExpAnim( const ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
-
-	// create shock wave if enabled (on first frame)
-	if ( AUX_EXPLOSION_DRAW_SHOCKWAVE ) {
-		ExplosionShockWave( shippo );
-	}
 
 	// draw explosion
 	if ( AUX_PARTICLE_BASE_EXPLOSION ) {
