@@ -39,9 +39,8 @@ jobs:
       - name: Install NSIS
         shell: powershell
         run: |
-          $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10-setup.exe/download" `
-            -OutFile "$env:TEMP\nsis-setup.exe" -MaximumRedirection 10
+          curl.exe -L "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10-setup.exe" `
+            --output "$env:TEMP\nsis-setup.exe" --retry 3 --retry-delay 5
           Start-Process -FilePath "$env:TEMP\nsis-setup.exe" -ArgumentList '/S' -Wait -NoNewWindow
           Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\NSIS"
 
