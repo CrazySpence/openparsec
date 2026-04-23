@@ -95,6 +95,10 @@ GLsizei 				sdl_wsz_h;
 SDL_Window *			curwindow = NULL;
 SDL_GLContext			curcontext = NULL;
 
+// cached native drawable size — set once in SDL_RCSetup, used every frame
+static int sdl_drawable_w = 0;
+static int sdl_drawable_h = 0;
+
 
 // display next opengl buffer -------------------------------------------------
 //
@@ -102,6 +106,23 @@ void VSDL_CommitOGLBuff()
 {
 	// Tell SDL to swap the GL Buffers
 	SDL_GL_SwapWindow(curwindow);
+
+	// After the swap the new back buffer is the one that was rendered two frames
+	// ago. Its letterbox bars may hold stale pixel data (previous game content or
+	// uninitialised memory) which would strobe visibly on the next present.
+	// Re-clear the full drawable to black now so bars are always clean when the
+	// game starts rendering the next frame into the letterboxed viewport.
+	if ( (Vid_ViewportX > 0 || Vid_ViewportY > 0) && sdl_drawable_w > 0 ) {
+		glDisable(GL_SCISSOR_TEST);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glViewport(0, 0, sdl_drawable_w, sdl_drawable_h);
+		glClear(GL_COLOR_BUFFER_BIT);
+		// restore the letterboxed viewport and scissor for the upcoming frame
+		glViewport(Vid_ViewportX, Vid_ViewportY, Vid_ViewportW, Vid_ViewportH);
+		glScissor(Vid_ViewportX, Vid_ViewportY, Vid_ViewportW, Vid_ViewportH);
+		glEnable(GL_SCISSOR_TEST);
+	}
 
 	// FIXME: Find a better location to put this...
 	// Sleep for a few milliseconds every frame if the window isn't in focus.
@@ -471,27 +492,42 @@ void SDL_RCSetup()
 	int drawable_w, drawable_h;
 	SDL_GL_GetDrawableSize(curwindow, &drawable_w, &drawable_h);
 
+	// Cache native drawable size for use in VSDL_CommitOGLBuff every frame.
+	sdl_drawable_w = drawable_w;
+	sdl_drawable_h = drawable_h;
+
 	// When running fullscreen on a display larger than the selected resolution
 	// (SDL_WINDOW_FULLSCREEN_DESKTOP always gives the native drawable size),
 	// letterbox/pillarbox the game into a centred, aspect-correct sub-region.
-	// When drawable == selected resolution (windowed or matched fullscreen) the
-	// offset is (0,0) and the scale is 1.0 — identical to the previous behaviour.
+	// Scale is capped at 1.0: the viewport is at most the selected resolution,
+	// never scaled up. On a matched display (windowed or native) scale == 1.0
+	// and the offset is (0,0) — identical to the previous behaviour.
 	{
 		float scale_x = (float)drawable_w / (float)Screen_Width;
 		float scale_y = (float)drawable_h / (float)Screen_Height;
 		float scale   = (scale_x < scale_y) ? scale_x : scale_y;
+		if (scale > 1.0f) scale = 1.0f;   // never scale up
 
 		Vid_ViewportW = (int)(Screen_Width  * scale);
 		Vid_ViewportH = (int)(Screen_Height * scale);
 		Vid_ViewportX = (drawable_w - Vid_ViewportW) / 2;
 		Vid_ViewportY = (drawable_h - Vid_ViewportH) / 2;
 
-		// Clear the full drawable to black so bars outside the viewport are black.
+		// Clear BOTH back buffers to black so bars start clean on every buffer.
+		// (double-buffering: swap once, clear the other buffer, then continue.)
+		glDisable(GL_SCISSOR_TEST);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glViewport(0, 0, drawable_w, drawable_h);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		SDL_GL_SwapWindow(curwindow);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// Restrict rendering to the letterboxed sub-region for all subsequent
+		// frames. GL_SCISSOR_TEST prevents fragment writes outside this area.
 		glViewport(Vid_ViewportX, Vid_ViewportY, Vid_ViewportW, Vid_ViewportH);
+		glScissor(Vid_ViewportX, Vid_ViewportY, Vid_ViewportW, Vid_ViewportH);
+		glEnable(GL_SCISSOR_TEST);
 	}
 
 	//glFrontFace( GL_CW ); //FIXME: ?? why was this labelled FIXME?
