@@ -650,9 +650,17 @@ int VSDL_InitOGLMode()
 
 	sdl_wsz_x = 0;
 	sdl_wsz_y = 0;
-	SDL_GetWindowSize(curwindow, &sdl_wsz_w, &sdl_wsz_h);
-
-	GameScreenRes.set(sdl_wsz_w, sdl_wsz_h);
+	// For SDL_WINDOW_FULLSCREEN_DESKTOP, SDL_GetWindowSize returns the desktop
+	// resolution rather than the selected game resolution. Do NOT use it to set
+	// sdl_wsz_w/h or overwrite GameScreenRes: the ortho matrix
+	// (VSDL_CalcOrthographicMatrix) is built from sdl_wsz_w/h, and the second
+	// VID_SetResolutionVars() call in VID_InitMode() derives Screen_Width from
+	// GameScreenRes — both must stay at the selected resolution so coordinate
+	// systems, D_Value, and HUD/font positioning remain correct.
+	// The letterbox viewport in SDL_RCSetup() reads the actual drawable size via
+	// SDL_GL_GetDrawableSize() independently.
+	sdl_wsz_w = GameScreenRes.width;
+	sdl_wsz_h = GameScreenRes.height;
 
 	// set vertical synchronization
 	SDL_GL_SetSwapInterval(FlipSynched ? 1 : 0);
