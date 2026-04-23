@@ -148,8 +148,13 @@ char *VIDs_ScreenshotBuffer( int create, int *size )
 		// assert that viewport width is even
 		ASSERT( ( rdw & 0x01 ) == 0 );
 
-		// read RGB data from the backbuffer (letterbox-aware origin)
+		// Read from the front buffer (the frame currently on screen).
+		// The back buffer is cleared to black by the bar-clear code in
+		// VSDL_CommitOGLBuff immediately after each swap, so reading GL_BACK
+		// here would always produce a blank image.
+		glReadBuffer( GL_FRONT );
 		glReadPixels( rdx, rdy, rdw, rdh, GL_RGB, GL_UNSIGNED_BYTE, readbuffer );
+		glReadBuffer( GL_BACK );
 
 		size_t scanlinelen = (rdw * 3);
 
