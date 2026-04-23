@@ -30,11 +30,23 @@ Section "" ;No components page, name is not important
   File /a /r "..\..\openparsec-assets\cons\"
   SetOutPath "$INSTDIR\Images\"
   File /a /r "..\..\openparsec-assets\Images\"
-  
+  SetOutPath "$INSTDIR\gamedata\"
+  File /a /r "..\..\openparsec-assets\gamedata\"
+
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
-  
+
   File ..\..\openparsec-assets\init.con
+  File ..\..\openparsec-assets\planet_gas.tga
+  File ..\..\openparsec-assets\planet_ice.tga
+  File ..\..\openparsec-assets\planet_lava.tga
+  File ..\..\openparsec-assets\planet_mars.tga
+  File ..\..\openparsec-assets\planet_ocean.tga
+  File ..\..\openparsec-assets\planet_terra.tga
+  File ..\..\openparsec-assets\ring_dense.tga
+  File ..\..\openparsec-assets\ring_dust.tga
+  File ..\..\openparsec-assets\ring_ice.tga
+  File ..\..\openparsec-assets\ring_saturn.tga
   File lib\x64\MSVCP140.dll
   File lib\x64\VCRUNTIME140.dll
   File lib\x64\VCRUNTIME140_1.dll
