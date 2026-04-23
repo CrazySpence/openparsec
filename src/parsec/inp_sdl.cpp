@@ -547,8 +547,19 @@ void ISDLm_MouseEventHandler(const SDL_Event &event)
 		// is identical to the previous behaviour.
 		int vw = (Vid_ViewportW > 0) ? Vid_ViewportW : Screen_Width;
 		int vh = (Vid_ViewportH > 0) ? Vid_ViewportH : Screen_Height;
-		cur_mouse_state.xpos = (float)(event.motion.x - Vid_ViewportX) / (float)vw;
-		cur_mouse_state.ypos = (float)(event.motion.y - Vid_ViewportY) / (float)vh;
+		float xpos = (float)(event.motion.x - Vid_ViewportX) / (float)vw;
+		float ypos = (float)(event.motion.y - Vid_ViewportY) / (float)vh;
+		// Clamp to [0,1]: if the cursor drifts into the black bar area the raw
+		// values go out of range, causing INPs_MouseGetState to return FALSE and
+		// the edge-warp logic in isdl_supp.cpp to never fire — locking controls.
+		// Clamping pins the position to the nearest viewport edge so the warp
+		// immediately kicks the cursor back to the centre of the game area.
+		if (xpos < 0.0f) xpos = 0.0f;
+		if (xpos > 1.0f) xpos = 1.0f;
+		if (ypos < 0.0f) ypos = 0.0f;
+		if (ypos > 1.0f) ypos = 1.0f;
+		cur_mouse_state.xpos = xpos;
+		cur_mouse_state.ypos = ypos;
 	}
 
 	if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
