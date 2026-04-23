@@ -122,8 +122,17 @@ char *VIDs_ScreenshotBuffer( int create, int *size )
 
 	if ( create ) {
 
+		// In letterbox mode the game content lives at (Vid_ViewportX, Vid_ViewportY)
+		// inside the larger drawable — (0,0) is the black bar area and would produce
+		// a blank screenshot.  Vid_ViewportW/H equal Screen_Width/Height when there
+		// is no letterboxing, so this is safe in all modes.
+		int rdw = (Vid_ViewportW > 0) ? Vid_ViewportW : Screen_Width;
+		int rdh = (Vid_ViewportH > 0) ? Vid_ViewportH : Screen_Height;
+		int rdx = Vid_ViewportX;   // 0 when not letterboxed
+		int rdy = Vid_ViewportY;   // 0 when not letterboxed
+
 		// alloc screenshot buffer
-		*size  = Screen_Width * Screen_Height * 3;
+		*size  = rdw * rdh * 3;
 		buffer = (char *) ALLOCMEM( *size );
 		if ( buffer == NULL ) {
 			return NULL;
@@ -136,19 +145,19 @@ char *VIDs_ScreenshotBuffer( int create, int *size )
 			return NULL;
 		}
 
-		// assert that screenwidth is even
-		ASSERT( ( Screen_Width & 0x01 ) == 0 );
+		// assert that viewport width is even
+		ASSERT( ( rdw & 0x01 ) == 0 );
 
-		// read RGB data from the backbuffer
-		glReadPixels( 0, 0, Screen_Width, Screen_Height, GL_RGB, GL_UNSIGNED_BYTE, readbuffer );
+		// read RGB data from the backbuffer (letterbox-aware origin)
+		glReadPixels( rdx, rdy, rdw, rdh, GL_RGB, GL_UNSIGNED_BYTE, readbuffer );
 
-		size_t scanlinelen = (Screen_Width * 3);
+		size_t scanlinelen = (rdw * 3);
 
-		char *readpo  = readbuffer + ((Screen_Height-1) * scanlinelen);
+		char *readpo  = readbuffer + ((rdh-1) * scanlinelen);
 		char *writepo = buffer;
 
-		// flip the image upside down
-		for ( int i = 0; i < Screen_Height; i++ ) {
+		// flip the image upside down (OpenGL origin is bottom-left)
+		for ( int i = 0; i < rdh; i++ ) {
 
 			memcpy( writepo, readpo, scanlinelen );
 
