@@ -72,6 +72,14 @@ extern int				D_Value;
 extern int				Star_Siz;
 extern int				RObj_Siz;
 
+// letterbox viewport: the sub-region of the drawable that the game renders into.
+// when the drawable matches the selected resolution these are (0,0,Screen_Width,Screen_Height).
+// when fullscreen on a larger display they describe a centred, aspect-correct sub-rect.
+extern int				Vid_ViewportX;
+extern int				Vid_ViewportY;
+extern int				Vid_ViewportW;
+extern int				Vid_ViewportH;
+
 extern geomv_t			Near_View_Plane;
 extern geomv_t			Far_View_Plane;
 extern geomv_t			Criterion_X;

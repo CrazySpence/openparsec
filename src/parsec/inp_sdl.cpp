@@ -541,8 +541,14 @@ PRIVATE
 void ISDLm_MouseEventHandler(const SDL_Event &event)
 {
 	if (event.type == SDL_MOUSEMOTION) {
-		cur_mouse_state.xpos = (float) event.motion.x / Screen_Width;
-		cur_mouse_state.ypos = (float) event.motion.y / Screen_Height;
+		// Map screen-space mouse coords into the letterboxed game viewport.
+		// Vid_ViewportW/H/X/Y are set by SDL_RCSetup; when no letterboxing is
+		// active they equal (0, 0, Screen_Width, Screen_Height) and the result
+		// is identical to the previous behaviour.
+		int vw = (Vid_ViewportW > 0) ? Vid_ViewportW : Screen_Width;
+		int vh = (Vid_ViewportH > 0) ? Vid_ViewportH : Screen_Height;
+		cur_mouse_state.xpos = (float)(event.motion.x - Vid_ViewportX) / (float)vw;
+		cur_mouse_state.ypos = (float)(event.motion.y - Vid_ViewportY) / (float)vh;
 	}
 
 	if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
@@ -577,8 +583,11 @@ int INPs_MouseSetState( mousestate_s *state )
 {
 	ASSERT( state != NULL );
 
-	int mposx = (int)( state->xpos * Screen_Width );
-	int mposy = (int)( state->ypos * Screen_Height );
+	// Map normalised game coords back to screen-space (accounting for letterbox offset).
+	int vw = (Vid_ViewportW > 0) ? Vid_ViewportW : Screen_Width;
+	int vh = (Vid_ViewportH > 0) ? Vid_ViewportH : Screen_Height;
+	int mposx = (int)(state->xpos * vw) + Vid_ViewportX;
+	int mposy = (int)(state->ypos * vh) + Vid_ViewportY;
 
 	// set new mouse position
 	SDL_WarpMouseInWindow(curwindow, mposx, mposy);

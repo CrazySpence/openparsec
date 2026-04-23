@@ -141,41 +141,56 @@ int VSDL_InitOGLInterface( int printmodelistflags )
 		ASSERT(displayCount > 0);
 	}
 
+	// Curated allowlist of standard aspect-ratio resolutions (no wider than 16:9).
+	// The 1999/2012 projection math (D_Value = Screen_Width * 0.78) breaks at
+	// wider-than-16:9 aspect ratios, causing visible nebula and object-scale
+	// artifacts on ultrawide displays.
+	static const resinfo_s allowed_resolutions[] = {
+		resinfo_s( 640,  480),   // 4:3
+		resinfo_s( 800,  600),   // 4:3
+		resinfo_s(1024,  768),   // 4:3
+		resinfo_s(1280,  720),   // 16:9  (Steam Deck display res)
+		resinfo_s(1280,  800),   // 16:10 (Steam Deck native panel)
+		resinfo_s(1366,  768),   // 16:9  (common laptop)
+		resinfo_s(1920, 1080),   // 16:9
+		resinfo_s(2560, 1440),   // 16:9  (1440p)
+	};
+	static const int num_allowed = (int)(sizeof(allowed_resolutions) / sizeof(allowed_resolutions[0]));
+
+	// Collect what SDL actually reports so we can validate each allowlist entry.
+	std::vector<resinfo_s> sdl_modes;
 	for (int i = 0; i < displayCount; i++) {
-		
 		if (SDL_GetDisplayMode(0, i, &curmode) < 0) {
 			MSGOUT("[VIDEO]: Could not get info for SDL display mode #%d: %s\n", i, SDL_GetError());
 			continue;
 		}
-
-		int xres = curmode.w;
-		int yres = curmode.h;
-
 		int bpp = SDL_BITSPERPIXEL(curmode.format);
+		if ((bpp == 32 || bpp == 16 || bpp == 24) && bpp >= MaxScreenBPP)
+			sdl_modes.push_back(resinfo_s(curmode.w, curmode.h));
+	}
 
-		// we don't support resolutions below 640x480, or uneven ones
-		if (xres < 640 || yres < 480 || xres % 2 != 0 || yres % 2 != 0){
-			MSGOUT("[VIDEO]: Unsupported Resolution: x: %i; y: %i\n", xres, yres);
-			continue;
+	// Add each allowlist entry only if the display hardware supports it.
+	for (int a = 0; a < num_allowed; a++) {
+		bool supported = false;
+		for (size_t s = 0; s < sdl_modes.size(); s++) {
+			if (sdl_modes[s] == allowed_resolutions[a]) { supported = true; break; }
 		}
-
-		// we don't support non-standard screen formats
-		// XXX: Uber: Added 24 bpp cuz I'm not sure why it's excluded.
-		if (bpp != 32 && bpp != 16 && bpp != 24) { 
-			MSGOUT("[VIDEO]: Unsupported BPP: %i\n", bpp);
-			continue;
+		if (supported && GetResolutionIndex(allowed_resolutions[a].width, allowed_resolutions[a].height) < 0) {
+			Resolutions.push_back(allowed_resolutions[a]);
+			MSGOUT("[VIDEO]: Added resolution: %dx%d\n", allowed_resolutions[a].width, allowed_resolutions[a].height);
 		}
+	}
 
-		// TODO: look into supporting resolution-based BPP (if it's used at all anymore)
-		// for now, we can't use any screen mode that doesn't support the max known BPP
-		if (bpp < MaxScreenBPP){ 
-			MSGOUT("[VIDEO]: Unsupported BPP: %i\n", bpp);
-			continue;
-		}
-
-		// make sure we don't already have this resolution in our list
-		if (GetResolutionIndex(xres, yres) < 0) {
-			Resolutions.push_back(resinfo_s(xres, yres));
+	// Fallback: if nothing matched (unusual display), accept all SDL modes ≥ 640×480
+	// so the game is always launchable even on exotic hardware.
+	if (Resolutions.empty()) {
+		MSGOUT("[VIDEO]: No standard resolutions found; falling back to full SDL mode list.\n");
+		for (size_t s = 0; s < sdl_modes.size(); s++) {
+			int xres = sdl_modes[s].width, yres = sdl_modes[s].height;
+			if (xres >= 640 && yres >= 480 && xres % 2 == 0 && yres % 2 == 0 &&
+			    GetResolutionIndex(xres, yres) < 0) {
+				Resolutions.push_back(sdl_modes[s]);
+			}
 		}
 	}
 
@@ -456,7 +471,28 @@ void SDL_RCSetup()
 	int drawable_w, drawable_h;
 	SDL_GL_GetDrawableSize(curwindow, &drawable_w, &drawable_h);
 
-	glViewport( 0, 0, drawable_w, drawable_h );
+	// When running fullscreen on a display larger than the selected resolution
+	// (SDL_WINDOW_FULLSCREEN_DESKTOP always gives the native drawable size),
+	// letterbox/pillarbox the game into a centred, aspect-correct sub-region.
+	// When drawable == selected resolution (windowed or matched fullscreen) the
+	// offset is (0,0) and the scale is 1.0 — identical to the previous behaviour.
+	{
+		float scale_x = (float)drawable_w / (float)Screen_Width;
+		float scale_y = (float)drawable_h / (float)Screen_Height;
+		float scale   = (scale_x < scale_y) ? scale_x : scale_y;
+
+		Vid_ViewportW = (int)(Screen_Width  * scale);
+		Vid_ViewportH = (int)(Screen_Height * scale);
+		Vid_ViewportX = (drawable_w - Vid_ViewportW) / 2;
+		Vid_ViewportY = (drawable_h - Vid_ViewportH) / 2;
+
+		// Clear the full drawable to black so bars outside the viewport are black.
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glViewport(Vid_ViewportX, Vid_ViewportY, Vid_ViewportW, Vid_ViewportH);
+	}
 
 	//glFrontFace( GL_CW ); //FIXME: ?? why was this labelled FIXME?
 
