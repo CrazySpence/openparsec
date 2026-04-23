@@ -36,6 +36,15 @@ jobs:
           Copy-Item "$($crt.FullName)\VCRUNTIME140_1.dll" lib\x64\ -ErrorAction SilentlyContinue
 
 
+      - name: Install NSIS
+        shell: powershell
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10-setup.exe/download" `
+            -OutFile "$env:TEMP\nsis-setup.exe" -MaximumRedirection 10
+          Start-Process -FilePath "$env:TEMP\nsis-setup.exe" -ArgumentList '/S' -Wait -NoNewWindow
+          Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\NSIS"
+
       - name: Create nsis installer
         uses: joncloud/makensis-action@v3.3
         with: 
