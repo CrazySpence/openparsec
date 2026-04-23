@@ -163,6 +163,12 @@ int 	D_Value;						// must never be greater 65536
 int 	Star_Siz;
 int 	RObj_Siz;
 
+// letterbox viewport (set by SDL_RCSetup; equals full drawable when no letterboxing needed)
+int		Vid_ViewportX	= 0;
+int		Vid_ViewportY	= 0;
+int		Vid_ViewportW	= 0;
+int		Vid_ViewportH	= 0;
+
 
 // viewing frustum ------------------------------------------------------------
 //
