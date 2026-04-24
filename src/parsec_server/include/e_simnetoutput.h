@@ -325,8 +325,11 @@ public:
 	// reset all data
 	void Reset();
 
-	// connect the player in a specific slot 
+	// connect the player in a specific slot
 	int ConnectPlayer( int nClientID );
+
+	// re-schedule all distributables for a client (called on join after FIFO flush)
+	void RescheduleAllDistributables( int nClientID );
 
 	// disconnect the player in a specific slot
 	int DisconnectPlayer( int nClientID );

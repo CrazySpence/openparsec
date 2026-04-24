@@ -196,6 +196,11 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 	// calls GC_LocalPlayerKill — killing the player on every stargate arrival.
 	ThePacketDriver->FlushReliableBuffer( m_nClientID );
 
+	// Re-queue all world distributables (stargates, planets, teleporters) so they
+	// arrive in the clean FIFO after the join handshake. FlushReliableBuffer wiped
+	// any copies queued during the CONNECTED phase.
+	TheSimNetOutput->RescheduleAllDistributables( m_nClientID );
+
 	// update player status
 	m_Status = PLAYER_JOINED;
 
