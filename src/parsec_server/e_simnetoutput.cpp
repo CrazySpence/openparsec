@@ -375,6 +375,14 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 		}
 	}
 
+	// If the destination client has just joined (NeedsResync is about to fire),
+	// capture that flag now — before the resync block clears it — so we can
+	// also send every OTHER currently-joined player's state reliably. Without
+	// this, remote ships are only sent unreliably and may arrive before the
+	// client's Player_Status state machine is ready to accept them, leaving
+	// the client unable to see other players after a stargate transit.
+	bool_t bDestClientJustJoined = pSimClientState->NeedsResync() && pSimClientState->HasJoined();
+
 	// iterate over all connected clients ( check for forced resync )
 	for( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
 		if( !TheSimulator->IsPlayerDisconnected( nClientID ) ) {
@@ -382,9 +390,17 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 			bool_t bIncludeUnreliable = false;
 			bool_t bIncludeReliable   = false;
 
-			// state information of other clients is sent UNRELIABLE
+			// state information of other clients is sent UNRELIABLE,
+			// except on the first frame after the destination client joins —
+			// in that case send all other joined players reliably so their
+			// ship creation is guaranteed even if unreliable packets are dropped
+			// or arrive before the client's Player_Status is ready.
 			if ( nClientID != m_nDestClientID ) {
-				bIncludeUnreliable = true;
+				if ( bDestClientJustJoined && TheSimulator->IsPlayerJoined( nClientID ) ) {
+					bIncludeReliable = true;
+				} else {
+					bIncludeUnreliable = true;
+				}
 			} else {
 
 				// send info about client itself, if we need a resync
