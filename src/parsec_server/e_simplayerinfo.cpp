@@ -201,6 +201,22 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 	// any copies queued during the CONNECTED phase.
 	TheSimNetOutput->RescheduleAllDistributables( m_nClientID );
 
+	// Re-send "add slot" notifications for all already-connected players.
+	// FlushReliableBuffer wiped the reliable COMMAND packets that were queued
+	// during _NotifyClientConnected when this client first connected. Without
+	// these, the joining client's Player_Status[] stays PLAYER_INACTIVE for every
+	// other player, so any PNSS(JOINED) it receives is silently dropped and remote
+	// ships never appear. Re-sending here guarantees they arrive before the
+	// PNSS(JOINED) entries that DoClientUpdates will queue later this frame.
+	for ( int nOtherSlot = 0; nOtherSlot < MAX_NUM_CLIENTS; nOtherSlot++ ) {
+		if ( nOtherSlot != m_nClientID ) {
+			E_ClientInfo* pOther = TheConnManager->GetClientInfo( nOtherSlot );
+			if ( pOther != NULL && !pOther->IsSlotFree() ) {
+				ThePacketHandler->SendNotifyConnected( m_nClientID, nOtherSlot );
+			}
+		}
+	}
+
 	// update player status
 	m_Status = PLAYER_JOINED;
 
