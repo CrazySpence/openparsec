@@ -190,8 +190,12 @@ int NET_Stream::AppendToReliableFIFO( E_REList* pREList )
 	// immediately after this returns (resetting m_CurPos to m_data), which
 	// would make the shared buffer appear empty on retransmission — causing
 	// WriteTo() to copy 0 bytes and silently drop the reliable packet.
-	size_t datasize = pREList->GetSize();
-	E_REList* snapshot = E_REList::CreateAndAddRef( datasize + sizeof( RE_Header ) );
+	//
+	// Use RE_LIST_MAXAVAIL for the snapshot so AppendList's internal size
+	// check always passes regardless of terminator bookkeeping (DetermineListSize
+	// adds sizeof(dword) for the RE_EMPTY terminator, which is larger than
+	// sizeof(RE_Header), so a tighter allocation would fail the check).
+	E_REList* snapshot = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
 	snapshot->AppendList( pREList );
 
 	pEntry->InitEntry( snapshot );
