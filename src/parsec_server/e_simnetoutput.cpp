@@ -393,14 +393,27 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 					// disable client resync
 					pSimClientState->ClearClientResync();
 
-					DBGTXT( 
-					{	
-						dword dwMsg = ThePacketDriver->GetNextOutMessageId( nClientID ); 
-						MSGOUT( "NeedsResync() for client %d. including server-state in update packet %d.", m_nDestClientID, dwMsg ); } 
-					);
+					// Only send a reliable PNSS resync if the client has completed
+					// at least one join. The initial NeedsResync=TRUE comes from
+					// Reset() on disconnect and persists through Connect(). Sending
+					// PNSS(PLAYER_CONNECTED, UF_ALL) for a not-yet-joined client
+					// creates a stale reliable FIFO entry; for stargate transits the
+					// client sends join immediately, so the FIFO entry is retransmitted
+					// with the join ACK piggybacked — the client receives
+					// PNSS(PLAYER_CONNECTED) with IsACK(join)==TRUE and calls
+					// GC_LocalPlayerKill. For SHIP_DOWNED kills HasJoined() is still
+					// TRUE (not reset on unjoin) so those death notifications still work.
+					if ( pSimClientState->HasJoined() ) {
 
-					// forced resync ( state information about the destination client ) is sent RELIABLE
-					bIncludeReliable = true;
+						DBGTXT(
+						{
+							dword dwMsg = ThePacketDriver->GetNextOutMessageId( nClientID );
+							MSGOUT( "NeedsResync() for client %d. including server-state in update packet %d.", m_nDestClientID, dwMsg ); }
+						);
+
+						// forced resync ( state information about the destination client ) is sent RELIABLE
+						bIncludeReliable = true;
+					}
 				} else {
 
 					// include destination clients' state in heartbeat packets
