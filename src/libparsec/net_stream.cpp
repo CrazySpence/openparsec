@@ -185,8 +185,19 @@ int NET_Stream::AppendToReliableFIFO( E_REList* pREList )
 		return FALSE;
 	}
 
-	// otherwise append the RE list to the end of the FIFO 
-	pEntry->InitEntry( pREList );
+	// Snapshot the data into a fresh E_REList so the FIFO entry owns an
+	// immutable copy.  The caller typically calls Clear() on pREList
+	// immediately after this returns (resetting m_CurPos to m_data), which
+	// would make the shared buffer appear empty on retransmission — causing
+	// WriteTo() to copy 0 bytes and silently drop the reliable packet.
+	size_t datasize = pREList->GetSize();
+	E_REList* snapshot = E_REList::CreateAndAddRef( datasize + sizeof( RE_Header ) );
+	snapshot->AppendList( pREList );
+
+	pEntry->InitEntry( snapshot );
+
+	// InitEntry called AddRef; drop our own ref so the FIFO is the sole owner.
+	snapshot->Release();
 
 	m_nFIFO_WritePos = nNextWritePos;
 
