@@ -70,7 +70,7 @@ def _lerp(a: float, b: float, t: float) -> float:
 
 
 def value_noise(x: float, y: float, seed: int = 0) -> float:
-    """Smooth value noise in [0, 1)."""
+    """Smooth value noise in [0, 1) — NOT seamless, use value_noise_tiled for wrapping."""
     xi, yi = int(math.floor(x)), int(math.floor(y))
     xf, yf = x - xi, y - yi
     u, v = _smooth(xf), _smooth(yf)
@@ -79,9 +79,24 @@ def value_noise(x: float, y: float, seed: int = 0) -> float:
     return _lerp(a, b, v)
 
 
+def value_noise_tiled(x: float, y: float, seed: int, tile_x: int) -> float:
+    """Value noise that tiles seamlessly in the x direction.
+    tile_x: number of grid cells per tile period (must be a positive integer).
+    The noise at x=0 exactly equals the noise at x=tile_x.
+    """
+    xi, yi = int(math.floor(x)), int(math.floor(y))
+    xf, yf = x - xi, y - yi
+    u, v = _smooth(xf), _smooth(yf)
+    xi0 = xi % tile_x
+    xi1 = (xi + 1) % tile_x
+    a = _lerp(_hash(xi0, yi,     seed), _hash(xi1, yi,     seed), u)
+    b = _lerp(_hash(xi0, yi + 1, seed), _hash(xi1, yi + 1, seed), u)
+    return _lerp(a, b, v)
+
+
 def fbm(x: float, y: float, octaves: int = 6, seed: int = 0,
         lacunarity: float = 2.0, gain: float = 0.5) -> float:
-    """Fractional Brownian motion — returns [0, 1)."""
+    """Fractional Brownian motion — returns [0, 1). Not seamless."""
     value = 0.0
     amplitude = 0.5
     frequency = 1.0
@@ -94,8 +109,30 @@ def fbm(x: float, y: float, octaves: int = 6, seed: int = 0,
     return value / max_val
 
 
+def fbm_tiled(x: float, y: float, octaves: int, seed: int, base_tile_x: float,
+              lacunarity: float = 2.0, gain: float = 0.5) -> float:
+    """FBM that tiles seamlessly in x.
+    base_tile_x: the tile period at the base frequency (before lacunarity scaling).
+    At each octave the tile period scales by lacunarity so every octave also tiles.
+    Works perfectly when base_tile_x * lacunarity^i is always an integer.
+    """
+    value = 0.0
+    amplitude = 0.5
+    frequency = 1.0
+    max_val = 0.0
+    tile = base_tile_x
+    for _ in range(octaves):
+        tile_i = max(1, round(tile))
+        value    += amplitude * value_noise_tiled(x * frequency, y * frequency, seed, tile_i)
+        max_val  += amplitude
+        amplitude *= gain
+        frequency *= lacunarity
+        tile      *= lacunarity
+    return value / max_val
+
+
 def turbulence(x: float, y: float, octaves: int = 6, seed: int = 0) -> float:
-    """Absolute-value FBM for cloud/turbulence patterns."""
+    """Absolute-value FBM for cloud/turbulence patterns. Not seamless."""
     value = 0.0
     amplitude = 0.5
     frequency = 1.0
@@ -105,6 +142,25 @@ def turbulence(x: float, y: float, octaves: int = 6, seed: int = 0) -> float:
         max_val  += amplitude
         amplitude *= 0.5
         frequency *= 2.0
+    return value / max_val
+
+
+def turbulence_tiled(x: float, y: float, octaves: int, seed: int,
+                     base_tile_x: float) -> float:
+    """Absolute-value FBM that tiles seamlessly in x."""
+    value = 0.0
+    amplitude = 0.5
+    frequency = 1.0
+    max_val = 0.0
+    tile = base_tile_x
+    for _ in range(octaves):
+        tile_i = max(1, round(tile))
+        n = value_noise_tiled(x * frequency, y * frequency, seed, tile_i) * 2 - 1
+        value    += amplitude * abs(n)
+        max_val  += amplitude
+        amplitude *= 0.5
+        frequency *= 2.0
+        tile      *= 2.0
     return value / max_val
 
 
@@ -133,6 +189,8 @@ def mix_colour(colours, stops, t: float):
 
 # ---------------------------------------------------------------------------
 # Texture generators
+# All noise sampled with tiled variants so left == right edge (seamless wrap).
+# The v (latitude) axis is NOT tiled — poles are different.
 # ---------------------------------------------------------------------------
 
 WIDTH, HEIGHT = 512, 256
@@ -158,9 +216,9 @@ def gen_terra(seed: int = 1) -> list:
             u = col / WIDTH
             v = lat_norm
 
-            # continent noise
-            land = fbm(u * 3, v * 3, octaves=7, seed=seed)
-            detail = fbm(u * 8, v * 8, octaves=4, seed=seed + 1) * 0.25
+            # continent noise — tiled at base scale 3, detail at 8, polar at 10
+            land   = fbm_tiled(u * 3, v * 3, octaves=7, seed=seed,       base_tile_x=3)
+            detail = fbm_tiled(u * 8, v * 8, octaves=4, seed=seed + 1,   base_tile_x=8) * 0.25
 
             h = land + detail - 0.05
 
@@ -168,7 +226,8 @@ def gen_terra(seed: int = 1) -> list:
             pole_mask = max(0.0, (abs(lat_norm - 0.5) * 2) ** 2.5 - 0.55) * 2.0
 
             if pole_mask > 0.6:
-                c = lerp_colour(snow, polar, value_noise(u * 10, v * 10, seed + 5))
+                c = lerp_colour(snow, polar,
+                                value_noise_tiled(u * 10, v * 10, seed + 5, 10))
             elif h < 0.42:
                 depth = (0.42 - h) / 0.42
                 c = lerp_colour(shallow_sea, deep_ocean, depth)
@@ -205,12 +264,12 @@ def gen_mars(seed: int = 2) -> list:
         lat_norm = row / HEIGHT
         for col in range(WIDTH):
             u = col / WIDTH
-            n  = fbm(u * 4, lat_norm * 4, octaves=7, seed=seed)
-            t  = turbulence(u * 6, lat_norm * 6, octaves=5, seed=seed + 2)
+            n  = fbm_tiled(u * 4, lat_norm * 4, octaves=7, seed=seed,     base_tile_x=4)
+            t  = turbulence_tiled(u * 6, lat_norm * 6, octaves=5, seed=seed + 2, base_tile_x=6)
 
             h = n * 0.7 + t * 0.3
 
-            stops  = [0.0, 0.25, 0.50, 0.70, 0.85, 1.0]
+            stops   = [0.0, 0.25, 0.50, 0.70, 0.85, 1.0]
             colours = [basalt, rust, orange, pale, dust, pale]
             c = mix_colour(colours, stops, h)
 
@@ -246,8 +305,8 @@ def gen_gas(seed: int = 3) -> list:
         for col in range(WIDTH):
             u = col / WIDTH
 
-            # warp latitude with turbulence
-            warp = turbulence(u * 2, lat_norm * 2, octaves=5, seed=seed) * 0.12
+            # warp latitude with turbulence (tiled so u=0 matches u=1)
+            warp = turbulence_tiled(u * 2, lat_norm * 2, octaves=5, seed=seed, base_tile_x=2) * 0.12
             warped_lat = clamp(lat_norm + warp - 0.06)
 
             # band selection
@@ -258,8 +317,8 @@ def gen_gas(seed: int = 3) -> list:
 
             c = lerp_colour(band_colours[band_i], band_colours[band_j], band_frac)
 
-            # overlay cloud wisps
-            cloud = fbm(u * 5, lat_norm * 3, octaves=4, seed=seed + 10) ** 2
+            # overlay cloud wisps (tiled)
+            cloud = fbm_tiled(u * 5, lat_norm * 3, octaves=4, seed=seed + 10, base_tile_x=5) ** 2
             if cloud > 0.6:
                 c = lerp_colour(c, (240, 225, 200), (cloud - 0.6) / 0.4 * 0.5)
 
@@ -282,8 +341,8 @@ def gen_ice(seed: int = 4) -> list:
         for col in range(WIDTH):
             u = col / WIDTH
 
-            base = fbm(u * 4, lat_norm * 4, octaves=6, seed=seed)
-            cracks = turbulence(u * 12, lat_norm * 12, octaves=4, seed=seed + 1)
+            base   = fbm_tiled(u * 4,  lat_norm * 4,  octaves=6, seed=seed,     base_tile_x=4)
+            cracks = turbulence_tiled(u * 12, lat_norm * 12, octaves=4, seed=seed + 1, base_tile_x=12)
 
             # crack lines: low turbulence = crack
             crack_mask = clamp(1.0 - cracks * 3.0)
@@ -323,8 +382,8 @@ def gen_lava(seed: int = 5) -> list:
         for col in range(WIDTH):
             u = col / WIDTH
 
-            base  = fbm(u * 3, lat_norm * 3, octaves=6, seed=seed)
-            crack = turbulence(u * 8, lat_norm * 8, octaves=5, seed=seed + 3)
+            base  = fbm_tiled(u * 3, lat_norm * 3, octaves=6, seed=seed,     base_tile_x=3)
+            crack = turbulence_tiled(u * 8, lat_norm * 8, octaves=5, seed=seed + 3, base_tile_x=8)
 
             # cracks glow brightest where turbulence is low
             heat = clamp(1.0 - crack * 2.5) ** 2
@@ -363,15 +422,16 @@ def gen_ocean(seed: int = 6) -> list:
         for col in range(WIDTH):
             u = col / WIDTH
 
-            # swirling distortion
-            warp_u = fbm(u * 3, lat_norm * 3, octaves=4, seed=seed + 10) * 0.15
-            warp_v = fbm(u * 3, lat_norm * 3, octaves=4, seed=seed + 11) * 0.15
+            # Warp UV — use tiled fbm so warp_u(u=0) == warp_u(u=1).
+            # Use modulo (not clamp) so the wrapping is preserved in wu.
+            warp_u = fbm_tiled(u * 3, lat_norm * 3, octaves=4, seed=seed + 10, base_tile_x=3) * 0.15
+            warp_v = fbm_tiled(u * 3, lat_norm * 3, octaves=4, seed=seed + 11, base_tile_x=3) * 0.15
 
-            wu = clamp(u + warp_u - 0.075)
-            wv = clamp(lat_norm + warp_v - 0.075)
+            wu = (u + warp_u - 0.075) % 1.0          # modulo preserves seamlessness
+            wv = clamp(lat_norm + warp_v - 0.075)     # vertical: clamp is fine (no v-tiling)
 
-            depth = fbm(wu * 4, wv * 4, octaves=7, seed=seed)
-            surf  = fbm(wu * 10, wv * 6, octaves=4, seed=seed + 2)
+            depth = fbm_tiled(wu * 4,  wv * 4,  octaves=7, seed=seed,     base_tile_x=4)
+            surf  = fbm_tiled(wu * 10, wv * 6,  octaves=4, seed=seed + 2, base_tile_x=10)
 
             c = mix_colour(
                 [abyss, deep, mid, shallow],
@@ -384,7 +444,7 @@ def gen_ocean(seed: int = 6) -> list:
                 c = lerp_colour(c, foam, (surf - 0.72) / 0.28 * 0.8)
 
             # storm swirls — darker bands
-            storm_n = turbulence(wu * 5, wv * 2, octaves=5, seed=seed + 4)
+            storm_n = turbulence_tiled(wu * 5, wv * 2, octaves=5, seed=seed + 4, base_tile_x=5)
             if storm_n < 0.35:
                 c = lerp_colour(c, storm, (0.35 - storm_n) / 0.35 * 0.4)
 
@@ -416,7 +476,6 @@ def _ring_band(v_norm: float, bands: list) -> float:
 
 def gen_ring_saturn(seed: int = 10) -> list:
     """Saturn-like rings: warm tan/beige bands with dark Cassini-style gaps."""
-    # band layout: (centre_v, half-width, peak_density)
     bands = [
         (0.08, 0.07, 1.0),   # inner dense band
         (0.22, 0.08, 0.85),  # B ring
@@ -436,10 +495,11 @@ def gen_ring_saturn(seed: int = 10) -> list:
         for col in range(RWIDTH):
             u = col / RWIDTH
             density = _ring_band(v, bands)
-            # slight noise variation around circumference
-            noise = value_noise(u * 16, v * 4, seed) * 0.15
+            # tiled noise variation around circumference
+            noise = value_noise_tiled(u * 16, v * 4, seed, 16) * 0.15
             density = clamp(density + noise - 0.07)
-            c = lerp_colour(dark, lerp_colour(tan, beige, value_noise(u * 8, v * 8, seed + 1)), density)
+            shimmer = value_noise_tiled(u * 8, v * 8, seed + 1, 8)
+            c = lerp_colour(dark, lerp_colour(tan, beige, shimmer), density)
             pixels.append(c)
     return pixels
 
@@ -463,7 +523,7 @@ def gen_ring_ice(seed: int = 11) -> list:
         for col in range(RWIDTH):
             u = col / RWIDTH
             density = _ring_band(v, bands)
-            shimmer = value_noise(u * 20, v * 6, seed) * 0.12
+            shimmer = value_noise_tiled(u * 20, v * 6, seed, 20) * 0.12
             density = clamp(density + shimmer - 0.05)
             c = lerp_colour(gap, lerp_colour(ice_blue, ice_white, density), density)
             pixels.append(c)
@@ -484,7 +544,7 @@ def gen_ring_dust(seed: int = 12) -> list:
         for col in range(RWIDTH):
             u = col / RWIDTH
             density = _ring_band(v, bands)
-            wisp = fbm(u * 12, v * 6, octaves=4, seed=seed) * 0.3
+            wisp = fbm_tiled(u * 12, v * 6, octaves=4, seed=seed, base_tile_x=12) * 0.3
             density = clamp(density * 0.7 + wisp)
             c = lerp_colour(dark, dust, density)
             pixels.append(c)
@@ -510,7 +570,7 @@ def gen_ring_dense(seed: int = 13) -> list:
         for col in range(RWIDTH):
             u = col / RWIDTH
             density = _ring_band(v, bands)
-            n = fbm(u * 10, v * 5, octaves=5, seed=seed) * 0.2
+            n = fbm_tiled(u * 10, v * 5, octaves=5, seed=seed, base_tile_x=10) * 0.2
             density = clamp(density + n - 0.08)
             base_col = lerp_colour(inner, outer, v)
             c = lerp_colour(dark, base_col, density)

@@ -989,10 +989,10 @@ void G_CollDet::_CollisionResponse_MineShip( Mine1Obj *curmine )
 
 		     E_SimPlayerInfo* pSimPlayerInfo = TheSimulator->GetSimPlayerInfo( nClientID_Downed ); 
 
+		     // maintain stats — kill credit only goes to the attacker if it
+		     // isn't a self-kill; death is always recorded once
 		     if(cur_ship_owner != curmine->Owner) {
-                  // maintain stats
 		          TheGame->RecordKill ( nClientID_Attacker );
-		          TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
              }
              TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
 
@@ -1203,6 +1203,11 @@ void G_CollDet::_CheckShipExtraCollision()
 	// check whether any (other) shipobject is hit by laser
 	for ( cur_ship = TheWorld->FetchFirstShip(); cur_ship != NULL; ) {
 
+		// Save next ship pointer NOW, before any collision response that may
+		// destroy cur_ship via PerformUnjoin() (e.g. mine self-kill).
+		// The EMP loop (_CheckShipEmpCollision) already does this correctly.
+		ShipObject *next_ship = (ShipObject*)cur_ship->NextObj;
+
 		// fetch location of local ship
 		geomv_t	objX = cur_ship->ObjPosition[ 0 ][ 3 ];
 		geomv_t	objY = cur_ship->ObjPosition[ 1 ][ 3 ];
@@ -1265,13 +1270,18 @@ void G_CollDet::_CheckShipExtraCollision()
 			}
 
 			// remove extra object
-			if( curextra->ObjectType == MINE1TYPE ) //Mine collision
-                 _CollisionResponse_MineShip((Mine1Obj *) curextra);     
-            else
+			if( curextra->ObjectType == MINE1TYPE ) { //Mine collision
+                 _CollisionResponse_MineShip((Mine1Obj *) curextra);
+                 // cur_ship may now be destroyed (self-kill path calls PerformUnjoin).
+                 // Stop checking further extras for this ship and advance via the
+                 // pre-saved next_ship pointer — do NOT touch cur_ship again.
+                 break;
+            } else {
                  TheGameExtraManager->OBJ_KillExtra( precnode, TRUE );
+            }
 		}
-	
-		cur_ship = (ShipObject*)cur_ship->NextObj;
+
+		cur_ship = next_ship;
 	}
 }
 

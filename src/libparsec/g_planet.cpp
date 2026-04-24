@@ -178,16 +178,17 @@ void PlanetDraw_Rings( Planet *planet )
 	if ( planet->RingTexture == NULL )
 		return;
 
-	// create vertex array
+	// create vertex array — one extra pair of closing vertices so the last quad
+	// can use u=texwidth instead of u=0, avoiding a UV discontinuity at the seam
 	IterArray3 *itarray = (IterArray3 *) ALLOCMEM(
-		(size_t)&((IterArray3*)0)->Vtxs[ PLANET_RING_SEGMENTS * 2 ] );
+		(size_t)&((IterArray3*)0)->Vtxs[ (PLANET_RING_SEGMENTS + 1) * 2 ] );
 	if ( itarray == NULL )
 		OUTOFMEM( 0 );
 
 	// texwidth for circumferential U coordinate
 	int texwidth = 1 << planet->RingTexture->Width;
 
-	itarray->NumVerts	= PLANET_RING_SEGMENTS * 2;
+	itarray->NumVerts	= (PLANET_RING_SEGMENTS + 1) * 2;
 	itarray->arrayinfo	= ITERARRAY_USE_COLOR |
 						  ITERARRAY_USE_TEXTURE | ITERARRAY_GLOBAL_TEXTURE;
 	itarray->flags		= ITERFLAG_Z_DIV_XYZ | ITERFLAG_Z_DIV_UVW |
@@ -243,6 +244,38 @@ void PlanetDraw_Rings( Planet *planet )
 		itarray->Vtxs[ vid + 1 ].A = a;
 	}
 
+	// Closing vertex pair: same position as segment 0 (angle=0) but with
+	// U=texwidth so the last quad interpolates from (N-1)*W/N → W instead
+	// of jumping backwards from (N-1)*W/N → 0.  With GL_REPEAT, W maps
+	// to the same texel as 0, giving a perfectly seamless join.
+	{
+		sincosval_s sincos0;
+		GetSinCos( 0, &sincos0 );
+		int cid = PLANET_RING_SEGMENTS * 2;
+
+		itarray->Vtxs[ cid ].X = GEOMV_MUL( planet->BoundingSphere + planet->RingInnerRadius, sincos0.cosval );
+		itarray->Vtxs[ cid ].Y = GEOMV_0;
+		itarray->Vtxs[ cid ].Z = GEOMV_MUL( planet->BoundingSphere + planet->RingInnerRadius, sincos0.sinval );
+		itarray->Vtxs[ cid ].W = GEOMV_1;
+		itarray->Vtxs[ cid ].U = texwidth;
+		itarray->Vtxs[ cid ].V = 0;
+		itarray->Vtxs[ cid ].R = 255;
+		itarray->Vtxs[ cid ].G = 255;
+		itarray->Vtxs[ cid ].B = 255;
+		itarray->Vtxs[ cid ].A = 0xb0;
+
+		itarray->Vtxs[ cid + 1 ].X = GEOMV_MUL( planet->BoundingSphere + planet->RingOuterRadius, sincos0.cosval );
+		itarray->Vtxs[ cid + 1 ].Y = GEOMV_0;
+		itarray->Vtxs[ cid + 1 ].Z = GEOMV_MUL( planet->BoundingSphere + planet->RingOuterRadius, sincos0.sinval );
+		itarray->Vtxs[ cid + 1 ].W = GEOMV_1;
+		itarray->Vtxs[ cid + 1 ].U = texwidth;
+		itarray->Vtxs[ cid + 1 ].V = PLANET_RING_TEX_HEIGHT;
+		itarray->Vtxs[ cid + 1 ].R = 255;
+		itarray->Vtxs[ cid + 1 ].G = 255;
+		itarray->Vtxs[ cid + 1 ].B = 255;
+		itarray->Vtxs[ cid + 1 ].A = 0xb0;
+	}
+
 	size_t numtriindxs = PLANET_RING_SEGMENTS * 6;
 
 	uint16 *vindxs = (uint16 *) ALLOCMEM( numtriindxs * sizeof( uint16 ) );
@@ -268,15 +301,18 @@ void PlanetDraw_Rings( Planet *planet )
 		srcindx += 2;
 	}
 
-	// store last strip index
+	// store last strip index — close the ring using the dedicated closing
+	// vertex pair (indices N*2 and N*2+1) which have u=texwidth, giving a
+	// smooth U interpolation from the last segment instead of a jump to u=0
+	int cid = PLANET_RING_SEGMENTS * 2;
 	vindxs[ dstindx + 0 ] = srcindx;
 	vindxs[ dstindx + 1 ] = srcindx + 1;
-	vindxs[ dstindx + 2 ] = 1;
+	vindxs[ dstindx + 2 ] = cid + 1;
 	dstindx += 3;
 
 	vindxs[ dstindx + 0 ] = srcindx;
-	vindxs[ dstindx + 1 ] = 0;
-	vindxs[ dstindx + 2 ] = 1;
+	vindxs[ dstindx + 1 ] = cid;
+	vindxs[ dstindx + 2 ] = cid + 1;
 
 	// calculate transformation matrix using position only (no planet rotation),
 	// then apply the fixed ring tilt angles so rings stay stationary while the
@@ -410,9 +446,30 @@ int PlanetAnimate( CustomObject *base )
 
 	planet->CullMask = 0x00;		// no far plane clipping
 
-	// simply rotate around Z
+	// Rotate planet around its spin axis.
+	// Default: rotate around local Y so poles stay at top/bottom.
+	// Ring planets: use a basis-change so the spin axis is perpendicular to the
+	// ring plane (i.e. aligned with the ring's normal rather than world Y).
+	//   Step 1 — undo the ring tilts to align spin axis with Y
+	//   Step 2 — rotate around Y
+	//   Step 3 — re-apply the ring tilts
+	// When there is no ring (or no tilt), this collapses to a plain ObjRotY.
 #ifndef PARSEC_SERVER
-	ObjRotZ( planet->ObjPosition, planet->RotSpeed * CurScreenRefFrames );
+	{
+		bams_t spinAngle = planet->RotSpeed * CurScreenRefFrames;
+		if ( planet->HasRing && ( planet->RingTiltX != 0 || planet->RingTiltZ != 0 ) ) {
+			// Basis-change: rotate around the ring's normal axis.
+			// The ring matrix is built as R_X(TiltX) then R_Z(TiltZ), so
+			// mirror that order here; the undo is the reverse.
+			ObjRotX( planet->ObjPosition,  planet->RingTiltX );
+			ObjRotZ( planet->ObjPosition,  planet->RingTiltZ );
+			ObjRotY( planet->ObjPosition,  spinAngle );
+			ObjRotZ( planet->ObjPosition, -planet->RingTiltZ );
+			ObjRotX( planet->ObjPosition, -planet->RingTiltX );
+		} else {
+			ObjRotY( planet->ObjPosition, spinAngle );
+		}
+	}
 
 	// Register the draw callback here rather than in PlanetCollide so that
 	// planets remain visible when InFloatingMenu is true.  OBJ_CheckCollisions
@@ -420,7 +477,18 @@ int PlanetAnimate( CustomObject *base )
 	// but OBJ_AnimateCustomObjects always runs, so this is the safe place.
 	CALLBACK_RegisterCallback( callback_type, PlanetDraw, (void *) base );
 #else
-	ObjRotZ( planet->ObjPosition, planet->RotSpeed * TheSimulator->GetThisFrameRefFrames() );
+	{
+		bams_t spinAngle = planet->RotSpeed * TheSimulator->GetThisFrameRefFrames();
+		if ( planet->HasRing && ( planet->RingTiltX != 0 || planet->RingTiltZ != 0 ) ) {
+			ObjRotX( planet->ObjPosition,  planet->RingTiltX );
+			ObjRotZ( planet->ObjPosition,  planet->RingTiltZ );
+			ObjRotY( planet->ObjPosition,  spinAngle );
+			ObjRotZ( planet->ObjPosition, -planet->RingTiltZ );
+			ObjRotX( planet->ObjPosition, -planet->RingTiltX );
+		} else {
+			ObjRotY( planet->ObjPosition, spinAngle );
+		}
+	}
 #endif
 
 	return TRUE;

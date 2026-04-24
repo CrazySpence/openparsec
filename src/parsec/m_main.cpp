@@ -1040,7 +1040,11 @@ void MenuItemSelectQuit()
 	if ( AUX_DISABLE_QUIT_BUTTON )
 		return;
 
-	ExitGameLoop = 1;
+	// Use ExitGameLoop = 3 (hard exit) so FloatingMenuKeyHandler() does not
+	// intercept this as an ESC navigation press.  Value 1 is swallowed by the
+	// "if ( ExitGameLoop && ExitGameLoop != 3 )" guard in that handler and
+	// converted into a FloatingMenuKeyEscape() call instead of a real quit.
+	ExitGameLoop = 3;
 }
 
 
