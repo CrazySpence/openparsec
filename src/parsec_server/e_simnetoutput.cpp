@@ -1029,6 +1029,22 @@ int E_SimNetOutput::ConnectPlayer( int nClientID )
     return TRUE;
 }
 
+// re-schedule all distributables for a newly joined player -------------------
+// Called from PerformJoin after FlushReliableBuffer to ensure world objects
+// (stargates, planets, teleporters) are re-queued into the clean FIFO.
+//
+void E_SimNetOutput::RescheduleAllDistributables( int nClientID )
+{
+	ASSERT( ( nClientID >= 0 ) && ( nClientID < MAX_NUM_CLIENTS ) );
+
+	for ( UTL_listentry_s<E_Distributable*>* entry = m_Distributables->GetHead();
+	      entry != NULL; entry = entry->m_pNext ) {
+		E_Distributable* pDist = entry->m_data;
+		pDist->MarkForUpdate( nClientID );
+		m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist );
+	}
+}
+
 // disconnect the player in a specific slot -----------------------------------
 //
 int E_SimNetOutput::DisconnectPlayer( int nClientID )
