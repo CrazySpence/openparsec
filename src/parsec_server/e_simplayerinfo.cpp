@@ -295,6 +295,15 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 	m_nShipID = SHIPID_NOSHIP;
 	m_objclass = -1;
 
+	// Reset the state-sync flag so the nebula/ammo RE_STATESYNC is re-sent
+	// when this client joins the next system (e.g. after a stargate transit).
+	// Without this, HasState() stays TRUE and _PrepareClientUpdateInfo never
+	// queues another state sync, so the nebula background stays stale.
+	E_SimClientState* pSimClientState = TheSimulator->GetSimClientState( m_nClientID );
+	if ( pSimClientState != NULL ) {
+		pSimClientState->ClearState();
+	}
+
 	MSGOUT( "unjoined client %d", m_nClientID ); 
 	
 	// give UI feedback when player has unjoined

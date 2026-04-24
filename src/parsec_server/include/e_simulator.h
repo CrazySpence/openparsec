@@ -199,7 +199,11 @@ public:
     // Check whether state variables (nebula id, ammo pack sizes) have been sent
     int HasState() { return m_ClientHasStateSync; }
 
-    void SetState() { m_ClientHasStateSync = TRUE; }
+    void SetState()   { m_ClientHasStateSync = TRUE; }
+
+    // Reset the state-sync flag so a fresh RE_STATESYNC is sent after the next
+    // join (e.g. after a stargate transit to a new system).
+    void ClearState() { m_ClientHasStateSync = FALSE; }
 
     // Check/set whether the client has completed the join handshake.
     // State sync must not be sent before join: the client ignores RE_STATESYNC
