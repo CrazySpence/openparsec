@@ -350,7 +350,8 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
     // RE_STATESYNC is silently dropped on the client until NetConnected is TRUE,
     // which the client sets only after receiving RE_JOINED — so sending it
     // before join just marks SetState() and the sync is never applied.
-    if( pSimClientState->HasJoined() && !pSimClientState->HasState() ) {
+    if( pSimClientState->HasJoined() && !pSimClientState->HasState()
+            && TheSimulator->IsPlayerJoined( m_nDestClientID ) ) {
         size_t state_size = E_REList::RmEvGetSizeFromType(RE_STATESYNC) * 7; //We current send 7 states to the client
         if(_ReserveForOutput( state_size )) {
             m_bIncludeStateSync = SEND_MODE_RELIABLE;
