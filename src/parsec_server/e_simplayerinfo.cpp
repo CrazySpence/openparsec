@@ -47,11 +47,12 @@
 // proprietary module headers
 #include "con_aux_sv.h"
 //#include "g_colldet.h"
-//#include "g_extra.h"
+#include "g_extra.h"
 ////#include "net_csdf.h"
 //#include "net_packetdriver.h"
 #include "net_game_sv.h"
 //#include "net_stream.h"
+#include "e_simnetoutput.h"
 #include "obj_creg.h"				// for ShipClasses
 ////#include "e_stats.h"
 #include "g_main_sv.h"
@@ -294,6 +295,28 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 	m_pShip   = NULL;
 	m_nShipID = SHIPID_NOSHIP;
 	m_objclass = -1;
+
+	// Remove all proximity mines owned by this player so they don't kill them
+	// (or other players) when they return via stargate. Mines persist in the
+	// world until their LifeTimeCount expires; the spawn zone (±500-1500 units
+	// from origin) is small enough that leftover mines cause immediate death.
+	{
+		ASSERT( TheWorld->m_ExtraObjects != NULL );
+		ExtraObject *precnode = TheWorld->m_ExtraObjects;
+		while ( precnode->NextObj != NULL ) {
+			ExtraObject *curextra = (ExtraObject *) precnode->NextObj;
+			if ( curextra->ObjectType == MINE1TYPE &&
+			     ((Mine1Obj*)curextra)->Owner == m_nClientID ) {
+				Mine1Obj *curmine = (Mine1Obj*)curextra;
+				curmine->pDist->WillBeSentToOwner();
+				TheSimNetOutput->ReleaseDistributable( curmine->pDist );
+				TheWorld->KillSpecificObject( curmine->ObjectNumber, TheWorld->m_ExtraObjects );
+				// precnode is unchanged; next iteration reads the new NextObj
+			} else {
+				precnode = curextra;
+			}
+		}
+	}
 
 	// Reset the state-sync flag so the nebula/ammo RE_STATESYNC is re-sent
 	// when this client joins the next system (e.g. after a stargate transit).
