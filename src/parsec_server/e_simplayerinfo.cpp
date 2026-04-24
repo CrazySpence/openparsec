@@ -49,9 +49,10 @@
 //#include "g_colldet.h"
 #include "g_extra.h"
 ////#include "net_csdf.h"
-//#include "net_packetdriver.h"
 #include "net_game_sv.h"
 //#include "net_stream.h"
+#include "net_wrap.h"
+#include "net_packetdriver.h"
 #include "e_simnetoutput.h"
 #include "obj_creg.h"				// for ShipClasses
 ////#include "e_stats.h"
@@ -186,6 +187,14 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 	ASSERT( playerstatus != NULL );
 	ASSERT( playerstatus->player_status == PLAYER_JOINED );
 	ASSERT( m_Status == PLAYER_CONNECTED );
+
+	// Flush any stale reliable FIFO entries (e.g. a PNSS(PLAYER_CONNECTED)
+	// from the NeedsResync path or a simultaneous death/collision) before
+	// queueing PNSS(PLAYER_JOINED) + statesync. Without this flush, the
+	// stale PNSS is retransmitted in the same packet that ACKs the join
+	// message; the client sees PNSS(CONNECTED) with IsACK(join)==TRUE and
+	// calls GC_LocalPlayerKill — killing the player on every stargate arrival.
+	ThePacketDriver->FlushReliableBuffer( m_nClientID );
 
 	// update player status
 	m_Status = PLAYER_JOINED;
