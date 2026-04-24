@@ -959,12 +959,25 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 		float len = sqrt(
 			sphere_vertices[ vid ].X * sphere_vertices[ vid ].X +
 			sphere_vertices[ vid ].Z * sphere_vertices[ vid ].Z );
-		float nx = sphere_vertices[ vid ].X / len;
 
-		// acos(): [-1,1]->[pi,0]
-		float tu = acos( nx ) / HPREC_TWO_PI;
-		if ( sphere_vertices[ vid ].Z <= 0.0f ) {
-			tu = 1.0f - tu;
+		// Pole vertices sit exactly on the Y axis (X=Z=0): the midpoint of
+		// icosahedron edges (4,5) and (6,7) normalises to the top/bottom pole.
+		// Longitude is undefined there — store a sentinel < 0 so the seam-fix
+		// loop can assign a per-triangle U from the triangle's neighbours.
+		float tu;
+		if ( len < 1e-6f ) {
+			tu = -1.0f;   // sentinel: resolved per-triangle in seam-fix pass
+		} else {
+			float nx = sphere_vertices[ vid ].X / len;
+			// Clamp to [-1,1] against floating-point overshoot before acos.
+			if ( nx < -1.0f ) nx = -1.0f;
+			if ( nx >  1.0f ) nx =  1.0f;
+
+			// acos(): [-1,1]->[pi,0]
+			tu = acos( nx ) / HPREC_TWO_PI;
+			if ( sphere_vertices[ vid ].Z <= 0.0f ) {
+				tu = 1.0f - tu;
+			}
 		}
 
 		// map v texture coordinate from y only
@@ -991,10 +1004,12 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 	if ( vindxs == NULL )
 		OUTOFMEM( "no mem for seam-fix indexes." );
 
-	int *seam_dup = (int *) ALLOCMEM( sphere_numverts * sizeof( int ) );
+	// Size covers original verts AND any pole/seam duplicates (up to SEAM_SLACK
+	// extras) so that seam_dup[dupid] is always a valid access.
+	int *seam_dup = (int *) ALLOCMEM( (sphere_numverts + SEAM_SLACK) * sizeof( int ) );
 	if ( seam_dup == NULL )
 		OUTOFMEM( "no mem for seam dup map." );
-	for ( int i = 0; i < sphere_numverts; i++ )
+	for ( int i = 0; i < sphere_numverts + SEAM_SLACK; i++ )
 		seam_dup[ i ] = -1;
 
 	float half_tex = (float)texwidth * 0.5f;
@@ -1011,6 +1026,32 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 			sphere_indexes[ tri * 3 + 1 ],
 			sphere_indexes[ tri * 3 + 2 ]
 		};
+
+		// Pole fix: a vertex at the top/bottom pole has U stored as a negative
+		// sentinel (see UV loop above).  Resolve it per-triangle by taking the
+		// wrap-aware average of the other two vertices' U values, then create a
+		// per-triangle duplicate so each triangle can carry its own pole U.
+		// There is at most one pole vertex per triangle (geometrically impossible
+		// for two vertices of the same triangle to both sit on the Y axis).
+		for ( int k = 0; k < 3; k++ ) {
+			if ( itarray->Vtxs[ idx[k] ].U < 0 ) {
+				int k1 = (k+1) % 3, k2 = (k+2) % 3;
+				float pu1 = itarray->Vtxs[ idx[k1] ].U;
+				float pu2 = itarray->Vtxs[ idx[k2] ].U;
+				// Bring both neighbours to the same side of the seam
+				if ( pu2 - pu1 > half_tex ) pu1 += (float)texwidth;
+				if ( pu1 - pu2 > half_tex ) pu2 += (float)texwidth;
+				float avg_u = ( pu1 + pu2 ) * 0.5f;
+				if ( avg_u >= (float)texwidth ) avg_u -= (float)texwidth;
+				// Duplicate the vertex with this triangle's pole U
+				ASSERT( numseamverts < sphere_numverts + SEAM_SLACK );
+				int dupid = numseamverts++;
+				itarray->Vtxs[ dupid ]   = itarray->Vtxs[ idx[k] ];
+				itarray->Vtxs[ dupid ].U = avg_u;
+				idx[k] = dupid;
+				break;
+			}
+		}
 
 		float u0 = itarray->Vtxs[ idx[0] ].U;
 		float u1 = itarray->Vtxs[ idx[1] ].U;
