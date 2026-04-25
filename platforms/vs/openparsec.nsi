@@ -1,5 +1,5 @@
 ; The name of the installer
-Name "Open Parsec 0.3"
+Name "Open Parsec 0.4"
 
 ; The file to write
 OutFile "openparsec-installer.exe"
