@@ -33,8 +33,10 @@ WORKDIR /app
 COPY --from=builder /src/platforms/premake/build/client/parsec /app/parsec
 
 # game data the client loads on boot
-COPY parsec_root/ /app/parsec_root/
+# openparsec-assets/ is the working directory root (has gamedata/, cons/, etc.)
+# parsec_root/client/ holds a few extra loose files (planet data, etc.)
 COPY openparsec-assets/ /app/openparsec-assets/
+COPY parsec_root/client/ /app/openparsec-assets/
 
 # entrypoint — writes bot.con from env vars, then launches headless client
 COPY docker/entrypoint.sh /app/entrypoint.sh

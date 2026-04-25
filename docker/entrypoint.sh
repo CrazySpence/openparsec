@@ -10,4 +10,8 @@ clbot.server ${BOT_SERVER}
 clbot.start
 EOF
 
+# The parsec binary resolves gamedata/, cons/, etc. relative to its working
+# directory on Linux. Change into the assets root so it can find them.
+cd /app/openparsec-assets
+
 exec /app/parsec -b "$@"
