@@ -298,7 +298,7 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 		
 	// downing of ship starts explosion
 	if ( playerstatus->params[ 0 ] == SHIP_DOWNED ) {
-		
+
 		// exec gamecode when player ship is downed
 		GAMECODE ( GC_UnjoinPlayer_ShipDowned( playerstatus ) );
 
@@ -306,10 +306,10 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 		//FIXME: really ??????????????
 		// kill ship object
 		TheWorld->KillSpecificShipObject( m_nShipID );
-		
+
 		// user exit opens stargate and deletes ship
 	} else if ( playerstatus->params[ 0 ] == USER_EXIT ) {
-		
+
 		// exec gamecode when player exits to menu
 		GAMECODE ( GC_UnjoinPlayer_UserExit( playerstatus ) );
 
@@ -317,12 +317,17 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 		TheWorld->KillSpecificShipObject( m_nShipID );
 	}
 
+	// KillSpecificShipObject freed the ship object. Null m_pShip immediately so
+	// that G_Main::UnjoinPlayer (called next) cannot obtain a dangling pointer via
+	// GetShipObject() and pass it to WFX_EnsureParticleWeaponsInactive — that was
+	// the source of the EMP (and planet/missile) post-kill segfault.
+	m_pShip = NULL;
+
 	// unjoin the player in G_Main
 	TheGame->UnjoinPlayer( m_nClientID );
 
 	// signify that player is only connected, but not joined.
 	m_Status  = PLAYER_CONNECTED;
-	m_pShip   = NULL;
 	m_nShipID = SHIPID_NOSHIP;
 	m_objclass = -1;
 
