@@ -358,6 +358,12 @@ void G_CollDet::_CheckShipMissileCollision()
 
 			// collision response
 			_CollisionResponse_MissileShip( curmissile );
+
+			// If the ship was just killed (PerformUnjoin freed the ShipObject),
+			// stop checking further missiles against the dead ship.
+			if ( !TheSimulator->IsPlayerJoined( cur_ship_owner ) ) {
+				break;
+			}
 		}
 
 		cur_ship = nextship;
@@ -457,6 +463,13 @@ void G_CollDet::_CheckShipLaserCollision()
 
 			// collision response
 			_CollisionResponse_LaserShip( curlaser );
+
+			// If the ship was just killed (PerformUnjoin freed the ShipObject),
+			// stop checking further lasers against the dead ship.
+			// Accessing cur_ship after KillSpecificShipObject is use-after-free.
+			if ( !TheSimulator->IsPlayerJoined( cur_ship_owner ) ) {
+				break;
+			}
 		}
 
 		cur_ship = nextship;
