@@ -55,9 +55,9 @@
 
 // define current build number ------------------------------------------------
 //
-#define CLIENT_BUILD_NUMBER	"0300 (ver. 0.3)"
-#define SERVER_BUILD_NUMBER "0300 (ver. 0.3)"
-#define MASTER_BUILD_NUMBER "0300 (ver. 0.3)"
+#define CLIENT_BUILD_NUMBER	"0400 (ver. 0.4)"
+#define SERVER_BUILD_NUMBER "0400 (ver. 0.4)"
+#define MASTER_BUILD_NUMBER "0400 (ver. 0.4)"
 
 
 // determine that this is an internal only ( testing ) version ----------------
