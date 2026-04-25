@@ -479,8 +479,12 @@ void G_Main::UnjoinPlayer( int nClientID )
 	G_Player* pPlayer = &m_Players[ nClientID ];
 	int rc = m_CurJoinedPlayerList->Remove( pPlayer );
 	ShipObject* pShip = m_Players[nClientID].GetShipObject();
-    WFX_EnsureParticleWeaponsInactive(pShip); //Turn off all particle weapons when unjoined
-    ASSERT( rc );
+	// pShip may be NULL: PerformUnjoin clears m_pShip to NULL after
+	// KillSpecificShipObject so we never dereference freed ship memory here.
+	if ( pShip != NULL ) {
+		WFX_EnsureParticleWeaponsInactive(pShip); //Turn off all particle weapons when unjoined
+	}
+	ASSERT( rc );
 }
 
 
