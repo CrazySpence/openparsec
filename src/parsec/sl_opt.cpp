@@ -442,8 +442,10 @@ void SYSs_CheckCommandLine( int argc, char **argv )
 	srand(time(NULL));
 	int playerRand = rand() % 999 + 1;
 	
-	strncpy( LocalPlayerName,default_player_name,MAX_PLAYER_NAME );
-	sprintf(LocalPlayerName,"%s%d",LocalPlayerName,playerRand);
+	// Build "fragmeN" default name without aliasing source into destination.
+	// sprintf(buf, "%s%d", buf, n) triggers __sprintf_chk's slen==0 check on
+	// Ubuntu 22.04 because __builtin_object_size returns 0 for extern char[].
+	snprintf( LocalPlayerName, MAX_PLAYER_NAME + 1, "%s%d", default_player_name, playerRand );
 	LocalPlayerName[ MAX_PLAYER_NAME ] = 0;
 
 	// register default command line options
