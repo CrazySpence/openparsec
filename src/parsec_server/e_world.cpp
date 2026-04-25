@@ -1901,16 +1901,23 @@ int E_World::SWARM_Animate( callback_pcluster_s* cluster )
 			numactive--;
 #endif
             
+			// Save owner before damage call — PerformUnjoin may free walkships
+			int swarm_target_owner = GetObjectOwner( walkships );
+
 			TheGameCollDet->OBJ_ShipSwarmDamage( walkships, curparticle->owner );
-            
-			if ( walkships->CurDamage > walkships->MaxDamage ) {
+
+			// If the ship was killed, walkships is now freed — do not dereference it.
+			// A kill is the only path where IsPlayerJoined transitions to FALSE here.
+			if ( !TheSimulator->IsPlayerJoined( swarm_target_owner ) ) {
+				// Ship destroyed: shorten all swarm particle lifetimes to fade after explosion
 				for ( int ppid = 0; ppid < swarm->num; ppid++ ) {
-                    
+
 					refframe_t newlifetime = LIFETIME_AFTEREXPL + balance_rand( LIFETIME_VARIANCE );
-                    
+
 					if ( cluster->rep[ ppid ].lifetime >= newlifetime )
 						cluster->rep[ ppid ].lifetime = newlifetime;
 				}
+				break;  // stop checking further ships; walkships pointer is freed
 			}
 		}
 	}

@@ -1355,7 +1355,7 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 		cluster->rep[ pid ].flags &= ~PARTICLE_ACTIVE;
     	    
               switch ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) {
-                
+
                  case PARTICLE_IS_HELIX :
                  //   MSGOUT("G_CollDet::LinearParticleCollision(): Helix particle collision with player %d",GetObjectOwner( walkships ));
                     OBJ_ShipHelixDamage( walkships, owner );
@@ -1366,6 +1366,9 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
                  default:
                     break;
               }
+              // Particle hit one ship and is now deactivated. Stop iterating — avoids
+              // advancing walkships->NextObj if PerformUnjoin freed the ship above.
+              return;
        }
 }
 
