@@ -133,6 +133,7 @@ OBJECTS := \
 	$(OBJDIR)/debug.o \
 	$(OBJDIR)/e_modulemanager.o \
 	$(OBJDIR)/e_relist.o \
+	$(OBJDIR)/g_bot_common.o \
 	$(OBJDIR)/g_emp.o \
 	$(OBJDIR)/g_extra.o \
 	$(OBJDIR)/g_laser.o \
@@ -271,6 +272,9 @@ $(OBJDIR)/e_modulemanager.o: ../../../../src/libparsec/e_modulemanager.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/e_relist.o: ../../../../src/libparsec/e_relist.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/g_bot_common.o: ../../../../src/libparsec/g_bot_common.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_emp.o: ../../../../src/libparsec/g_emp.cpp
