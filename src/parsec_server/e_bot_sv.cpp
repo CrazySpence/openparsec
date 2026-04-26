@@ -59,7 +59,7 @@
 
 // initialise the bot for an already-connected/joined slot -------------------
 //
-void E_BotPlayer::Init( int nClientID, G_Player* pPlayer,
+void E_BotPlayer::Init( int nClientID, const char* name, G_Player* pPlayer,
                         E_SimClientState* pSimState, ShipObject* pShip )
 {
 	ASSERT( pPlayer   != NULL );
@@ -67,10 +67,13 @@ void E_BotPlayer::Init( int nClientID, G_Player* pPlayer,
 	ASSERT( pShip     != NULL );
 
 	m_nClientID   = nClientID;
+	strncpy( m_szName, name ? name : "bot", sizeof( m_szName ) - 1 );
+	m_szName[ sizeof( m_szName ) - 1 ] = '\0';
 	m_pPlayer     = pPlayer;
 	m_pSimState   = pSimState;
 	m_pShip       = pShip;
 	m_nAgentMode  = AGENTMODE_ATTACK;
+	m_fCurSpeed   = 0;
 	m_Goal.Reset();
 	memset( &m_oc, 0, sizeof( object_control_s ) );
 	m_oc.pShip    = pShip;
@@ -92,13 +95,25 @@ void E_BotPlayer::KeepAlive()
 //
 void E_BotPlayer::DoThink( refframe_t refframes )
 {
-	// refresh ship pointer (might have changed after a respawn)
 	E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( m_nClientID );
-	if ( pSPI == NULL || !pSPI->IsPlayerJoined() ) {
-		return;
+	if ( pSPI == NULL ) return;
+
+	// Respawn if the ship was destroyed (collision det calls PerformUnjoin on kill)
+	if ( !pSPI->IsPlayerJoined() ) {
+		pSPI->BotPerformJoin( m_szName );
+		m_pShip    = pSPI->GetShipObject();
+		m_fCurSpeed = 0;
+		m_Goal.Reset();
+		m_nAgentMode = AGENTMODE_ATTACK;
+		if ( m_pShip ) {
+			m_oc.pShip = m_pShip;
+			FetchTVector( m_pShip->ObjPosition, &m_AgentPos );
+		}
+		return;  // skip AI this tick; let the new ship settle
 	}
-	m_pShip       = pSPI->GetShipObject();
-	m_oc.pShip    = m_pShip;
+
+	m_pShip    = pSPI->GetShipObject();
+	m_oc.pShip = m_pShip;
 
 	if ( m_pShip == NULL ) return;
 
@@ -312,25 +327,25 @@ void E_BotPlayer::_GoalCheck_Retreat()
 //
 void E_BotPlayer::_ApplyControl( object_control_s* pObjctl, refframe_t refframes )
 {
-	ASSERT( pObjctl  != NULL );
-	ASSERT( m_pShip  != NULL );
+	ASSERT( pObjctl     != NULL );
+	ASSERT( m_pShip     != NULL );
 	ASSERT( m_pSimState != NULL );
 
-	bams_t  yaw   = 0;
-	bams_t  pitch = 0;
-	bams_t  roll  = 0;
-	fixed_t dspd  = 0;
+	// Rotation RATES (bams/refframe) — CalcNewState multiplies by CurSimRefFrames itself,
+	// so do NOT pre-multiply by refframes here.
+	bams_t yaw   = (bams_t)( pObjctl->rot_y * (float)m_pShip->YawPerRefFrame   );
+	bams_t pitch = (bams_t)( pObjctl->rot_x * (float)m_pShip->PitchPerRefFrame );
+	bams_t roll  = (bams_t)( pObjctl->rot_z * (float)m_pShip->RollPerRefFrame  );
 
-	if ( pObjctl->rot_y != 0.0f )
-		yaw   = (bams_t)( pObjctl->rot_y * m_pShip->YawPerRefFrame   * refframes );
-	if ( pObjctl->rot_x != 0.0f )
-		pitch = (bams_t)( pObjctl->rot_x * m_pShip->PitchPerRefFrame * refframes );
-	if ( pObjctl->rot_z != 0.0f )
-		roll  = (bams_t)( pObjctl->rot_z * m_pShip->RollPerRefFrame  * refframes );
-	if ( pObjctl->accel != 0.0f )
-		dspd  = (fixed_t)( pObjctl->accel * m_pShip->SpeedIncPerRefFrame * refframes );
+	// Absolute speed — bot accumulates it (sim carries speed as an absolute value,
+	// not a delta, so we must track it ourselves between think ticks).
+	if ( pObjctl->accel != 0.0f ) {
+		m_fCurSpeed += (fixed_t)( pObjctl->accel * (float)m_pShip->SpeedIncPerRefFrame * (float)refframes );
+		if ( m_fCurSpeed < 0 )                    m_fCurSpeed = 0;
+		if ( m_fCurSpeed > m_pShip->MaxSpeed )    m_fCurSpeed = m_pShip->MaxSpeed;
+	}
 
-	m_pSimState->ApplyBotInput( yaw, pitch, roll, dspd, m_pShip->MaxSpeed );
+	m_pSimState->ApplyBotInput( yaw, pitch, roll, m_fCurSpeed, m_pShip->MaxSpeed );
 }
 
 
@@ -487,7 +502,7 @@ bool E_BotManager::AddBot( const char* name )
 	ShipObject* pShip = pSPI->GetShipObject();
 	ASSERT( pShip != NULL );
 
-	m_Bots[ m_nNumBots ].Init( nClientID, pPlayer, pSimState, pShip );
+	m_Bots[ m_nNumBots ].Init( nClientID, name, pPlayer, pSimState, pShip );
 	m_nNumBots++;
 
 	MSGOUT( "E_BotManager: added bot '%s' (slot %d), total bots: %d", name, nClientID, m_nNumBots );

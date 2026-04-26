@@ -183,9 +183,10 @@ public:
 	E_SimShipState* GetCurSimFrameStateSlot();
 	E_SimShipState* GetPrevSimFrameStateSlot();
 
-	// Apply incremental bot input deltas to the sim input state (server-side bots only).
-	// Clamps speed to [0, maxSpeed].
-	void ApplyBotInput( bams_t yaw, bams_t pitch, bams_t roll, fixed_t speedDelta, fixed_t maxSpeed );
+	// Set bot movement for this think tick (server-side bots only).
+	// yaw/pitch/roll are RATES in bams/refframe (CalcNewState multiplies by CurSimRefFrames).
+	// speed is the ABSOLUTE current speed (bot manages accumulation; clamped to maxSpeed).
+	void ApplyBotInput( bams_t yaw, bams_t pitch, bams_t roll, fixed_t speed, fixed_t maxSpeed );
 
 	// set the client resync flag ( RE_PLAYERANDSHIPSTATUS for this client sent from server to client )
 	void SetClientResync() { m_ResyncClient = TRUE; }

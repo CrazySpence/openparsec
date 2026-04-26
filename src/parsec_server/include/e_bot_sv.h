@@ -66,6 +66,12 @@ protected:
 	object_control_s          m_oc;
 	Vector3                   m_AgentPos;
 
+	// bot name (for respawn)
+	char    m_szName[ 32 ];
+
+	// current tracked speed (fixed_t, managed by bot since sim state carries absolute speed)
+	fixed_t m_fCurSpeed;
+
 	// weapon / targeting state
 	dword   m_nTargetObjNumber;    // HostObjNumber of current target
 	int     m_nCurLauncher;        // barrel counter (mirrors G_Player::m_CurLauncher)
@@ -83,6 +89,7 @@ public:
 		, m_pSimState( NULL )
 		, m_pShip( NULL )
 		, m_nAgentMode( AGENTMODE_ATTACK )
+		, m_fCurSpeed( 0 )
 		, m_nTargetObjNumber( 0 )
 		, m_nCurLauncher( 0 )
 		, m_fFireDelay( 0.0f )
@@ -90,10 +97,11 @@ public:
 		, m_fEMPDelay( 0.0f )
 	{
 		memset( &m_oc, 0, sizeof( object_control_s ) );
+		memset( m_szName, 0, sizeof( m_szName ) );
 	}
 
 	// initialise the bot for a connected + joined player slot
-	void Init( int nClientID, G_Player* pPlayer, E_SimClientState* pSimState, ShipObject* pShip );
+	void Init( int nClientID, const char* name, G_Player* pPlayer, E_SimClientState* pSimState, ShipObject* pShip );
 
 	// run one AI tick
 	void DoThink( refframe_t refframes );
