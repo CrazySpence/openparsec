@@ -177,6 +177,7 @@ OBJECTS := \
 	$(OBJDIR)/con_main_sv.o \
 	$(OBJDIR)/con_std.o \
 	$(OBJDIR)/e_colldet_sv.o \
+	$(OBJDIR)/e_bot_sv.o \
 	$(OBJDIR)/e_connmanager.o \
 	$(OBJDIR)/e_gameserver.o \
 	$(OBJDIR)/e_global_sv.o \
@@ -399,6 +400,9 @@ $(OBJDIR)/con_std.o: ../../../../src/libparsec/con_std.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/e_colldet_sv.o: ../../../../src/parsec_server/e_colldet_sv.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/e_bot_sv.o: ../../../../src/parsec_server/e_bot_sv.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/e_connmanager.o: ../../../../src/parsec_server/e_connmanager.cpp

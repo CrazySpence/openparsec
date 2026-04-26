@@ -112,6 +112,7 @@ OBJECTS := \
 	$(OBJDIR)/con_list.o \
 	$(OBJDIR)/e_world.o \
 	$(OBJDIR)/con_main_sv.o \
+	$(OBJDIR)/e_bot_sv.o \
 	$(OBJDIR)/e_connmanager.o \
 	$(OBJDIR)/g_stgate_sv.o \
 	$(OBJDIR)/e_simnetinput.o \
@@ -327,6 +328,9 @@ $(OBJDIR)/e_world.o: ../../../../src/parsec_server/e_world.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/con_main_sv.o: ../../../../src/parsec_server/con_main_sv.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/e_bot_sv.o: ../../../../src/parsec_server/e_bot_sv.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/e_connmanager.o: ../../../../src/parsec_server/e_connmanager.cpp
