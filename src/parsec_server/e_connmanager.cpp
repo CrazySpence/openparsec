@@ -468,10 +468,14 @@ int E_ConnManager::_NotifyClientDisconnected( int nSlotDisconnected )
 	// only send, if more than 1 connected
 	if ( m_nNumConnected > 1 ) {
 		for( int nSlot = 0; nSlot < MAX_NUM_CLIENTS; nSlot++ ) {
-			
-			// do not send to same client AND do not send to unconnected slots
-			if ( ( nSlot != nSlotDisconnected ) && !m_ClientInfos[ nSlot ].IsSlotFree() ) {
-				
+
+			// do not send to same client, unconnected slots, or server-internal
+			// bots (they have no network stream; sending to their zeroed node
+			// would write to a null address)
+			if ( ( nSlot != nSlotDisconnected ) &&
+			     !m_ClientInfos[ nSlot ].IsSlotFree() &&
+			     !m_ClientInfos[ nSlot ].IsBot() ) {
+
 				// send the notification
 				ThePacketHandler->SendNotifyDisconnected( nSlot, nSlotDisconnected );
 			}
@@ -631,6 +635,20 @@ int E_ConnManager::ConnectBotClient( const char* name )
 			TheGame->ConnectPlayer( nClientID );
 
 			m_nNumConnected++;
+
+			// Notify all already-connected REAL clients about this new bot slot.
+			// _NotifyClientConnected() sends both directions; skip it because
+			// the bot has no network stream (m_node is zeroed) — sending
+			// SendNotifyConnected(botSlot, otherSlot) would write to a null node.
+			// Only the outbound direction matters: tell real clients the slot
+			// exists so their Player_Status[botSlot] advances from PLAYER_INACTIVE,
+			// allowing subsequent PNSS(PLAYER_JOINED) packets to be processed.
+			for ( int nSlot = 0; nSlot < MAX_NUM_CLIENTS; nSlot++ ) {
+				E_ClientInfo* pOther = &m_ClientInfos[ nSlot ];
+				if ( !pOther->IsSlotFree() && nSlot != nClientID && !pOther->IsBot() ) {
+					ThePacketHandler->SendNotifyConnected( nSlot, nClientID );
+				}
+			}
 
 			MSGOUT( "ConnectBotClient(): bot '%s' connected in slot %d", name, nClientID );
 			return nClientID;
