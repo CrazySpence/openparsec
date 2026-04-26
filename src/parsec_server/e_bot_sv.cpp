@@ -48,9 +48,14 @@
 #include "e_connmanager.h"
 #include "e_simulator.h"
 #include "e_gameserver.h"
+#include "sys_refframe_sv.h"
 #include "g_player.h"
 #include "g_main_sv.h"
 #include "e_world_trans.h"		// FetchFirstShip, FetchFirstExtra
+
+
+// bot respawn delay after death (refframes; FRAME_MEASURE_TIMEBASE = 600/sec)
+#define BOT_RESPAWN_DELAY_REFFRAMES  ( FRAME_MEASURE_TIMEBASE * 5 )   // 5 seconds
 
 
 // ---------------------------------------------------------------------------
@@ -98,19 +103,40 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 	E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( m_nClientID );
 	if ( pSPI == NULL ) return;
 
-	// Respawn if the ship was destroyed (collision det calls PerformUnjoin on kill)
+	// Respawn after a delay when the ship has been destroyed.
 	if ( !pSPI->IsPlayerJoined() ) {
+		refframe_t now = SYSs_GetRefFrameCount();
+
+		if ( m_DeathRefFrame == 0 ) {
+			// Record the time of death on the first tick we notice the unjoin.
+			m_DeathRefFrame = now;
+			if ( m_bDebug )
+				MSGOUT( "BOT[%d] died — will respawn in %d s",
+				        m_nClientID, BOT_RESPAWN_DELAY_REFFRAMES / FRAME_MEASURE_TIMEBASE );
+		}
+
+		if ( ( now - m_DeathRefFrame ) < BOT_RESPAWN_DELAY_REFFRAMES ) {
+			// Still waiting out the respawn delay.
+			return;
+		}
+
+		// Delay elapsed — respawn now.
 		pSPI->BotPerformJoin( m_szName );
-		m_pShip    = pSPI->GetShipObject();
-		m_fCurSpeed = 0;
+		m_pShip       = pSPI->GetShipObject();
+		m_fCurSpeed   = 0;
+		m_DeathRefFrame = 0;
 		m_Goal.Reset();
-		m_nAgentMode = AGENTMODE_ATTACK;
+		m_nAgentMode  = AGENTMODE_ATTACK;
 		if ( m_pShip ) {
 			m_oc.pShip = m_pShip;
 			FetchTVector( m_pShip->ObjPosition, &m_AgentPos );
 		}
+		if ( m_bDebug )
+			MSGOUT( "BOT[%d] respawned", m_nClientID );
 		return;  // skip AI this tick; let the new ship settle
 	}
+	// Bot is alive — clear death timer if it somehow lingered.
+	m_DeathRefFrame = 0;
 
 	m_pShip    = pSPI->GetShipObject();
 	m_oc.pShip = m_pShip;
@@ -140,23 +166,25 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 		return;
 	}
 
-	// Debug: log bot state every ~2 seconds (think rate * ~66 ticks ≈ 2 s at 10 Hz think)
-	static int s_dbgCounter = 0;
-	if ( ++s_dbgCounter >= 20 ) {
-		s_dbgCounter = 0;
-		static const char* kModeNames[] = { "?", "IDLE", "POWERUP", "ATTACK", "RETREAT" };
-		const char* modeName = ( m_nAgentMode >= 1 && m_nAgentMode <= 4 )
-		                        ? kModeNames[ m_nAgentMode ] : "?";
-		Vector3* pGoal = m_Goal.GetGoalPosition();
-		MSGOUT( "BOT[%d] %s  pos(%.0f,%.0f,%.0f)  goal(%.0f,%.0f,%.0f)  "
-		        "spd=%.0f  hp=%d/%d  msl=%d  nrg=%.0f/%.0f",
-		        m_nClientID, modeName,
-		        m_AgentPos.X, m_AgentPos.Y, m_AgentPos.Z,
-		        pGoal->X, pGoal->Y, pGoal->Z,
-		        FIXED_TO_FLOAT( m_fCurSpeed ),
-		        m_pShip->CurDamage, m_pShip->MaxDamage,
-		        m_pShip->NumHomMissls,
-		        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
+	// Debug: log bot state every ~2 seconds when debug is enabled
+	if ( m_bDebug ) {
+		m_nDebugCounter++;
+		if ( m_nDebugCounter >= 20 ) {
+			m_nDebugCounter = 0;
+			static const char* kModeNames[] = { "?", "IDLE", "POWERUP", "ATTACK", "RETREAT" };
+			const char* modeName = ( m_nAgentMode >= 1 && m_nAgentMode <= 4 )
+			                        ? kModeNames[ m_nAgentMode ] : "?";
+			Vector3* pGoal = m_Goal.GetGoalPosition();
+			MSGOUT( "BOT[%d] %s  pos(%.0f,%.0f,%.0f)  goal(%.0f,%.0f,%.0f)  "
+			        "spd=%.0f  hp=%d/%d  msl=%d  nrg=%.0f/%.0f",
+			        m_nClientID, modeName,
+			        m_AgentPos.X, m_AgentPos.Y, m_AgentPos.Z,
+			        pGoal->X, pGoal->Y, pGoal->Z,
+			        FIXED_TO_FLOAT( m_fCurSpeed ),
+			        m_pShip->CurDamage, m_pShip->MaxDamage,
+			        m_pShip->NumHomMissls,
+			        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
+		}
 	}
 
 	// steer toward goal
@@ -180,19 +208,19 @@ void E_BotPlayer::_DoPlan()
 	agentmode_t prevMode = m_nAgentMode;
 
 	if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * SV_BOT_REPAIR_LEVEL ) ) {
-		m_nAgentMode = AGENTMODE_RETREAT;
-		if ( m_nAgentMode != prevMode )
+		if ( m_bDebug && m_nAgentMode != AGENTMODE_RETREAT )
 			MSGOUT( "BOT[%d] plan: RETREAT (damage %d / max %d)",
 			        m_nClientID,
 			        m_pShip->CurDamage, m_pShip->MaxDamage );
+		m_nAgentMode = AGENTMODE_RETREAT;
 		return;
 	}
 	if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_LEVEL ) ) {
-		m_nAgentMode = AGENTMODE_RETREAT;
-		if ( m_nAgentMode != prevMode )
+		if ( m_bDebug && m_nAgentMode != AGENTMODE_RETREAT )
 			MSGOUT( "BOT[%d] plan: RETREAT (energy %.0f / max %.0f)",
 			        m_nClientID,
 			        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
+		m_nAgentMode = AGENTMODE_RETREAT;
 		return;
 	}
 	// Note: no retreat for msl=0 — bots fight with lasers/EMP when out of missiles.
@@ -201,26 +229,27 @@ void E_BotPlayer::_DoPlan()
 	if ( TheGame->GetNumJoined() > 1 ) {
 		ShipObject* pTarget = _SelectAttackTarget();
 		if ( pTarget != NULL ) {
-			if ( m_nAgentMode != AGENTMODE_ATTACK )
+			if ( m_bDebug && m_nAgentMode != AGENTMODE_ATTACK )
 				MSGOUT( "BOT[%d] plan: ATTACK (target ObjId %u, joined=%d)",
 				        m_nClientID, pTarget->HostObjNumber,
 				        TheGame->GetNumJoined() );
 			m_nAgentMode = AGENTMODE_ATTACK;
 			return;
 		}
-		MSGOUT( "BOT[%d] plan: joined=%d but _SelectAttackTarget returned NULL",
-		        m_nClientID, TheGame->GetNumJoined() );
+		if ( m_bDebug )
+			MSGOUT( "BOT[%d] plan: joined=%d but _SelectAttackTarget returned NULL",
+			        m_nClientID, TheGame->GetNumJoined() );
 	}
 
 	// look for powerups
 	ExtraObject* pExtra = FetchFirstExtra();
 	if ( pExtra != NULL ) {
-		if ( m_nAgentMode != AGENTMODE_POWERUP )
+		if ( m_bDebug && m_nAgentMode != AGENTMODE_POWERUP )
 			MSGOUT( "BOT[%d] plan: POWERUP (first extra ObjType=%d)",
 			        m_nClientID, pExtra->ObjectType );
 		m_nAgentMode = AGENTMODE_POWERUP;
 	} else {
-		if ( m_nAgentMode != AGENTMODE_IDLE )
+		if ( m_bDebug && m_nAgentMode != AGENTMODE_IDLE )
 			MSGOUT( "BOT[%d] plan: IDLE (no targets, no extras)", m_nClientID );
 		m_nAgentMode = AGENTMODE_IDLE;
 	}
@@ -352,7 +381,8 @@ void E_BotPlayer::_GoalCheck_Retreat()
 		if ( pObject == NULL ) {
 			// No suitable powerup found — hold position rather than steering
 			// toward the default (0,0,0) goal.  Re-plan to attack if possible.
-			MSGOUT( "BOT[%d] RETREAT: no suitable extra found, holding position", m_nClientID );
+			if ( m_bDebug )
+				MSGOUT( "BOT[%d] RETREAT: no suitable extra found, holding position", m_nClientID );
 			_DoPlan();
 			if ( m_nAgentMode == AGENTMODE_RETREAT )
 				m_nAgentMode = AGENTMODE_IDLE;   // don't steer to origin
@@ -615,8 +645,25 @@ void E_BotManager::Tick( refframe_t refframes )
 }
 
 
+// enable / disable debug output for a bot by client slot --------------------
+//
+bool E_BotManager::SetBotDebug( int nClientID, bool b )
+{
+	for ( int i = 0; i < m_nNumBots; i++ ) {
+		if ( m_Bots[ i ].GetClientID() == nClientID ) {
+			m_Bots[ i ].SetDebug( b );
+			MSGOUT( "E_BotManager: debug %s for bot in slot %d",
+			        b ? "enabled" : "disabled", nClientID );
+			return true;
+		}
+	}
+	MSGOUT( "E_BotManager::SetBotDebug(): no bot found in slot %d", nClientID );
+	return false;
+}
+
+
 // ---------------------------------------------------------------------------
-// Console commands: sv.bot.add <name>  /  sv.bot.remove <slot>
+// Console commands: sv.bot.add <name>  /  sv.bot.remove <slot>  /  sv.bot.debug <slot> <1/0>
 // ---------------------------------------------------------------------------
 
 // defined in e_gameserver.cpp so TheServer is accessible
@@ -668,6 +715,27 @@ int Cmd_SVBOT_REMOVE( char* pszSlot )
 }
 
 
+PRIVATE
+int Cmd_SVBOT_DEBUG( char* pszArgs )
+{
+	ASSERT( pszArgs != NULL );
+	HANDLE_COMMAND_DOMAIN_SEP( pszArgs );
+
+	int slot = -1, enable = -1;
+	if ( sscanf( pszArgs, " %d %d", &slot, &enable ) != 2 || slot < 0 || ( enable != 0 && enable != 1 ) ) {
+		CON_AddLine( "usage: sv.bot.debug <slot> <1/0>" );
+		return TRUE;
+	}
+
+	if ( SV_GetBotManager()->SetBotDebug( slot, enable != 0 ) ) {
+		CON_AddLine( enable ? "bot debug enabled." : "bot debug disabled." );
+	} else {
+		CON_AddLine( "no bot found in that slot." );
+	}
+	return TRUE;
+}
+
+
 // register server bot console commands (called from E_GameServer::Init) -----
 //
 void SV_BotManager_RegisterCommands()
@@ -684,6 +752,12 @@ void SV_BotManager_RegisterCommands()
 	regcom.command   = "sv.bot.remove";
 	regcom.numparams = 1;
 	regcom.execute   = Cmd_SVBOT_REMOVE;
+	regcom.statedump = NULL;
+	CON_RegisterUserCommand( &regcom );
+
+	regcom.command   = "sv.bot.debug";
+	regcom.numparams = 1;
+	regcom.execute   = Cmd_SVBOT_DEBUG;
 	regcom.statedump = NULL;
 	CON_RegisterUserCommand( &regcom );
 }
