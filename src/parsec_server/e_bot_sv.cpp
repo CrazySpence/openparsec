@@ -182,15 +182,9 @@ void E_BotPlayer::_DoPlan()
 	if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * SV_BOT_REPAIR_LEVEL ) ) {
 		m_nAgentMode = AGENTMODE_RETREAT;
 		if ( m_nAgentMode != prevMode )
-			MSGOUT( "BOT[%d] plan: RETREAT (damage %.0f%% / max %.0f%%)",
+			MSGOUT( "BOT[%d] plan: RETREAT (damage %d / max %d)",
 			        m_nClientID,
-			        (float)m_pShip->CurDamage, (float)m_pShip->MaxDamage );
-		return;
-	}
-	if ( m_pShip->NumHomMissls < 1 ) {
-		m_nAgentMode = AGENTMODE_RETREAT;
-		if ( m_nAgentMode != prevMode )
-			MSGOUT( "BOT[%d] plan: RETREAT (no homing missiles)", m_nClientID );
+			        m_pShip->CurDamage, m_pShip->MaxDamage );
 		return;
 	}
 	if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_LEVEL ) ) {
@@ -201,6 +195,7 @@ void E_BotPlayer::_DoPlan()
 			        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
 		return;
 	}
+	// Note: no retreat for msl=0 — bots fight with lasers/EMP when out of missiles.
 
 	// if there are other joined players, attack one
 	if ( TheGame->GetNumJoined() > 1 ) {
@@ -355,7 +350,12 @@ void E_BotPlayer::_GoalCheck_Retreat()
 		}
 
 		if ( pObject == NULL ) {
+			// No suitable powerup found — hold position rather than steering
+			// toward the default (0,0,0) goal.  Re-plan to attack if possible.
+			MSGOUT( "BOT[%d] RETREAT: no suitable extra found, holding position", m_nClientID );
 			_DoPlan();
+			if ( m_nAgentMode == AGENTMODE_RETREAT )
+				m_nAgentMode = AGENTMODE_IDLE;   // don't steer to origin
 			return;
 		}
 
