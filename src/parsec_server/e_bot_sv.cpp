@@ -369,7 +369,7 @@ void E_BotPlayer::_GoalCheck_Attack()
 			}
 		}
 		if ( len < 100.0f && m_fEMPDelay <= 0.0f ) {
-			m_pPlayer->FireEMP( 0 );
+			m_pPlayer->FireEMP( 0, true );  // true = multicast RE_CreateEmp so clients see the blast
 			m_fEMPDelay = 1.0f;
 		}
 	}
