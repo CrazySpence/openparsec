@@ -173,8 +173,8 @@ public:
 
 	~E_BotManager() { delete[] m_Bots; }
 
-	// add a bot with the given name; returns true on success
-	bool AddBot( const char* name );
+	// add a bot with the given name; shipClassIdx = -1 picks randomly.
+	bool AddBot( const char* name, int shipClassIdx = -1 );
 
 	// remove all bots in the given client slot
 	bool RemoveBot( int nClientID );

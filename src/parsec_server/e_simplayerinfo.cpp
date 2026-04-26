@@ -380,15 +380,20 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 
 // join a server-internal bot (skips all network operations) -----------------
 //
-void E_SimPlayerInfo::BotPerformJoin( const char* name )
+void E_SimPlayerInfo::BotPerformJoin( const char* name, int shipClassIdx )
 {
 	ASSERT( name != NULL );
 	ASSERT( m_Status == PLAYER_CONNECTED );
 	ASSERT( m_nShipID == SHIPID_NOSHIP );
 	ASSERT( m_pShip   == NULL );
 
-	// use the first available ship class (index 0)
-	m_objclass = ShipClasses[ 0 ];
+	// Resolve ship class: -1 means random.
+	if ( shipClassIdx < 0 || shipClassIdx >= NumShipClasses ) {
+		shipClassIdx = ( NumShipClasses > 1 )
+		               ? ( rand() % NumShipClasses )
+		               : 0;
+	}
+	m_objclass = ShipClasses[ shipClassIdx ];
 	ASSERT( (dword)m_objclass != CLASS_ID_INVALID );
 
 	// fetch sim state for this slot and compute a spawn position
