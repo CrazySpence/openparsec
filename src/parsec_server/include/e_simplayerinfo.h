@@ -48,8 +48,9 @@ public:
 	// set the player status to disconnected
 	void Disconnect();
 
-	// join a server-internal bot (skips all network ops)
-	void BotPerformJoin( const char* name );
+	// join a server-internal bot (skips all network ops).
+	// shipClassIdx: index into ShipClasses[]; -1 = pick randomly.
+	void BotPerformJoin( const char* name, int shipClassIdx = -1 );
 
 	// set flag to ignore all joins until we get an unjoin from the client
 	void IgnoreJoinUntilUnjoinFromClient()

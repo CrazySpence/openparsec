@@ -52,6 +52,7 @@
 #include "g_player.h"
 #include "g_main_sv.h"
 #include "e_world_trans.h"		// FetchFirstShip, FetchFirstExtra
+#include "obj_creg.h"			// ShipClasses, NumShipClasses
 
 
 // bot respawn delay after death (refframes; FRAME_MEASURE_TIMEBASE = 600/sec)
@@ -608,7 +609,7 @@ ExtraObject* E_BotPlayer::_SelectMissileObject()
 
 // add a new bot with the given name -----------------------------------------
 //
-bool E_BotManager::AddBot( const char* name )
+bool E_BotManager::AddBot( const char* name, int shipClassIdx )
 {
 	ASSERT( name != NULL );
 
@@ -619,10 +620,10 @@ bool E_BotManager::AddBot( const char* name )
 		return false;
 	}
 
-	// perform the in-world join
+	// perform the in-world join (shipClassIdx=-1 → random inside BotPerformJoin)
 	E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( nClientID );
 	ASSERT( pSPI != NULL );
-	pSPI->BotPerformJoin( name );
+	pSPI->BotPerformJoin( name, shipClassIdx );
 
 	if ( !pSPI->IsPlayerJoined() ) {
 		MSGOUT( "E_BotManager::AddBot(): BotPerformJoin failed for '%s'", name );
@@ -724,21 +725,61 @@ extern E_BotManager* SV_GetBotManager();
 
 
 PRIVATE
-int Cmd_SVBOT_ADD( char* pszName )
+int Cmd_SVBOT_ADD( char* pszArgs )
 {
-	ASSERT( pszName != NULL );
-	HANDLE_COMMAND_DOMAIN_SEP( pszName );
+	ASSERT( pszArgs != NULL );
+	HANDLE_COMMAND_DOMAIN_SEP( pszArgs );
 
 	// trim leading whitespace
-	while ( *pszName == ' ' ) pszName++;
+	while ( *pszArgs == ' ' ) pszArgs++;
 
-	if ( *pszName == '\0' ) {
-		CON_AddLine( "usage: sv.bot.add <name>" );
+	if ( *pszArgs == '\0' ) {
+		CON_AddLine( "usage: sv.bot.add <name> [ship]" );
+		CON_AddLine( "  ship: 0-based index or omit for random" );
+		// list available ship classes
+		char linebuf[ 128 ];
+		for ( int i = 0; i < NumShipClasses; i++ ) {
+			snprintf( linebuf, sizeof(linebuf), "  %d: %s",
+			          i, ObjectInfo[ ShipClasses[ i ] ].name );
+			CON_AddLine( linebuf );
+		}
 		return TRUE;
 	}
 
-	if ( SV_GetBotManager()->AddBot( pszName ) ) {
-		CON_AddLine( "bot added." );
+	// split on the last space: everything before is name, after is optional ship index
+	char name[ 64 ] = {};
+	int  shipIdx    = -1;   // -1 = random
+
+	// find the last space-separated token and try to parse it as a number
+	char* pLastSpace = strrchr( pszArgs, ' ' );
+	if ( pLastSpace != NULL && pLastSpace != pszArgs ) {
+		char* pShipArg = pLastSpace + 1;
+		char* pEnd     = NULL;
+		long  val      = strtol( pShipArg, &pEnd, 10 );
+		if ( pEnd != pShipArg && *pEnd == '\0' && val >= 0 && val < NumShipClasses ) {
+			// valid index — split name here
+			int nameLen = (int)( pLastSpace - pszArgs );
+			if ( nameLen >= (int)sizeof(name) ) nameLen = (int)sizeof(name) - 1;
+			strncpy( name, pszArgs, nameLen );
+			name[ nameLen ] = '\0';
+			shipIdx = (int)val;
+		}
+	}
+	if ( name[ 0 ] == '\0' ) {
+		// no valid ship token — whole arg is the name
+		strncpy( name, pszArgs, sizeof(name) - 1 );
+		name[ sizeof(name) - 1 ] = '\0';
+	}
+
+	if ( SV_GetBotManager()->AddBot( name, shipIdx ) ) {
+		char msg[ 80 ];
+		if ( shipIdx >= 0 ) {
+			snprintf( msg, sizeof(msg), "bot added (ship: %s).",
+			          ObjectInfo[ ShipClasses[ shipIdx ] ].name );
+		} else {
+			snprintf( msg, sizeof(msg), "bot added." );
+		}
+		CON_AddLine( msg );
 	} else {
 		CON_AddLine( "failed to add bot (server full?)." );
 	}
