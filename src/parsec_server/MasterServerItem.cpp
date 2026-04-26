@@ -78,13 +78,15 @@ MasterServerItem::MasterServerItem() {
 }
 MasterServerItem::MasterServerItem(int SrvID, int CurrPlayers, int MaxPlayers,
 		int PMajor, int PMinor, char ServerName[MAX_SERVER_NAME + 1],
-		char OS[MAX_OSNAME_LEN + 1], node_t *node) {
+		char OS[MAX_OSNAME_LEN + 1], node_t *node, int xpos, int ypos) {
 
 		_SrvID = SrvID;
 		_CurrPlayers = CurrPlayers;
 		_MaxPlayers = MaxPlayers;
 		_PMajor = PMajor;
 		_PMinor = PMinor;
+		_xpos = xpos;
+		_ypos = ypos;
 		strncpy(_ServerName, ServerName, MAX_SERVER_NAME);
 		_ServerName[MAX_SERVER_NAME] = '\0';
 		strncpy(_OS, OS, MAX_OSNAME_LEN);
@@ -100,13 +102,15 @@ MasterServerItem::~MasterServerItem() {
 
 bool MasterServerItem::update(int SrvID, int CurrPlayers, int MaxPlayers,
 		int PMajor, int PMinor, char ServerName[MAX_SERVER_NAME + 1],
-		char OS[MAX_OSNAME_LEN + 1], node_t *node) {
+		char OS[MAX_OSNAME_LEN + 1], node_t *node, int xpos, int ypos) {
 
 	_SrvID = SrvID;
 	_CurrPlayers = CurrPlayers;
 	_MaxPlayers = MaxPlayers;
 	_PMajor = PMajor;
 	_PMinor = PMinor;
+	_xpos = xpos;
+	_ypos = ypos;
 	SAFE_STR_DUPLICATE(_ServerName, ServerName, MAX_SERVER_NAME-1);
 	_ServerName[MAX_SERVER_NAME] = '\0';
 	SAFE_STR_DUPLICATE(_OS, OS, MAX_OSNAME_LEN-1);
@@ -208,7 +212,9 @@ MasterServerItem::MasterServerItem(const MasterServerItem& msi_copy) :
 			 _CurrPlayers (msi_copy._CurrPlayers),
 			 _MaxPlayers (msi_copy._MaxPlayers),
 			 _PMajor (msi_copy._PMajor),
-			 _PMinor (msi_copy._PMinor)
+			 _PMinor (msi_copy._PMinor),
+			 _xpos (msi_copy._xpos),
+			 _ypos (msi_copy._ypos)
 {
 	strncpy(_ServerName, msi_copy._ServerName, MAX_SERVER_NAME);
 	_ServerName[MAX_SERVER_NAME]='\0';
@@ -222,4 +228,12 @@ int MasterServerItem::GetNode(node_t* node) {
 	NODE_Copy(node, &_Node);
 
 	return true;
+}
+
+int MasterServerItem::GetXPos() {
+	return _xpos;
+}
+
+int MasterServerItem::GetYPos() {
+	return _ypos;
 }

@@ -15,11 +15,11 @@
 class MasterServerItem {
 public:
 	MasterServerItem();
-	MasterServerItem(int SrvID, int CurrPlayers, int MaxPlayers, int PMajor, int PMinor, char ServerName[ MAX_SERVER_NAME + 1 ], char OS[MAX_OSNAME_LEN + 1 ], node_t *node);
+	MasterServerItem(int SrvID, int CurrPlayers, int MaxPlayers, int PMajor, int PMinor, char ServerName[ MAX_SERVER_NAME + 1 ], char OS[MAX_OSNAME_LEN + 1 ], node_t *node, int xpos = 0, int ypos = 0);
 	MasterServerItem(const MasterServerItem& msi_copy);
 	virtual ~MasterServerItem();
 
-	bool update(int SrvID, int CurrPlayers, int MaxPlayers, int PMajor, int PMinor, char ServerName[ MAX_SERVER_NAME + 1 ], char OS[MAX_OSNAME_LEN + 1 ], node_t *node);
+	bool update(int SrvID, int CurrPlayers, int MaxPlayers, int PMajor, int PMinor, char ServerName[ MAX_SERVER_NAME + 1 ], char OS[MAX_OSNAME_LEN + 1 ], node_t *node, int xpos = 0, int ypos = 0);
 	bool remove();
 
 	bool operator < (const MasterServerItem &msl) const;
@@ -36,6 +36,8 @@ public:
 	int GetServerName(char *buffer, int buffer_sz);
 	int GetOS(char *buffer, int buffer_sz);
 	int GetNode(node_t *node);
+	int GetXPos();
+	int GetYPos();
 	time_t GetMTime();
 
 private:
@@ -44,6 +46,8 @@ private:
 	int _MaxPlayers;
 	int _PMajor;
 	int _PMinor;
+	int _xpos;
+	int _ypos;
 	time_t _MTime;
 	char _ServerName[ MAX_SERVER_NAME + 1 ];
 	char _OS[MAX_OSNAME_LEN + 1 ];

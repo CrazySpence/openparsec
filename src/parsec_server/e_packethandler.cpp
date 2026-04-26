@@ -1154,8 +1154,8 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 	}
 
 	// resolved host name, let's see if they sent us a port
-	ident_str = strtok( NULL, " ");// skip a field, as it should just denote "p" for the server port
-	// FIXME: Check to make sure this is "p" for proper packet structure maybe?
+	ident_str = strtok( NULL, " ");// skip a field, as it should just denote "pt" for the server port
+	// FIXME: Check to make sure this is "pt" for proper packet structure maybe?
 	if(ident_str == NULL) {
 		// null here means they didn't denote a port.  Let's use the default
 		// one
@@ -1176,6 +1176,21 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 		}
 	}
 
+	// parse optional x/y starmap position (added in later protocol versions)
+	int map_xpos = ServerID;   // default: use server ID as position (legacy behaviour)
+	int map_ypos = ServerID;
+	ident_str = strtok( NULL, " " ); // skip "x" label
+	if ( ident_str != NULL ) {
+		ident_str = strtok( NULL, " " );
+		if ( ident_str != NULL )
+			map_xpos = atoi( ident_str );
+		ident_str = strtok( NULL, " " ); // skip "y" label
+		if ( ident_str != NULL ) {
+			ident_str = strtok( NULL, " " );
+			if ( ident_str != NULL )
+				map_ypos = atoi( ident_str );
+		}
+	}
 
 	// check to see if the server already exists in the ServerList.  If so, update it.  If not, add it.
 	// if the info doesn't match, ignore the packet
@@ -1193,7 +1208,7 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 			it->GetNode(&node_ck);
 			if(NODE_AreSame(&node_ck, &_Node)){
 				// they are the same, so update the record in the server list
-				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node);
+				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos);
 				return TRUE;
 			} else {
 				// if we get here, the requested ServerID exists, but the node address
@@ -1214,7 +1229,9 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 			 PMinor,
 			 ServerName,
 			 OS,
-			 &_Node ));
+			 &_Node,
+			 map_xpos,
+			 map_ypos ));
 	MSGOUT("Added new server %s\n", ServerName);
 	// if we get this far, we should have successfully parsed the packet.  So return true.
 	return TRUE;
@@ -1711,8 +1728,8 @@ int E_PacketHandler::SendIPV4Response(node_t* clientnode, int nClientID, int ser
 			word SrvID = (word)TheMaster->ServerList[i].GetSrvID();
 
 
-			int xpos = ( SV_MAP_X >= 0 ) ? SV_MAP_X : (int)SrvID;
-			int ypos = ( SV_MAP_Y >= 0 ) ? SV_MAP_Y : (int)SrvID;
+			int xpos = TheMaster->ServerList[i].GetXPos();
+			int ypos = TheMaster->ServerList[i].GetYPos();
 			int rc = pUnreliable->NET_Append_RE_IPv4ServerInfo( &node, SrvID, xpos, ypos, 0 );
 			ASSERT( rc == TRUE );
 
