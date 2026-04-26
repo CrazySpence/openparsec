@@ -114,21 +114,28 @@ void E_SimShipState::Reset()
 }
 
 
-// apply incremental bot input deltas (server-side bots only) -----------------
+// set bot input each think tick (server-side bots only) ----------------------
+//
+// Writes directly to GetPrevSimFrameStateSlot() — the field CalcNewState()
+// actually reads when in CMM_SIMULATING mode.  Values are RATES/ABSOLUTES,
+// not per-frame deltas:
+//   yaw/pitch/roll  — bams per refframe  (CalcNewState multiplies by CurSimRefFrames)
+//   speed           — absolute speed     (bot tracks accumulation itself)
 //
 void E_SimClientState::ApplyBotInput( bams_t yaw, bams_t pitch, bams_t roll,
-                                      fixed_t speedDelta, fixed_t maxSpeed )
+                                      fixed_t speed, fixed_t maxSpeed )
 {
-	m_InputState.m_CurYaw   += yaw;
-	m_InputState.m_CurPitch += pitch;
-	m_InputState.m_CurRoll  += roll;
-	m_InputState.m_CurSpeed += speedDelta;
+	E_SimShipState* pState = GetPrevSimFrameStateSlot();
 
-	// clamp speed
-	if ( m_InputState.m_CurSpeed < 0 )
-		m_InputState.m_CurSpeed = 0;
-	if ( m_InputState.m_CurSpeed > maxSpeed )
-		m_InputState.m_CurSpeed = maxSpeed;
+	pState->m_CurYaw   = yaw;
+	pState->m_CurPitch = pitch;
+	pState->m_CurRoll  = roll;
+	pState->m_CurSpeed = speed;
+
+	if ( pState->m_CurSpeed < 0 )
+		pState->m_CurSpeed = 0;
+	if ( pState->m_CurSpeed > maxSpeed )
+		pState->m_CurSpeed = maxSpeed;
 }
 
 
