@@ -221,7 +221,7 @@ void E_BotPlayer::_GoalCheck_Powerup()
 
 	Vector3 vec2Target;
 	VECSUB( &vec2Target, pGoalPos, &m_AgentPos );
-	float len = VctLenX( &vec2Target );
+	float len = GEOMV_TO_FLOAT( VctLenX( &vec2Target ) );
 
 	if ( len < 100.0f ) {
 		m_Goal.SetTargetObject( NULL );
@@ -254,7 +254,7 @@ void E_BotPlayer::_GoalCheck_Attack()
 
 	Vector3 vec2Target;
 	VECSUB( &vec2Target, &TargetPos, &m_AgentPos );
-	float len = VctLenX( &vec2Target );
+	float len = GEOMV_TO_FLOAT( VctLenX( &vec2Target ) );
 
 	// weapon firing
 	if ( _TargetInRange( m_pShip, (ShipObject*) pTargetObject, 1500.0f ) ) {
@@ -325,7 +325,7 @@ void E_BotPlayer::_GoalCheck_Retreat()
 
 	Vector3 vec2Target;
 	VECSUB( &vec2Target, pGoalPos, &m_AgentPos );
-	float len = VctLenX( &vec2Target );
+	float len = GEOMV_TO_FLOAT( VctLenX( &vec2Target ) );
 
 	if ( len < 100.0f ) {
 		m_Goal.SetTargetObject( NULL );
@@ -344,9 +344,14 @@ void E_BotPlayer::_ApplyControl( object_control_s* pObjctl, refframe_t refframes
 
 	// Rotation RATES (bams/refframe) — CalcNewState multiplies by CurSimRefFrames itself,
 	// so do NOT pre-multiply by refframes here.
-	bams_t yaw   = (bams_t)( pObjctl->rot_y * (float)m_pShip->YawPerRefFrame   );
-	bams_t pitch = (bams_t)( pObjctl->rot_x * (float)m_pShip->PitchPerRefFrame );
-	bams_t roll  = (bams_t)( pObjctl->rot_z * (float)m_pShip->RollPerRefFrame  );
+	//
+	// Sign note: the client's INP_UserRotY/X apply "angle = -angle / frames" before
+	// accumulating into CurYaw/CurPitch that the server then passes to ObjRotY/X.
+	// The locomotion controller was written against the client convention, so the
+	// server bot must negate each axis to match the same physical rotation direction.
+	bams_t yaw   = (bams_t)( -pObjctl->rot_y * (float)m_pShip->YawPerRefFrame   );
+	bams_t pitch = (bams_t)( -pObjctl->rot_x * (float)m_pShip->PitchPerRefFrame );
+	bams_t roll  = (bams_t)( -pObjctl->rot_z * (float)m_pShip->RollPerRefFrame  );
 
 	// Absolute speed — bot accumulates it (sim carries speed as an absolute value,
 	// not a delta, so we must track it ourselves between think ticks).
@@ -364,6 +369,10 @@ void E_BotPlayer::_ApplyControl( object_control_s* pObjctl, refframe_t refframes
 //
 void E_BotPlayer::_SteerToPosition( Vector3* pTargetPos )
 {
+	// Sync the ship's CurSpeed from our tracked value so ControlOjbect sees the
+	// real speed (the sim never writes CurSpeed back to the ShipObject).
+	m_pShip->CurSpeed = m_fCurSpeed;
+
 	Vector3 vec2Target;
 	VECSUB( &vec2Target, pTargetPos, &m_AgentPos );
 	m_Loco.ControlOjbect( &m_oc, &vec2Target, m_pShip->MaxSpeed );
