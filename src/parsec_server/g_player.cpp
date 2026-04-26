@@ -68,6 +68,7 @@
 //#include "e_connmanager.h"
 #include "e_gameserver.h"
 #include "e_simulator.h"
+#include "e_simnetoutput.h"
 //#include "sys_refframe_sv.h"
 
 #include "g_emp.h"
@@ -445,7 +446,7 @@ void G_Player::_OBJ_LaunchSwarm( dword targetid )
 
 }
 
-void G_Player::FireEMP(byte Upgradelevel) {
+void G_Player::FireEMP(byte Upgradelevel, bool broadcastToClients) {
 	ASSERT( m_pSimPlayerInfo != NULL );
 	ShipObject* pShip = m_pSimPlayerInfo->GetShipObject();
 	ASSERT( pShip != NULL );
@@ -460,6 +461,21 @@ void G_Player::FireEMP(byte Upgradelevel) {
 		for ( int i = 0; i < emp_waves[ Upgradelevel ]; i++ ) {
 			CreateEmp( pShip, curdelay, 0, Upgradelevel, m_nClientID );
 			curdelay += emp_delay[ Upgradelevel ];
+		}
+
+		// Server-internal bots have no network path that multicasts RE_CreateEmp
+		// to clients (e_simnetinput.cpp only runs for real network clients). Build
+		// and multicast it here so all clients render the EMP visual effect.
+		// Real-client callers pass broadcastToClients=false because e_simnetinput.cpp
+		// already multicasts the original received RE right after calling FireEMP.
+		if ( broadcastToClients ) {
+			RE_CreateEmp re;
+			memset( &re, 0, sizeof( re ) );
+			re.RE_Type      = RE_CREATEEMP;
+			re.RE_BlockSize = sizeof( RE_CreateEmp );
+			re.SenderId     = m_nClientID;
+			re.Upgradelevel = Upgradelevel;
+			TheSimNetOutput->BufferForMulticastRE( (RE_Header*)&re, m_nClientID, FALSE );
 		}
 	}
 }

@@ -76,8 +76,12 @@ public:
 	// user launched a swarm
 	void LaunchSwarm(dword targetid);
 
-	// user fired emp
-	void FireEMP(byte Upgradelevel);
+	// user fired emp.
+	// broadcastToClients: send RE_CreateEmp multicast so all clients render
+	// the visual effect. Pass true for server-internal bots (no network path
+	// handles the broadcast for them). Pass false (default) when the caller
+	// already multicasts the original RE — e.g. e_simnetinput.cpp.
+	void FireEMP(byte Upgradelevel, bool broadcastToClients = false);
 
 	// record a kill
 	void RecordKill();
