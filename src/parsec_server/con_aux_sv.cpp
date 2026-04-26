@@ -136,7 +136,10 @@ int_command_s verbose_sv_commands[] = {
 	{ 0x80, "sv.game.extras.maxnum",					0, 1000,	&SV_GAME_EXTRAS_MAXNUM,						NULL,					NULL,		0 },
 	{ 0x80, "aux_disable_package_data_files",			0, 1,		&AUX_DISABLE_PACKAGE_DATA_FILES	,			NULL,					NULL,		0 },
 	{ 0x80, "aux_disable_package_scripts",				0, 1,		&AUX_DISABLE_PACKAGE_SCRIPTS,				NULL,					NULL,		0 },
-	
+
+	{ 0x80, "sv.map.x",									-1, 32767,	&SV_MAP_X,									NULL,					NULL,		-1 },
+	{ 0x80, "sv.map.y",									-1, 32767,	&SV_MAP_Y,									NULL,					NULL,		-1 },
+
 };
 
 #define NUM_VERBOSE_SV_COMMANDS	CALC_NUM_ARRAY_ENTRIES( verbose_sv_commands )

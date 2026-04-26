@@ -1711,7 +1711,9 @@ int E_PacketHandler::SendIPV4Response(node_t* clientnode, int nClientID, int ser
 			word SrvID = (word)TheMaster->ServerList[i].GetSrvID();
 
 
-			int rc = pUnreliable->NET_Append_RE_IPv4ServerInfo( &node, SrvID, SrvID, SrvID, 0 );
+			int xpos = ( SV_MAP_X >= 0 ) ? SV_MAP_X : (int)SrvID;
+			int ypos = ( SV_MAP_Y >= 0 ) ? SV_MAP_Y : (int)SrvID;
+			int rc = pUnreliable->NET_Append_RE_IPv4ServerInfo( &node, SrvID, xpos, ypos, 0 );
 			ASSERT( rc == TRUE );
 
 			// send a datagram
