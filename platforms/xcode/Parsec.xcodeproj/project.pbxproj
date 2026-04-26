@@ -45,6 +45,8 @@
 		EC9C3F9D737748BD3690731E /* con_load.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E6D27CAD0AE6E367EFFA29A /* con_load.cpp */; };
 		F43289732422664441F444E8 /* g_wfx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 013F926FB2DD36193377C045 /* g_wfx.cpp */; };
 		F62AA6BF101983A5C8DBA02C /* con_list.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 17A52B3C5073B4E65D3BA583 /* con_list.cpp */; };
+		DAB31AE12F8EF5C200C9E2B0 /* g_bot_common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AE02F8EF5C200C9E2B0 /* g_bot_common.cpp */; };
+		DAB31AE22F8EF5C200C9E2B0 /* g_bot_common.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AE02F8EF5C200C9E2B0 /* g_bot_common.cpp */; };
 		FA17FD5216BB0C1D0003E370 /* g_emp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA17FD5116BB0C1D0003E370 /* g_emp.cpp */; };
 		FA17FD5316BB0C530003E370 /* g_emp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA17FD5116BB0C1D0003E370 /* g_emp.cpp */; };
 		FA25B87918A1D1D700DC2E29 /* g_telep.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA25B87818A1D1D700DC2E29 /* g_telep.cpp */; };
@@ -375,6 +377,8 @@
 		DAE465051C73F56F004D4351 /* libncurses.5.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libncurses.5.4.dylib; path = ../../../../../../usr/lib/libncurses.5.4.dylib; sourceTree = "<group>"; };
 		FA0681F51B2A7987002EFDF3 /* stb_image_write.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image_write.h; sourceTree = "<group>"; };
 		FA0681F61B2A7987002EFDF3 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
+		DAB31AE02F8EF5C200C9E2B0 /* g_bot_common.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_bot_common.cpp; sourceTree = "<group>"; };
+		DAB31AE32F8EF5C200C9E2B0 /* g_bot_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_bot_common.h; sourceTree = "<group>"; };
 		FA17FD5116BB0C1D0003E370 /* g_emp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_emp.cpp; sourceTree = "<group>"; };
 		FA25B87818A1D1D700DC2E29 /* g_telep.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_telep.cpp; sourceTree = "<group>"; };
 		FA25B87A18A1D1EA00DC2E29 /* g_telep.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_telep.h; sourceTree = "<group>"; };
@@ -1160,6 +1164,7 @@
 				FAFEF880163BE1CF0056CECD /* debug.cpp */,
 				FAFEF881163BE1CF0056CECD /* e_modulemanager.cpp */,
 				FAFEF882163BE1CF0056CECD /* e_relist.cpp */,
+				DAB31AE02F8EF5C200C9E2B0 /* g_bot_common.cpp */,
 				FA17FD5116BB0C1D0003E370 /* g_emp.cpp */,
 				FAFEF883163BE1CF0056CECD /* g_extra.cpp */,
 				DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */,
@@ -1216,6 +1221,7 @@
 				FAFEF88D163BE1CF0056CECD /* def_prot.h */,
 				FAFEF890163BE1CF0056CECD /* e_modulemanager.h */,
 				FAFEF891163BE1CF0056CECD /* e_relist.h */,
+				DAB31AE32F8EF5C200C9E2B0 /* g_bot_common.h */,
 				FAE69E0716A7628600C1AC79 /* g_emp.h */,
 				FAFEF892163BE1CF0056CECD /* g_extra.h */,
 				FAFEF893163BE1CF0056CECD /* g_shipobject.h */,
@@ -1795,6 +1801,7 @@
 				FA3716A9164DEE4400230CE8 /* g_player.cpp in Sources */,
 				FAE69E1616A7631200C1AC79 /* MasterServer.cpp in Sources */,
 				FAE69E1716A7631200C1AC79 /* MasterServerItem.cpp in Sources */,
+				DAB31AE22F8EF5C200C9E2B0 /* g_bot_common.cpp in Sources */,
 				FA17FD5316BB0C530003E370 /* g_emp.cpp in Sources */,
 				DAB31AD42F8EF5C200C9E2B0 /* g_planet.cpp in Sources */,
 				01BEE07E91EB14B134037CCC /* g_wfx.cpp in Sources */,
@@ -1993,6 +2000,7 @@
 				FAE294011655A28900D00541 /* sw_timer.cpp in Sources */,
 				FAE294061655A86F00D00541 /* nw_udp.cpp in Sources */,
 				FAADE10016AB271B005D7250 /* glew.c in Sources */,
+				DAB31AE12F8EF5C200C9E2B0 /* g_bot_common.cpp in Sources */,
 				FA17FD5216BB0C1D0003E370 /* g_emp.cpp in Sources */,
 				F43289732422664441F444E8 /* g_wfx.cpp in Sources */,
 				39F0467E2DBE725D0C313631 /* g_stgate.cpp in Sources */,

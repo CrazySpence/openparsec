@@ -25,6 +25,7 @@
     <ClCompile Include="..\..\src\libparsec\debug.cpp" />
     <ClCompile Include="..\..\src\libparsec\e_modulemanager.cpp" />
     <ClCompile Include="..\..\src\libparsec\e_relist.cpp" />
+    <ClCompile Include="..\..\src\libparsec\g_bot_common.cpp" />
     <ClCompile Include="..\..\src\libparsec\g_emp.cpp" />
     <ClCompile Include="..\..\src\libparsec\g_extra.cpp" />
     <ClCompile Include="..\..\src\libparsec\g_stgate.cpp" />
@@ -236,6 +237,7 @@
     <ClInclude Include="..\..\src\libparsec\include\gd_type.h" />
     <ClInclude Include="..\..\src\libparsec\include\general.h" />
     <ClInclude Include="..\..\src\libparsec\include\globals.h" />
+    <ClInclude Include="..\..\src\libparsec\include\g_bot_common.h" />
     <ClInclude Include="..\..\src\libparsec\include\g_emp.h" />
     <ClInclude Include="..\..\src\libparsec\include\g_extra.h" />
     <ClInclude Include="..\..\src\libparsec\include\g_shipobject.h" />
