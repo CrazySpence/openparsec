@@ -152,7 +152,7 @@ public:
 #define SEND_MODE_UNRELIABLE	1
 #define SEND_MODE_RELIABLE		2
 
-#define MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET		256
+#define MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET		1024
 
 // information about packets sent out ( time and size ) -----------------------
 //
@@ -247,7 +247,12 @@ public:
 	void CalculateAveragePacketSize();
 
 	// schedule a E_Distributable to be sent to the client
-	void ScheduleDistributable( E_Distributable* pDist, int check_unique = FALSE );
+	// Schedule pDist for delivery to this client.
+	// check_unique: skip if already queued (used by ReleaseDistributable).
+	// prepend:      insert at HEAD of queue so transient objects (laser shots,
+	//               missiles, EMP) are sent this frame instead of after the
+	//               backlog of deferred persistent world objects.
+	void ScheduleDistributable( E_Distributable* pDist, int check_unique = FALSE, int prepend = FALSE );
 
 	// buffer an RE for output
 	void BufferRE( RE_Header* re, int reliable );
