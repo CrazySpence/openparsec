@@ -55,7 +55,7 @@ extern int clsv_protocol_minor_internal;
 
 
 // gameserver -> masterserver
-#define MASV_CHALLSTRING			"c2 %02d.%02d ch %d n %s p %d/%d s %d os %s pt %d"
+#define MASV_CHALLSTRING			"c2 %02d.%02d ch %d n %s p %d/%d s %d os %s pt %d x %d y %d"
 
 // masterserver -> gameserver
 #define MASV_RESPONSE_NEW_CHALL		RECVSTR_CHALLENGE

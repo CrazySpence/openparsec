@@ -695,8 +695,10 @@ int E_GameServer::_MaintainMasterServer()
 
 			// build command
 			char szBuffer[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
-			snprintf( szBuffer, MAX_RE_COMMANDINFO_COMMAND_LEN, 
-						MASV_CHALLSTRING, 
+			int xpos_out = ( SV_MAP_X >= 0 ) ? SV_MAP_X : (int)SV_SERVERID;
+			int ypos_out = ( SV_MAP_Y >= 0 ) ? SV_MAP_Y : (int)SV_SERVERID;
+			snprintf( szBuffer, MAX_RE_COMMANDINFO_COMMAND_LEN,
+						MASV_CHALLSTRING,
 						CLSV_PROTOCOL_MAJOR, CLSV_PROTOCOL_MINOR,
 						m_MasterServer_Challenge,
 						m_szServername,
@@ -704,7 +706,9 @@ int E_GameServer::_MaintainMasterServer()
 						MAX_NUM_CLIENTS,
 						SV_SERVERID,
 						CPU_VENDOR_OS,
-						SV_NETCONF_PORT
+						SV_NETCONF_PORT,
+						xpos_out,
+						ypos_out
 					);
 
 			// append a remote event containing the command
