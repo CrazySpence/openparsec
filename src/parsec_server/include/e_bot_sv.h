@@ -72,6 +72,13 @@ protected:
 	// current tracked speed (fixed_t, managed by bot since sim state carries absolute speed)
 	fixed_t m_fCurSpeed;
 
+	// respawn delay: non-zero = refframe at which the bot died; 0 = alive / not waiting
+	refframe_t m_DeathRefFrame;
+
+	// per-bot debug logging flag (toggled by sv.bot.debug)
+	bool    m_bDebug;
+	int     m_nDebugCounter;    // throttle counter for periodic status output
+
 	// weapon / targeting state
 	dword   m_nTargetObjNumber;    // HostObjNumber of current target
 	int     m_nCurLauncher;        // barrel counter (mirrors G_Player::m_CurLauncher)
@@ -90,6 +97,9 @@ public:
 		, m_pShip( NULL )
 		, m_nAgentMode( AGENTMODE_ATTACK )
 		, m_fCurSpeed( 0 )
+		, m_DeathRefFrame( 0 )
+		, m_bDebug( false )
+		, m_nDebugCounter( 0 )
 		, m_nTargetObjNumber( 0 )
 		, m_nCurLauncher( 0 )
 		, m_fFireDelay( 0.0f )
@@ -108,6 +118,10 @@ public:
 
 	// return the client slot this bot occupies
 	int GetClientID() const { return m_nClientID; }
+
+	// enable / disable debug logging for this bot
+	void SetDebug( bool b ) { m_bDebug = b; }
+	bool GetDebug() const   { return m_bDebug; }
 
 	// keep alive counter ticking so the server doesn't time out the slot
 	void KeepAlive();
@@ -170,6 +184,9 @@ public:
 
 	// return current bot count
 	int  GetNumBots() const { return m_nNumBots; }
+
+	// enable / disable debug output for the bot in a given client slot
+	bool SetBotDebug( int nClientID, bool b );
 };
 
 
