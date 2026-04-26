@@ -256,6 +256,31 @@ void E_BotPlayer::_DoPlan()
 }
 
 
+// validate a cached ship pointer against the live ship list ------------------
+// Returns the pointer unchanged if it is still alive, NULL otherwise.
+// MUST be called before dereferencing any cached ship/extra pointer.
+//
+static ShipObject* ValidateCachedShip( ShipObject* pShip )
+{
+	if ( pShip == NULL ) return NULL;
+	for ( ShipObject* s = FetchFirstShip(); s != NULL;
+	      s = (ShipObject*) s->NextObj ) {
+		if ( s == pShip ) return pShip;
+	}
+	return NULL;   // not in live list — freed/unjoined
+}
+
+static ExtraObject* ValidateCachedExtra( ExtraObject* pExtra )
+{
+	if ( pExtra == NULL ) return NULL;
+	for ( ExtraObject* e = FetchFirstExtra(); e != NULL;
+	      e = (ExtraObject*) e->NextObj ) {
+		if ( e == pExtra ) return pExtra;
+	}
+	return NULL;   // not in live list — collected/removed
+}
+
+
 // idle: re-plan each tick in case enemies or powerups have appeared -----------
 //
 void E_BotPlayer::_GoalCheck_Idle()
@@ -273,8 +298,11 @@ void E_BotPlayer::_GoalCheck_Powerup()
 {
 	Vector3* pGoalPos = m_Goal.GetGoalPosition();
 
-	if ( m_Goal.GetTargetObject() == NULL ) {
-		ExtraObject* pObject = FetchFirstExtra();
+	// Validate cached extra pointer — it may have been collected/removed.
+	ExtraObject* pObject = ValidateCachedExtra( (ExtraObject*) m_Goal.GetTargetObject() );
+	if ( pObject == NULL ) {
+		m_Goal.SetTargetObject( NULL );
+		pObject = FetchFirstExtra();
 		if ( pObject == NULL ) {
 			m_nAgentMode = AGENTMODE_IDLE;
 			return;
@@ -301,13 +329,16 @@ void E_BotPlayer::_GoalCheck_Powerup()
 void E_BotPlayer::_GoalCheck_Attack()
 {
 	Vector3*   pGoalPos      = m_Goal.GetGoalPosition();
-	GenObject* pTargetObject = m_Goal.GetTargetObject();
 
-	if ( ( pTargetObject == NULL ) || !OBJECT_TYPE_SHIP( pTargetObject ) ) {
+	// Validate the cached target against the live ship list before touching it.
+	// If the target died/unjoined since last tick, ValidateCachedShip returns NULL,
+	// preventing any dereference of freed ShipObject memory.
+	ShipObject* pTargetObject = ValidateCachedShip( (ShipObject*) m_Goal.GetTargetObject() );
+	if ( pTargetObject == NULL ) {
+		m_Goal.SetTargetObject( NULL );
 		pTargetObject = _SelectAttackTarget();
 		if ( pTargetObject == NULL ) {
 			m_nAgentMode = AGENTMODE_IDLE;
-			m_Goal.SetTargetObject( NULL );
 			_DoPlan();
 			return;
 		}
@@ -366,7 +397,10 @@ void E_BotPlayer::_GoalCheck_Retreat()
 	Vector3*     pGoalPos = m_Goal.GetGoalPosition();
 	ExtraObject* pObject  = NULL;
 
-	if ( m_Goal.GetTargetObject() == NULL ) {
+	// Validate cached extra pointer — it may have been collected/removed.
+	pObject = ValidateCachedExtra( (ExtraObject*) m_Goal.GetTargetObject() );
+	if ( pObject == NULL ) {
+		m_Goal.SetTargetObject( NULL );
 
 		if ( m_pShip->NumHomMissls < (int)( m_pShip->MaxNumHomMissls * SV_BOT_GMISSL_LEVEL ) ) {
 			pObject = _SelectMissileObject();
