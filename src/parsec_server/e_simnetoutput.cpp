@@ -963,14 +963,18 @@ void E_SimClientNetOutput::_FlagIncludeClient( int nClientID, bool_t bReliable )
 
 
 // check whether we can reserve size for output, and do so if space avail. ----
-// 
+//
 bool_t E_SimClientNetOutput::_ReserveForOutput( int size )
 {
-	// XXX: New sending routines do not necessarily need size stuff.
-	// however this may still be usable if/when I implement packet size
-	// fragmenting on the server.
-	// FIXME: For now, just return true so that everything
-	// is added to the packet in question.
+	// Hard limit: stop filling m_DistsForNextPacket once the array is full.
+	// Any distributables that don't fit stay in m_AllDistributables and will
+	// be sent in subsequent frames — natural pagination for large batches
+	// (e.g. when a rejoining player gets RescheduleAllDistributables called).
+	// Without this guard, more than MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET
+	// entries causes an out-of-bounds write in _AddDistForOutput and a crash.
+	if ( m_nNumDistsForNextPacket >= MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET ) {
+		return false;
+	}
 
 	return true;
 
