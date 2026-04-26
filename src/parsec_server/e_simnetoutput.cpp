@@ -228,7 +228,7 @@ int E_SimClientNetOutput::_ShouldSendHeartbeat()
 
 // schedule a E_Distributable to be sent to the client --------------------------
 //
-void E_SimClientNetOutput::ScheduleDistributable( E_Distributable* pDist, int check_unique /*= FALSE*/ )
+void E_SimClientNetOutput::ScheduleDistributable( E_Distributable* pDist, int check_unique /*= FALSE*/, int prepend /*= FALSE*/ )
 {
 	// only allow distributables where destination client is not the owner
 	if ( ( GetOwnerFromHostOjbNumber( pDist->GetObjectID() ) != (dword)m_nDestClientID ) || pDist->WillBeSentToOwner() ) {
@@ -241,7 +241,16 @@ void E_SimClientNetOutput::ScheduleDistributable( E_Distributable* pDist, int ch
 			}
 		}
 
-		m_AllDistributables->AppendTail( pDist );
+		// Transient objects (laser shots, missiles, EMP, removals) use prepend
+		// so they jump ahead of any deferred persistent world objects already
+		// sitting in the queue from a prior rejoin flush. Without this, a new
+		// laser shot appended to a 200-entry backlog would never be sent before
+		// its LifeTimeCount expires and the object is deleted.
+		if ( prepend ) {
+			m_AllDistributables->AppendHead( pDist );
+		} else {
+			m_AllDistributables->AppendTail( pDist );
+		}
 
 		DBGTXT( MSGOUT( "DIST: E_SimClientNetOutput::ScheduleDistributable():   client %d objectid %x listno %d reliable %d", m_nDestClientID, pDist->GetObjectID(), pDist->GetListNo(), pDist->NeedsReliable() ); );
 	}
@@ -1363,10 +1372,13 @@ E_Distributable* E_SimNetOutput::CreateDistributable( GenObject* objectpo, int r
 	E_Distributable* pDist = new E_Distributable( objectpo->HostObjNumber, listno, reliable, send_to_owner );
 	m_Distributables->AppendHead( pDist );
 
-	// schedule the E_Distributable to all connected clients
+	// Schedule with prepend=TRUE so this newly spawned object jumps to the
+	// front of each client's pending queue. Laser shots, missiles, and EMP
+	// blasts are short-lived; if they sit behind a backlog of deferred
+	// persistent-world distributables they expire before being sent.
 	for( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
 		if( TheSimulator->IsPlayerDisconnected( nClientID ) == FALSE ) {
-			m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist );
+			m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist, FALSE, TRUE );
 		}
 	}
 
@@ -1392,10 +1404,12 @@ void E_SimNetOutput::ReleaseDistributable( E_Distributable* pDist )
 
 	pDist->UpdateMode_REMOVE();
 
-	// schedule the E_Distributable to all connected clients
+	// Prepend the REMOVE notification so it's delivered this frame. If it
+	// were appended it could sit behind deferred world objects and reach the
+	// client after another ADD for the same slot, confusing the object list.
 	for( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
 		if( TheSimulator->IsPlayerDisconnected( nClientID ) == FALSE ) {
-			m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist, TRUE );
+			m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist, TRUE, TRUE );
 		}
 	}
 }
