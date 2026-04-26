@@ -57,6 +57,7 @@
 #include "obj_creg.h"				// for ShipClasses
 ////#include "e_stats.h"
 #include "g_main_sv.h"
+#include "g_wfx.h"
 #include "e_connmanager.h"
 #include "e_gameserver.h"
 #include "e_simulator.h"
@@ -295,7 +296,15 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 	ASSERT( m_nShipID != SHIPID_NOSHIP );
 	
 	//FIXME: check whether this should be handled here
-		
+
+	// Deactivate particle weapons (lightning, helix, photon) while m_pShip is
+	// still valid — MUST happen before KillSpecificShipObject frees the object.
+	// Doing it after is use-after-free; doing it in UnjoinPlayer is too late
+	// because we null m_pShip below to prevent a second dereference there.
+	// Human players can have all three active; bots currently never do, but the
+	// call is harmless (it's a no-op if WeaponsActive bits are clear).
+	WFX_EnsureParticleWeaponsInactive( m_pShip );
+
 	// downing of ship starts explosion
 	if ( playerstatus->params[ 0 ] == SHIP_DOWNED ) {
 
@@ -319,8 +328,9 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 
 	// KillSpecificShipObject freed the ship object. Null m_pShip immediately so
 	// that G_Main::UnjoinPlayer (called next) cannot obtain a dangling pointer via
-	// GetShipObject() and pass it to WFX_EnsureParticleWeaponsInactive — that was
-	// the source of the EMP (and planet/missile) post-kill segfault.
+	// GetShipObject() and pass it to WFX_EnsureParticleWeaponsInactive.
+	// (WFX_EnsureParticleWeaponsInactive was already called above, so the
+	// null-check guard in UnjoinPlayer will correctly skip the second call.)
 	m_pShip = NULL;
 
 	// unjoin the player in G_Main
