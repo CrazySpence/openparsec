@@ -132,6 +132,14 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 		default: return;
 	}
 
+	// Nothing to do — bleed off speed and hold heading rather than steering
+	// toward (0,0,0) which is what an unset goal contains.
+	if ( m_nAgentMode == AGENTMODE_IDLE ) {
+		m_fCurSpeed = 0;
+		m_pSimState->ApplyBotInput( 0, 0, 0, 0, m_pShip->MaxSpeed );
+		return;
+	}
+
 	// steer toward goal
 	_SteerToPosition( m_Goal.GetGoalPosition() );
 
@@ -182,11 +190,14 @@ void E_BotPlayer::_DoPlan()
 }
 
 
-// idle: immediately re-plan --------------------------------------------------
+// idle: re-plan each tick in case enemies or powerups have appeared -----------
 //
 void E_BotPlayer::_GoalCheck_Idle()
 {
+	m_Goal.Reset();   // clear any stale (0,0,0) goal before re-planning
 	_DoPlan();
+	// if _DoPlan() changed the mode, the next tick's goal-check will handle it;
+	// this tick we do nothing (the AGENTMODE_IDLE early-out in DoThink halts us)
 }
 
 
