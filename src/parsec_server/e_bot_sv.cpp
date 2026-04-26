@@ -140,6 +140,25 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 		return;
 	}
 
+	// Debug: log bot state every ~2 seconds (think rate * ~66 ticks ≈ 2 s at 10 Hz think)
+	static int s_dbgCounter = 0;
+	if ( ++s_dbgCounter >= 20 ) {
+		s_dbgCounter = 0;
+		static const char* kModeNames[] = { "?", "IDLE", "POWERUP", "ATTACK", "RETREAT" };
+		const char* modeName = ( m_nAgentMode >= 1 && m_nAgentMode <= 4 )
+		                        ? kModeNames[ m_nAgentMode ] : "?";
+		Vector3* pGoal = m_Goal.GetGoalPosition();
+		MSGOUT( "BOT[%d] %s  pos(%.0f,%.0f,%.0f)  goal(%.0f,%.0f,%.0f)  "
+		        "spd=%.0f  hp=%d/%d  msl=%d  nrg=%.0f/%.0f",
+		        m_nClientID, modeName,
+		        m_AgentPos.X, m_AgentPos.Y, m_AgentPos.Z,
+		        pGoal->X, pGoal->Y, pGoal->Z,
+		        FIXED_TO_FLOAT( m_fCurSpeed ),
+		        m_pShip->CurDamage, m_pShip->MaxDamage,
+		        m_pShip->NumHomMissls,
+		        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
+	}
+
 	// steer toward goal
 	_SteerToPosition( m_Goal.GetGoalPosition() );
 
@@ -158,16 +177,28 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 //
 void E_BotPlayer::_DoPlan()
 {
+	agentmode_t prevMode = m_nAgentMode;
+
 	if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * SV_BOT_REPAIR_LEVEL ) ) {
 		m_nAgentMode = AGENTMODE_RETREAT;
+		if ( m_nAgentMode != prevMode )
+			MSGOUT( "BOT[%d] plan: RETREAT (damage %.0f%% / max %.0f%%)",
+			        m_nClientID,
+			        (float)m_pShip->CurDamage, (float)m_pShip->MaxDamage );
 		return;
 	}
 	if ( m_pShip->NumHomMissls < 1 ) {
 		m_nAgentMode = AGENTMODE_RETREAT;
+		if ( m_nAgentMode != prevMode )
+			MSGOUT( "BOT[%d] plan: RETREAT (no homing missiles)", m_nClientID );
 		return;
 	}
 	if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_LEVEL ) ) {
 		m_nAgentMode = AGENTMODE_RETREAT;
+		if ( m_nAgentMode != prevMode )
+			MSGOUT( "BOT[%d] plan: RETREAT (energy %.0f / max %.0f)",
+			        m_nClientID,
+			        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
 		return;
 	}
 
@@ -175,16 +206,27 @@ void E_BotPlayer::_DoPlan()
 	if ( TheGame->GetNumJoined() > 1 ) {
 		ShipObject* pTarget = _SelectAttackTarget();
 		if ( pTarget != NULL ) {
+			if ( m_nAgentMode != AGENTMODE_ATTACK )
+				MSGOUT( "BOT[%d] plan: ATTACK (target ObjId %u, joined=%d)",
+				        m_nClientID, pTarget->HostObjNumber,
+				        TheGame->GetNumJoined() );
 			m_nAgentMode = AGENTMODE_ATTACK;
 			return;
 		}
+		MSGOUT( "BOT[%d] plan: joined=%d but _SelectAttackTarget returned NULL",
+		        m_nClientID, TheGame->GetNumJoined() );
 	}
 
 	// look for powerups
 	ExtraObject* pExtra = FetchFirstExtra();
 	if ( pExtra != NULL ) {
+		if ( m_nAgentMode != AGENTMODE_POWERUP )
+			MSGOUT( "BOT[%d] plan: POWERUP (first extra ObjType=%d)",
+			        m_nClientID, pExtra->ObjectType );
 		m_nAgentMode = AGENTMODE_POWERUP;
 	} else {
+		if ( m_nAgentMode != AGENTMODE_IDLE )
+			MSGOUT( "BOT[%d] plan: IDLE (no targets, no extras)", m_nClientID );
 		m_nAgentMode = AGENTMODE_IDLE;
 	}
 }
