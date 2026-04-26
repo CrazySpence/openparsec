@@ -513,18 +513,37 @@ int E_BotPlayer::_TargetInRange( ShipObject* ship, ShipObject* target, geomv_t r
 //
 ShipObject* E_BotPlayer::_SelectAttackTarget()
 {
+	// Pick the nearest ship.  Bots are at different positions so each
+	// naturally ends up with a different nearest target — far better than
+	// the old "highest HP" criterion which caused all bots to pile onto the
+	// same ship.  When two bots happen to be equidistant from a candidate
+	// we break the tie with client ID so they still diverge.
+
+	geomv_t myX = m_pShip->ObjPosition[ 0 ][ 3 ];
+	geomv_t myY = m_pShip->ObjPosition[ 1 ][ 3 ];
+	geomv_t myZ = m_pShip->ObjPosition[ 2 ][ 3 ];
+
 	ShipObject* pBestTarget = NULL;
-	int         nBestHP     = 0;
+	geomv_t     fBestDist2  = 0;
 
 	for ( ShipObject* pShip = FetchFirstShip(); pShip != NULL;
 	      pShip = (ShipObject*) pShip->NextObj ) {
 
-		if ( pShip == m_pShip ) continue;   // never target self
+		if ( pShip == m_pShip ) continue;
 
-		int nHP = pShip->MaxDamage - pShip->CurDamage;
-		if ( pBestTarget == NULL || nHP > nBestHP ) {
+		geomv_t dx = pShip->ObjPosition[ 0 ][ 3 ] - myX;
+		geomv_t dy = pShip->ObjPosition[ 1 ][ 3 ] - myY;
+		geomv_t dz = pShip->ObjPosition[ 2 ][ 3 ] - myZ;
+		geomv_t dist2 = dx*dx + dy*dy + dz*dz;
+
+		// Tiebreak on HostObjNumber XOR'd with client ID so two bots that
+		// are equidistant from a candidate still pick differently.
+		if ( pBestTarget == NULL || dist2 < fBestDist2 ||
+		     ( dist2 == fBestDist2 &&
+		       ( (pShip->HostObjNumber ^ (dword)m_nClientID) <
+		         (pBestTarget->HostObjNumber ^ (dword)m_nClientID) ) ) ) {
 			pBestTarget = pShip;
-			nBestHP     = nHP;
+			fBestDist2  = dist2;
 		}
 	}
 
