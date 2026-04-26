@@ -43,6 +43,8 @@
 #include "con_com_sv.h"
 #include "con_main_sv.h"
 #include "e_simplayerinfo.h"
+#include "net_game_sv.h"
+#include "od_class.h"
 #include "e_connmanager.h"
 #include "e_simulator.h"
 #include "e_gameserver.h"
