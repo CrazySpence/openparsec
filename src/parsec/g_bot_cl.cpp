@@ -172,10 +172,6 @@ void OCT_Dump(object_control_s* objctl )
 	CON_AddMessage( szBuffer );
 }
 
-// ****************************************************************************
-// ****************************************************************************
-// ****************************************************************************
-
 // bot logfile ----------------------------------------------------------------
 //
 #ifdef BOT_LOGFILES
@@ -192,141 +188,9 @@ static UTL_LogFile g_BotAccelModeLog( "bot_accel.log" );
 #define BOT_ZDir_MsgOut			g_BotZDirLog.printf
 #define BOT_AccelMode_MsgOut	g_BotAccelModeLog.printf
 
-#endif // !BOT_LOGFILES
-
-// ----------------------------------------------------------------------------
-//
-void UTL_LocomotionController::ControlOjbect( object_control_s* pObjctl, Vector3* pDesiredVelocity, fixed_t _DesiredSpeed )
-{
-	ASSERT( pObjctl != NULL );
-	ASSERT( pDesiredVelocity != NULL );
-
-	Vector3 xDir, yDir, zDir;
-	FetchXVector( pObjctl->pShip->ObjPosition, &xDir );
-	FetchYVector( pObjctl->pShip->ObjPosition, &yDir );
-	FetchZVector( pObjctl->pShip->ObjPosition, &zDir );
-
-	geomv_t len = VctLenX( pDesiredVelocity );
-
-	// stop control if desired velocity is zero 
-	if ( len <= GEOMV_VANISHING ) {
-		pObjctl->rot_x = 0;
-		pObjctl->rot_y = 0;
-		pObjctl->accel = -0.82;
-
-#ifdef BOT_LOGFILES
-		BOT_MsgOut( "ControlOjbect() got dimishing desired velocity" );
 #endif // BOT_LOGFILES
 
-		return;
-	} else {
-		Vector3 DesVelNorm;
-		DesVelNorm.X = FLOAT_TO_GEOMV( pDesiredVelocity->X / len );
-		DesVelNorm.Y = FLOAT_TO_GEOMV( pDesiredVelocity->Y / len );
-		DesVelNorm.Z = FLOAT_TO_GEOMV( pDesiredVelocity->Z / len );
-		
-		geomv_t yaw_dot		= DOT_PRODUCT( &DesVelNorm, &xDir );
-		geomv_t pitch_dot	= DOT_PRODUCT( &DesVelNorm, &yDir );
-		geomv_t heading_dot = DOT_PRODUCT( &DesVelNorm, &zDir );
-
-		float fDesiredSpeed = FIXED_TO_FLOAT( _DesiredSpeed );
-		float fCurSpeed	  = FIXED_TO_FLOAT( pObjctl->pShip->CurSpeed );
-
-		float pitch = 0;
-		float yaw   = 0;
-
-		// target is behind us
-		sincosval_s fullturn;
-		GetSinCos( DEG_TO_BAMS( 2 * m_nRelaxedHeadingAngle ), &fullturn );
-		//if ( heading_dot < 0.0f ) {
-		if ( heading_dot < -fullturn.cosval ) {
-
-			// we must initiate a turn, if not already in a turn
-			if ( !pObjctl->IsYaw() || !pObjctl->IsPitch() ) {
-
-				// default to random
-				yaw   = (float)( RAND() % 3 ) - 1;
-				pitch = (float)( RAND() % 3 ) - 1;
-
-				// steer towards goal
-				if ( yaw_dot < -GEOMV_VANISHING ) {
-					yaw = OCT_YAW_LEFT;
-				} else if ( yaw_dot > GEOMV_VANISHING ) {
-					yaw = OCT_YAW_RIGHT;
-				}
-				if ( pitch_dot < -GEOMV_VANISHING ) {
-					pitch = OCT_PITCH_UP;
-				} else if ( pitch_dot > GEOMV_VANISHING ) {
-					pitch = OCT_PITCH_DOWN;
-				}
-
-			} else {
-				// reuse prev. turn information
-				pitch = pObjctl->rot_x;
-				yaw   = pObjctl->rot_y;
-			}
-
-			// slow down, until in direction of target
-		       // pObjctl->accel = heading_dot;
-			//pObjctl->accel = OCT_DECELERATE;
-
-			// also maintain min. speed during turns
-			if ( fCurSpeed > m_fMinSpeedTurn ) {
-				pObjctl->accel = -0.42;
-			}
-
-		} else {
-
-			// determine accel
-			if ( fDesiredSpeed > fCurSpeed ) {
-				// accelerate towards target
-				pObjctl->accel = OCT_ACCELERATE;
-			} else if ( fDesiredSpeed < fCurSpeed ) {
-				// decelerate towards target
-				pObjctl->accel = OCT_DECELERATE;
-			} else {
-				// no accel
-				pObjctl->accel = 0;
-			}
-
-			// heading must be inside of 5 degrees cone angle
-			sincosval_s sincosv;
-			GetSinCos( DEG_TO_BAMS( m_nRelaxedHeadingAngle ), &sincosv );
-			if ( yaw_dot < -sincosv.sinval ) {
-				yaw = OCT_YAW_LEFT;
-			} else if ( yaw_dot > sincosv.sinval ) {
-				yaw = OCT_YAW_RIGHT;
-			}
-			if ( pitch_dot < -sincosv.sinval ) {
-				pitch = OCT_PITCH_UP;
-			} else if ( pitch_dot > sincosv.sinval ) {
-				pitch = OCT_PITCH_DOWN;
-			}
-
-			// if heading outside of 30 degrees cone angle, we decelerate
-			GetSinCos( DEG_TO_BAMS( m_nFullSpeedHeading ), &sincosv );
-			bool_t bYawOutsideHeading	= ( ( yaw_dot   < -sincosv.sinval ) || ( yaw_dot   > sincosv.sinval ) );
-			bool_t bPitchOutsideHeading = ( ( pitch_dot < -sincosv.sinval ) || ( pitch_dot > sincosv.sinval ) );
-			if ( bYawOutsideHeading || bPitchOutsideHeading ) {
-
-				// also maintain min. speed during turns
-				if ( fCurSpeed > min( m_fMinSpeedTurn, fDesiredSpeed ) ) {
-					// decelerate towards target
-					pObjctl->accel = OCT_DECELERATE;
-				}
-			}
-		}
-
-#ifdef BOT_LOGFILES
-		BOT_MsgOut( "heading_dot: %f, yaw_dot: %f, pitch_dot: %f", heading_dot, yaw_dot, pitch_dot );
-#endif // BOT_LOGFILES
-
-		//FIXME: oct must also handle slide horiz./vert.
-
-		pObjctl->rot_x = pitch;
-		pObjctl->rot_y = yaw;
-	}
-}
+// UTL_LocomotionController::ControlOjbect() is now in g_bot_common.cpp (libparsec).
 
 //----------------------------------------------------------------------------
 

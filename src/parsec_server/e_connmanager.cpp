@@ -601,6 +601,47 @@ int E_ConnManager::_ConnectClient( E_ClientConnectInfo* pClientConnectInfo )
 }
 
 
+// connect a server-internal bot (no network handshake, no stream) -----------
+//
+int E_ConnManager::ConnectBotClient( const char* name )
+{
+	ASSERT( name != NULL );
+
+	if ( m_nNumConnected >= MAX_NUM_CLIENTS ) {
+		MSGOUT( "ConnectBotClient(): server full, cannot add bot '%s'", name );
+		return -1;
+	}
+
+	for ( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
+		E_ClientInfo* pClientInfo = &m_ClientInfos[ nClientID ];
+
+		if ( pClientInfo->IsSlotFree() ) {
+
+			// mark slot used as a bot
+			pClientInfo->SetSlotFree( FALSE );
+			pClientInfo->SetIsBot( TRUE );
+			pClientInfo->MarkAlive();
+
+			// set name
+			strncpy( pClientInfo->m_szName, name, MAX_PLAYER_NAME );
+			pClientInfo->m_szName[ MAX_PLAYER_NAME ] = 0;
+
+			// connect in simulation and game (but NOT in packet driver — no stream)
+			TheSimulator->ConnectPlayer( nClientID );
+			TheGame->ConnectPlayer( nClientID );
+
+			m_nNumConnected++;
+
+			MSGOUT( "ConnectBotClient(): bot '%s' connected in slot %d", name, nClientID );
+			return nClientID;
+		}
+	}
+
+	MSGOUT( "ConnectBotClient(): no free slot for bot '%s'", name );
+	return -1;
+}
+
+
 // disconnect a client --------------------------------------------------------
 //
 int E_ConnManager::DisconnectClient( int nClientID )

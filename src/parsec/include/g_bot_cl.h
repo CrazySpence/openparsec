@@ -1,9 +1,13 @@
 #ifndef G_BOT_CL_H_
 #define G_BOT_CL_H_
+
+// shared bot types (object_control_s, agentmode_t, UTL_LocomotionController)
+#include "g_bot_common.h"
+
 extern int headless_bot;
 
 // simple timeout handling ----------------------------------------------------
-// 
+//
 class UTL_RefFrameTimeout
 {
 protected:
@@ -52,98 +56,11 @@ public:
 };
 
 
-// ****************************************************************************
-// ****************************************************************************
-// ****************************************************************************
-//FIXME:
-// this belongs into seperate OCT module
-// ****************************************************************************
-// ****************************************************************************
-// ****************************************************************************
-
-// object control orientations ------------------------------------------------
-//
-#define OCT_PITCH_UP	-1
-#define OCT_PITCH_DOWN  +1
-#define OCT_YAW_LEFT	+1
-#define OCT_YAW_RIGHT   -1
-#define OCT_ROLL_LEFT   +1
-#define OCT_ROLL_RIGHT  -1
-#define OCT_ACCELERATE  +1
-#define OCT_DECELERATE  -1
-
-// object control structure ---------------------------------------------------
-//
-struct object_control_s
-{
-	ShipObject* pShip;
-
-	float		rot_x;		// do a rotation around the x axis - PITCH - ( -1 = divedown, +1 = pullup )
-	float		rot_y;		// do a rotation around the y axis - YAW   - ( -1 = left,     +1 = right )
-	float		rot_z;		// do a rotation around the z axis - ROLL  - ( -1 = right,    +1 = left )
-	float		accel;		// accel control ( +1 accelerate, -1 decelerate )
-
-	//FIXME: slide horiz/vert
-
-	//FIXME: numerically sane versions
-	bool_t IsPitch() const	{ return rot_x != 0.0f; }
-	bool_t IsYaw() const	{ return rot_y != 0.0f; }
-	bool_t IsRoll() const	{ return rot_z != 0.0f; }
-	bool_t IsMove() const	{ return accel != 0.0f; }
-};
-
-// do the desired object control
+// do the desired object control (client-side: calls INP_User* input functions)
 int	OCT_DoControl( object_control_s* objctl );
 
 // dump an object control to the console
-void OCT_Dump(object_control_s* objctl );
-
-// ****************************************************************************
-// ****************************************************************************
-// ****************************************************************************
-
-
-
-
-// ----------------------------------------------------------------------------
-//
-class UTL_LocomotionController
-{
-protected:
-	
-	int			m_nRelaxedHeadingAngle;
-	int			m_nFullSpeedHeading;
-	float		m_fMinSpeedTurn;			// min. speed to keep when doing a sharp turn
-
-public:
-	// standard ctor
-	UTL_LocomotionController()
-	{
-		m_nRelaxedHeadingAngle	= 5;
-		m_nFullSpeedHeading		= 30;
-		m_fMinSpeedTurn			= FIXED_TO_FLOAT( 500 );
-	}
-
-	// set the max. degrees the heading and the desired heading can differ
-	void SetRelaxedHeadingAngle( int nRelaxedHeadingAngle )
-	{
-		m_nRelaxedHeadingAngle = nRelaxedHeadingAngle;
-	}
-
-	// set the heading at which we should go full speed again after a turn
-	void SetFullSpeedHeading( int nFullSpeedHeading )
-	{
-		m_nFullSpeedHeading = nFullSpeedHeading;
-	}
-
-	// set the min. speed to keep during a turn
-	void SetMinSpeedTurn( fixed_t _MinSpeedTurn )
-	{
-		m_fMinSpeedTurn = FIXED_TO_FLOAT( _MinSpeedTurn );
-	}
-
-	void ControlOjbect( object_control_s* pObjctl, Vector3* pDesiredVelocity, fixed_t _DesiredSpeed );
-};
+void OCT_Dump( object_control_s* objctl );
 
 
 // bot character properties ---------------------------------------------------
@@ -244,17 +161,6 @@ public:
 	object_control_s*	GetObjectControl()	{ return &m_oc; }
 };
 
-
-// type specifying the agent modes --------------------------------------------
-//
-enum agentmode_t {
-	AGENTMODE_IDLE			= 1,
-	AGENTMODE_POWERUP		= 2,
-	AGENTMODE_ATTACK		= 3,
-	AGENTMODE_RETREAT		= 4,
-
-	AGENTMODE_MAX			= AGENTMODE_RETREAT
-};
 
 // main class for handling the bot AI -----------------------------------------
 //

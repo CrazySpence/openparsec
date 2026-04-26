@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include "g_telep.h"
+#include "e_bot_sv.h"
 
 // class holding the server configuration -------------------------------------
 //
@@ -157,6 +158,10 @@ protected: 	// data
 	int                 m_nTransitPending;
 
 	bool_t				m_bQuit;
+
+	// server-side bot manager
+	E_BotManager		m_BotManager;
+
 protected: 	// methods
 
 	// init pre/post running of console script
@@ -214,6 +219,9 @@ public: 	// methods
 	refframe_t  GetMasterServerFrameTime()  { return m_MasterServer_FrameTime; }
 
 	void		SetQuitFlag()				{ m_bQuit = TRUE; }
+
+	// return the server-side bot manager
+	E_BotManager* GetBotManager()		{ return &m_BotManager; }
 
 	// transit loadout helpers
 	bool		HasMasterServerNode()		{ return ( m_bMasterServer_NodeValid == TRUE ); }
