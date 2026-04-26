@@ -78,6 +78,7 @@ OBJECTS := \
 	$(OBJDIR)/sys_file.o \
 	$(OBJDIR)/net_util.o \
 	$(OBJDIR)/utl_logfile.o \
+	$(OBJDIR)/g_bot_common.o \
 	$(OBJDIR)/g_emp.o \
 	$(OBJDIR)/con_tab.o \
 	$(OBJDIR)/sl_path.o \
@@ -354,6 +355,9 @@ $(OBJDIR)/net_util.o: ../../../../src/libparsec/net_util.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/utl_logfile.o: ../../../../src/libparsec/utl_logfile.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/g_bot_common.o: ../../../../src/libparsec/g_bot_common.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/g_emp.o: ../../../../src/libparsec/g_emp.cpp
