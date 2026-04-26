@@ -1076,9 +1076,14 @@ int E_SimNetOutput::DisconnectPlayer( int nClientID )
 //
 void E_SimNetOutput::DoClientUpdates()
 {
-	// append a remote event for each connected player
+	// send updates to all connected real clients (skip server-internal bots —
+	// they have no network connection and should not receive packets)
 	for( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
 		if( !TheSimulator->IsPlayerDisconnected( nClientID ) ) {
+			E_ClientInfo* pInfo = TheConnManager->GetClientInfo( nClientID );
+			if ( pInfo == NULL || pInfo->IsBot() ) {
+				continue;
+			}
 			m_SimClientNetOutput[ nClientID ].SendUpdateToClient();
 		}
 	}

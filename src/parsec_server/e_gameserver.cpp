@@ -105,6 +105,14 @@
 static char error_resolving_masterserver[]      = "error resolving masterserver hostname.";
 
 
+// global accessor for the server-side bot manager ----------------------------
+//
+E_BotManager* SV_GetBotManager()
+{
+	return E_GameServer::GetGameServer()->GetBotManager();
+}
+
+
 // ----------------------------------------------------------------------------
 // ServerConfig methods 
 // ----------------------------------------------------------------------------
@@ -284,6 +292,9 @@ int	E_GameServer::Init()
 
 		// register all AUX/SV vars
 		CON_AUX_SV_Register();
+
+		// register server-side bot console commands
+		SV_BotManager_RegisterCommands();
 	}
 #ifndef _DISABLE_SCREEN_OUTPUT
 	// init CURSES
@@ -817,6 +828,9 @@ refframe_t E_GameServer::ServerFrame()
 	if(!this->GetServerIsMaster()){
 		// process queue with input from all clients
 		TheSimNetInput->ProcessInputREList();
+
+		// run server-side bot AI
+		m_BotManager.Tick( m_SimTick_FrameTime );
 
 		// maintain the simulation
 		_MaintainSimulation();

@@ -91,15 +91,17 @@ public:
 class E_ClientInfo : public E_BasicClientInfo
 {
 protected:
-	int					m_slotfree;	
+	int					m_slotfree;
 	int					m_nAliveCounter;
 	E_SimPlayerInfo*	m_pSimPlayerInfo;
+	bool				m_bIsBot;		// true for server-internal bot players
 
 public:
-	E_ClientInfo() : 
+	E_ClientInfo() :
 	  m_slotfree( TRUE ),
 	  m_nAliveCounter( MAX_ALIVE_COUNTER ),
-	  m_pSimPlayerInfo( NULL )
+	  m_pSimPlayerInfo( NULL ),
+	  m_bIsBot( false )
 	{
 	}
 
@@ -111,7 +113,12 @@ public:
 
 		m_slotfree		= TRUE;
 		m_nAliveCounter = MAX_ALIVE_COUNTER;
+		m_bIsBot		= false;
 	}
+
+	// check / set whether this slot is a server-internal bot (no network connection)
+	bool IsBot()        const { return m_bIsBot; }
+	void SetIsBot( bool b )   { m_bIsBot = b; }
 
 	// mark the client alive
 	void MarkAlive();
@@ -179,6 +186,10 @@ public:
 	
 	// check whether the client connection is valid
 	int CheckClientConnect( E_ClientConnectInfo* pClientConnectInfo );
+
+	// connect a server-internal bot (no network handshake, no stream)
+	// Returns the allocated client slot ID, or -1 on failure.
+	int ConnectBotClient( const char* name );
 
 	// check for a client disconnect
 	int CheckClientDisconnect( node_t* clientnode );

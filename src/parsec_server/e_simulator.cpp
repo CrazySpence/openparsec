@@ -114,6 +114,24 @@ void E_SimShipState::Reset()
 }
 
 
+// apply incremental bot input deltas (server-side bots only) -----------------
+//
+void E_SimClientState::ApplyBotInput( bams_t yaw, bams_t pitch, bams_t roll,
+                                      fixed_t speedDelta, fixed_t maxSpeed )
+{
+	m_InputState.m_CurYaw   += yaw;
+	m_InputState.m_CurPitch += pitch;
+	m_InputState.m_CurRoll  += roll;
+	m_InputState.m_CurSpeed += speedDelta;
+
+	// clamp speed
+	if ( m_InputState.m_CurSpeed < 0 )
+		m_InputState.m_CurSpeed = 0;
+	if ( m_InputState.m_CurSpeed > maxSpeed )
+		m_InputState.m_CurSpeed = maxSpeed;
+}
+
+
 // connect a client -----------------------------------------------------------
 //
 void E_SimClientState::Connect( int nClientID )

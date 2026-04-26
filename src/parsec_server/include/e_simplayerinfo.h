@@ -48,6 +48,9 @@ public:
 	// set the player status to disconnected
 	void Disconnect();
 
+	// join a server-internal bot (skips all network ops)
+	void BotPerformJoin( const char* name );
+
 	// set flag to ignore all joins until we get an unjoin from the client
 	void IgnoreJoinUntilUnjoinFromClient()
 	{

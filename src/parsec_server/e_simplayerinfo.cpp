@@ -368,6 +368,46 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 	GAMECODE ( UI_PlayerUnjoinedFeedback( playerstatus ) );
 }
 
+// join a server-internal bot (skips all network operations) -----------------
+//
+void E_SimPlayerInfo::BotPerformJoin( const char* name )
+{
+	ASSERT( name != NULL );
+	ASSERT( m_Status == PLAYER_CONNECTED );
+	ASSERT( m_nShipID == SHIPID_NOSHIP );
+	ASSERT( m_pShip   == NULL );
+
+	// use the first available ship class (index 0)
+	m_objclass = ShipClasses[ 0 ];
+	ASSERT( (dword)m_objclass != CLASS_ID_INVALID );
+
+	// fetch sim state for this slot and compute a spawn position
+	E_SimClientState* pSimClientState = TheSimulator->GetSimClientState( m_nClientID );
+
+	E_SimShipState _SimShipState;
+	GAMECODE2( TheGame->JoinPlayer( m_nClientID, &_SimShipState ); );
+
+	pSimClientState->ForceNewState( &_SimShipState );
+	pSimClientState->SetClientResync();
+
+	// create the ship object in the world
+	GenObject* objectpo = TheWorld->CreateObject( m_objclass,
+	                                              _SimShipState.GetObjPosition(),
+	                                              (dword)m_nClientID );
+	ASSERT( objectpo != NULL );
+
+	objectpo->HostObjNumber = ShipHostObjId( (dword)m_nClientID );
+	m_pShip   = (ShipObject*) objectpo;
+	m_nShipID = objectpo->ObjectNumber;
+
+	// mark as joined so DoClientUpdates includes this slot's state
+	m_Status = PLAYER_JOINED;
+	pSimClientState->SetJoined();
+
+	MSGOUT( "bot '%s' joined and got ship id %d in slot %d", name, m_nShipID, m_nClientID );
+}
+
+
 // set the player status to connected -----------------------------------------
 //
 void E_SimPlayerInfo::Connect( int nClientID )
