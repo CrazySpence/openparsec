@@ -23,10 +23,11 @@
 
 // C library
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/timeb.h>
 #include <unistd.h>
 #include <math.h>
@@ -873,7 +874,11 @@ int	E_GameServer::MainLoop()
 		// check whether we have a network input for at most m_ServerIdleTime
 		int netInput = TheUDPDriver->SleepUntilNetInput( m_ServerIdleTime_msec );
 		if ( netInput < 0 ) {
-			MSGOUT( "E_GameServer: error checking for network input" );
+			// EINTR is harmless — a signal interrupted select(); just continue
+			if ( errno != EINTR ) {
+				MSGOUT( "E_GameServer: error checking for network input (errno %d: %s)",
+					errno, strerror( errno ) );
+			}
 		}
 		// check input
 		INP_HandleInput();
