@@ -250,6 +250,7 @@ void E_SimNetInput::ProcessInputREList()
                     TheSimNetOutput->BufferForMulticastRE( relist, nClientID, FALSE ); //Notify Clients of firing
                 }
             }
+            break;
             case RE_WEAPONSTATE:
             {
                switch (((RE_WeaponState *)relist)->WeaponMask ) {

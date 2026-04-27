@@ -1283,6 +1283,11 @@ void G_Input::DeactivateGun( int nClientID, int SelectedGun )
    G_Player*  pPlayer = TheGame->GetPlayer( nClientID );
    ShipObject* pShip = pPlayer->GetShipObject();
 
+   // ship may already be freed (killed before deactivation RE arrived)
+   if ( pShip == NULL ) {
+      return;
+   }
+
 	// Deactivate selected gun
 	switch ( SelectedGun ) {
 
