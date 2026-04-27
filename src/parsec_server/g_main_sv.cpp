@@ -435,7 +435,12 @@ void G_Main::Init()
 
 	MegaShieldStrength 			= MEGASHIELD_STRENGTH * FRAME_MEASURE_TIMEBASE;
 
-	m_nKillLimit				= DEFAULT_KILL_LIMIT;
+	// Apply console-configured game vars (killlimit, timelimit, etc.).
+	// RealizeVariables() runs after the boot script, so sv.game.killlimit
+	// and sv.game.timelimit set there take effect here rather than being
+	// overwritten by the compile-time DEFAULT_KILL_LIMIT constant.
+	RealizeVariables();
+
     strcpy(fragfile,"frag_1.log");
     if(m_NebulaID == 0) //Wasn't set with nebula.id command
         m_NebulaID = 3; //Default Red system
