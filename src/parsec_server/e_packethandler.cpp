@@ -1223,14 +1223,24 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 			node_t node_ck;
 			it->GetNode(&node_ck);
 			if(NODE_AreSame(&node_ck, &_Node)){
-				// they are the same, so update the record in the server list
+				// exact match — normal heartbeat refresh
+				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos);
+				return TRUE;
+			} else if ( memcmp( node_ck.address, _Node.address, 4 ) == 0 ) {
+				// same IP, different port — server restarted or configured port
+				// changed; update the stored node and continue normally
+				char szOld[ 128 ];
+				strcpy( szOld, NODE_Print( &node_ck ) );
+				MSGOUT( "Server %s reconnected on new port (was %s, now %s), updating.\n",
+					ServerName, szOld, NODE_Print( &_Node ) );
 				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos);
 				return TRUE;
 			} else {
-				// if we get here, the requested ServerID exists, but the node address
-				// doesn't match.  Ignore the packet
-				// XXX: Perhaps send a packet back to the server to notify them the ID is taken?
-				MSGOUT("Server ID config mismatch for existing server %s\n", ServerName);
+				// completely different IP — another host is claiming this server ID
+				char szStored[ 128 ];
+				strcpy( szStored, NODE_Print( &node_ck ) );
+				MSGOUT( "Server ID config mismatch for existing server %s (stored: %s, received: %s)\n",
+					ServerName, szStored, NODE_Print( &_Node ) );
 				return FALSE;
 			}
 		}
