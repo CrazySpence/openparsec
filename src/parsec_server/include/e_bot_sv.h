@@ -18,6 +18,7 @@ class E_SimClientState;
 // thresholds (mirror the client-side defines in g_bot_cl.cpp) ----------------
 //
 #define SV_BOT_ENERGY_LEVEL  0.1f   // retreat when energy drops below 10 %
+#define SV_BOT_ENERGY_SEEK   0.25f  // proactively seek energy when below 25 %
 #define SV_BOT_GMISSL_LEVEL  0.1f   // retreat when guided missiles drop below 10 %
 
 
@@ -188,6 +189,7 @@ protected:
 	ExtraObject* _SelectPreferredMissileObject();
 	ExtraObject* _SelectMinePackObject();
 	bool         _ShouldLayMine();
+	void         _DeactivatePrefWeaponIfActive();
 };
 
 

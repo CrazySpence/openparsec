@@ -55,6 +55,7 @@
 #include "obj_creg.h"			// ShipClasses, NumShipClasses
 #include "obj_cust.h"			// OBJ_FetchCustomTypeId
 #include "g_telep.h"			// teleporter_type
+#include "g_wfx.h"				// WFX_Activate/Deactivate Helix/Lightning/Photon
 #include "od_class.h"			// EXTRAINDX_*, *_CLASS constants
 #include "od_masks.h"			// WPMASK_*, SPMASK_*
 
@@ -213,6 +214,7 @@ void E_BotPlayer::_DoPlan()
 	agentmode_t prevMode = m_nAgentMode;
 
 	if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * ( 1.0f - m_fRetreatHP ) ) ) {
+		_DeactivatePrefWeaponIfActive();
 		if ( m_bDebug && m_nAgentMode != AGENTMODE_RETREAT )
 			MSGOUT( "BOT[%d] plan: RETREAT (damage %d / max %d)",
 			        m_nClientID,
@@ -221,6 +223,7 @@ void E_BotPlayer::_DoPlan()
 		return;
 	}
 	if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_LEVEL ) ) {
+		_DeactivatePrefWeaponIfActive();
 		if ( m_bDebug && m_nAgentMode != AGENTMODE_RETREAT )
 			MSGOUT( "BOT[%d] plan: RETREAT (energy %.0f / max %.0f)",
 			        m_nClientID,
@@ -229,6 +232,20 @@ void E_BotPlayer::_DoPlan()
 		return;
 	}
 	// Note: no retreat for msl=0 — bots fight with lasers/EMP when out of missiles.
+
+	// if energy is getting low and there is a pack available, go fetch it now
+	// rather than running dry mid-combat (especially relevant for cannon bots)
+	if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_SEEK ) ) {
+		if ( _SelectEnergyObject() != NULL ) {
+			_DeactivatePrefWeaponIfActive();
+			if ( m_bDebug && m_nAgentMode != AGENTMODE_POWERUP )
+				MSGOUT( "BOT[%d] plan: POWERUP (low energy %.0f/%.0f, seeking pack)",
+				        m_nClientID,
+				        (float)m_pShip->CurEnergy, (float)m_pShip->MaxEnergy );
+			m_nAgentMode = AGENTMODE_POWERUP;
+			return;
+		}
+	}
 
 	// if there are other joined players, attack one
 	if ( TheGame->GetNumJoined() > 1 ) {
@@ -308,8 +325,12 @@ void E_BotPlayer::_GoalCheck_Powerup()
 	if ( pObject == NULL ) {
 		m_Goal.SetTargetObject( NULL );
 
+		// energy takes top priority when running low — weapons drain it fast
+		if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_SEEK ) )
+			pObject = _SelectEnergyObject();
+
 		// seek preferred weapon if configured and not already owned
-		if ( m_nPrefWeapon != BOTWEAPON_NONE )
+		if ( pObject == NULL && m_nPrefWeapon != BOTWEAPON_NONE )
 			pObject = _SelectPreferredWeaponObject();
 
 		// seek preferred missile supply if configured and running low
@@ -359,6 +380,7 @@ void E_BotPlayer::_GoalCheck_Attack()
 		m_Goal.SetTargetObject( NULL );
 		pTargetObject = _SelectAttackTarget();
 		if ( pTargetObject == NULL ) {
+			_DeactivatePrefWeaponIfActive();
 			m_nAgentMode = AGENTMODE_IDLE;
 			_DoPlan();
 			return;
@@ -376,6 +398,26 @@ void E_BotPlayer::_GoalCheck_Attack()
 
 	// weapon firing
 	if ( _TargetInRange( m_pShip, (ShipObject*) pTargetObject, 1500.0f ) ) {
+
+		// fire preferred cannon weapon if equipped (these are continuous beams —
+		// FireHelix/Lightning/Photon() only activates if not already active)
+		switch ( m_nPrefWeapon ) {
+			case BOTWEAPON_HELIX:
+				if ( m_pShip->Weapons & WPMASK_CANNON_HELIX )
+					m_pPlayer->FireHelix();
+				break;
+			case BOTWEAPON_LIGHTNING:
+				if ( m_pShip->Weapons & WPMASK_CANNON_LIGHTNING )
+					m_pPlayer->FireLightning();
+				break;
+			case BOTWEAPON_PHOTON:
+				if ( m_pShip->Weapons & WPMASK_CANNON_PHOTON )
+					m_pPlayer->FirePhoton();
+				break;
+			default:
+				break;
+		}
+
 		if ( len < 600.0f && m_fFireDelay <= 0.0f ) {
 			m_pPlayer->FireLaser();
 			m_fFireDelay = 1.0f;
@@ -407,6 +449,7 @@ void E_BotPlayer::_GoalCheck_Attack()
 
 	// abandon target if it has moved too far away
 	if ( len > 20000.0f ) {
+		_DeactivatePrefWeaponIfActive();
 		m_nAgentMode = AGENTMODE_IDLE;
 		m_Goal.SetTargetObject( NULL );
 		_DoPlan();
@@ -623,6 +666,21 @@ ExtraObject* E_BotPlayer::_SelectMissileObject()
 		}
 	}
 	return NULL;
+}
+
+
+// deactivate any continuous cannon weapon that is currently firing -----------
+// called whenever the bot stops attacking (target lost, mode change, death).
+//
+void E_BotPlayer::_DeactivatePrefWeaponIfActive()
+{
+	if ( m_pShip == NULL ) return;
+	if ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX )
+		WFX_DeactivateHelix( m_pShip );
+	if ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING )
+		WFX_DeactivateLightning( m_pShip );
+	if ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON )
+		WFX_DeactivatePhoton( m_pShip );
 }
 
 
