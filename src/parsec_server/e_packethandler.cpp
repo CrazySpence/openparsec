@@ -565,29 +565,45 @@ int E_PacketHandler::_IsLegitSender( NetPacket_GMSV* gamepacket, int bufid )
 
 	// NODE_ALIVE only valid for normal clients
 	if ( ( senderid >= 0 ) && ( senderid < MAX_NUM_CLIENTS ) ) {
-		
+
 		// get the clientinfo
 		E_ClientInfo* pClientInfo = TheConnManager->GetClientInfo( senderid );
-		
+
+		// silently drop packets for unoccupied slots (stale UDP datagrams arriving
+		// after a client disconnected — not a spoof, just network lag)
+		if ( pClientInfo->IsSlotFree() ) {
+			return FALSE;
+		}
+
 		// get the sending node of the packet
 		node_t* packetnode = ThePacketDriver->GetPktSender( bufid );
-		
+
 		// check whether someone tries to spoof the senderid
 		if ( NODE_AreSame( packetnode, &pClientInfo->m_node ) == FALSE ) {
+
+			// same IP but different port — NAT gateway remapped the source port.
+			// update the stored node so subsequent packets are accepted.
+			if ( memcmp( packetnode->address, pClientInfo->m_node.address, 4 ) == 0 ) {
+				char szOld[ 128 ];
+				strcpy( szOld, NODE_Print( &pClientInfo->m_node ) );
+				NODE_Copy( &pClientInfo->m_node, packetnode );
+				MSGOUT( "NAT port remap for slot %d: %s -> %s, updated.\n",
+					senderid, szOld, NODE_Print( packetnode ) );
+				return TRUE;
+			}
 
 			char szBuffer1[ 128 ];
 			char szBuffer2[ 128 ];
 			strcpy( szBuffer1, NODE_Print( packetnode )           );
 			strcpy( szBuffer2, NODE_Print( &pClientInfo->m_node ) );
-			
-			MSGOUT( "Filtering spoofed packet for %d. packet from %s - should be %s.\n", 
-				senderid, 
-				szBuffer1, 
+
+			MSGOUT( "Filtering spoofed packet for %d. packet from %s - should be %s.\n",
+				senderid,
+				szBuffer1,
 				szBuffer2 );
-			
-			//FIXME: check whether clients behind firewalls keep the same node ( ports might get remapped )
-			return FALSE ;
-		} 
+
+			return FALSE;
+		}
 	} else if ( senderid == PLAYERID_MASTERSERVER ) {
 
 		// get the sending node of the packet
