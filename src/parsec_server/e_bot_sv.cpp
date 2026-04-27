@@ -247,6 +247,30 @@ void E_BotPlayer::_DoPlan()
 		}
 	}
 
+	// seek configured preferred items before attacking — the bot is expected to
+	// have its loadout before engaging, and will detour to collect one if available.
+	// Each selector already gates on "not already owned" / "below 50%" / "not full".
+	{
+		ExtraObject* pPref = NULL;
+
+		if ( pPref == NULL && m_nPrefWeapon != BOTWEAPON_NONE )
+			pPref = _SelectPreferredWeaponObject();
+
+		if ( pPref == NULL && m_nPrefMissile != BOTMISSILE_NONE )
+			pPref = _SelectPreferredMissileObject();
+
+		if ( pPref == NULL && m_bMineLayer )
+			pPref = _SelectMinePackObject();
+
+		if ( pPref != NULL ) {
+			if ( m_bDebug && m_nAgentMode != AGENTMODE_POWERUP )
+				MSGOUT( "BOT[%d] plan: POWERUP (seeking preferred item, ObjClass=%d)",
+				        m_nClientID, pPref->ObjectClass );
+			m_nAgentMode = AGENTMODE_POWERUP;
+			return;
+		}
+	}
+
 	// if there are other joined players, attack one
 	if ( TheGame->GetNumJoined() > 1 ) {
 		ShipObject* pTarget = _SelectAttackTarget();
