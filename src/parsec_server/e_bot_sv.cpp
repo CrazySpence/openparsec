@@ -51,8 +51,12 @@
 #include "sys_refframe_sv.h"
 #include "g_player.h"
 #include "g_main_sv.h"
-#include "e_world_trans.h"		// FetchFirstShip, FetchFirstExtra
+#include "e_world_trans.h"		// FetchFirstShip, FetchFirstExtra, FetchFirstCustom
 #include "obj_creg.h"			// ShipClasses, NumShipClasses
+#include "obj_cust.h"			// OBJ_FetchCustomTypeId
+#include "g_telep.h"			// teleporter_type
+#include "od_class.h"			// EXTRAINDX_*, *_CLASS constants
+#include "od_masks.h"			// WPMASK_*, SPMASK_*
 
 
 // bot respawn delay after death (refframes; FRAME_MEASURE_TIMEBASE = 600/sec)
@@ -208,7 +212,7 @@ void E_BotPlayer::_DoPlan()
 {
 	agentmode_t prevMode = m_nAgentMode;
 
-	if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * SV_BOT_REPAIR_LEVEL ) ) {
+	if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * ( 1.0f - m_fRetreatHP ) ) ) {
 		if ( m_bDebug && m_nAgentMode != AGENTMODE_RETREAT )
 			MSGOUT( "BOT[%d] plan: RETREAT (damage %d / max %d)",
 			        m_nClientID,
@@ -293,7 +297,7 @@ void E_BotPlayer::_GoalCheck_Idle()
 }
 
 
-// powerup: navigate to nearest extra -----------------------------------------
+// powerup: navigate to preferred extra, or nearest if no preference ----------
 //
 void E_BotPlayer::_GoalCheck_Powerup()
 {
@@ -303,7 +307,23 @@ void E_BotPlayer::_GoalCheck_Powerup()
 	ExtraObject* pObject = ValidateCachedExtra( (ExtraObject*) m_Goal.GetTargetObject() );
 	if ( pObject == NULL ) {
 		m_Goal.SetTargetObject( NULL );
-		pObject = FetchFirstExtra();
+
+		// seek preferred weapon if configured and not already owned
+		if ( m_nPrefWeapon != BOTWEAPON_NONE )
+			pObject = _SelectPreferredWeaponObject();
+
+		// seek preferred missile supply if configured and running low
+		if ( pObject == NULL && m_nPrefMissile != BOTMISSILE_NONE )
+			pObject = _SelectPreferredMissileObject();
+
+		// seek mine pack if mine-layer role
+		if ( pObject == NULL && m_bMineLayer )
+			pObject = _SelectMinePackObject();
+
+		// fall back to whatever is available
+		if ( pObject == NULL )
+			pObject = FetchFirstExtra();
+
 		if ( pObject == NULL ) {
 			m_nAgentMode = AGENTMODE_IDLE;
 			return;
@@ -371,7 +391,10 @@ void E_BotPlayer::_GoalCheck_Attack()
 		}
 		if ( len < 100.0f && m_fEMPDelay <= 0.0f ) {
 			m_pPlayer->FireEMP( 0, true );  // true = multicast RE_CreateEmp so clients see the blast
-			m_fEMPDelay = 1.0f;
+			m_fEMPDelay = m_fEMPMinDelay;
+		}
+		if ( m_bMineLayer && _ShouldLayMine() ) {
+			m_pPlayer->LaunchMine();
 		}
 	}
 
@@ -409,7 +432,7 @@ void E_BotPlayer::_GoalCheck_Retreat()
 		if ( m_pShip->CurEnergy < ( m_pShip->MaxEnergy * SV_BOT_ENERGY_LEVEL ) ) {
 			pObject = _SelectEnergyObject();
 		}
-		if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * SV_BOT_REPAIR_LEVEL ) ) {
+		if ( m_pShip->CurDamage > ( m_pShip->MaxDamage * ( 1.0f - m_fRetreatHP ) ) ) {
 			pObject = _SelectRepairObject();
 		}
 
@@ -603,6 +626,246 @@ ExtraObject* E_BotPlayer::_SelectMissileObject()
 }
 
 
+// select the preferred weapon device pickup (bot doesn't have it yet) --------
+//
+ExtraObject* E_BotPlayer::_SelectPreferredWeaponObject()
+{
+	if ( m_nPrefWeapon == BOTWEAPON_NONE ) return NULL;
+
+	// bail out if bot already has the preferred weapon
+	switch ( m_nPrefWeapon ) {
+		case BOTWEAPON_LASER2:
+			if ( m_pShip->Specials & SPMASK_LASER_UPGRADE_1 ) return NULL;
+			break;
+		case BOTWEAPON_LASER3:
+			if ( m_pShip->Specials & SPMASK_LASER_UPGRADE_2 ) return NULL;
+			break;
+		case BOTWEAPON_HELIX:
+			if ( m_pShip->Weapons & WPMASK_CANNON_HELIX )     return NULL;
+			break;
+		case BOTWEAPON_LIGHTNING:
+			if ( m_pShip->Weapons & WPMASK_CANNON_LIGHTNING ) return NULL;
+			break;
+		case BOTWEAPON_PHOTON:
+			if ( m_pShip->Weapons & WPMASK_CANNON_PHOTON )    return NULL;
+			break;
+		default:
+			return NULL;
+	}
+
+	// determine which class to find
+	int targetClass = -1;
+	switch ( m_nPrefWeapon ) {
+		case BOTWEAPON_LASER2:
+			targetClass = LASERUPGRADE1_CLASS;
+			break;
+		case BOTWEAPON_LASER3:
+			// need upgrade 1 before upgrade 2
+			targetClass = ( m_pShip->Specials & SPMASK_LASER_UPGRADE_1 )
+			              ? LASERUPGRADE2_CLASS : LASERUPGRADE1_CLASS;
+			break;
+		case BOTWEAPON_HELIX:     targetClass = HELIX_DEVICE_CLASS;     break;
+		case BOTWEAPON_LIGHTNING: targetClass = LIGHTNING_DEVICE_CLASS; break;
+		case BOTWEAPON_PHOTON:    targetClass = PHOTON_DEVICE_CLASS;    break;
+		default: return NULL;
+	}
+
+	for ( ExtraObject* p = FetchFirstExtra(); p != NULL;
+	      p = (ExtraObject*) p->NextObj ) {
+		if ( p->ObjectType == EXTRA3TYPE ) {
+			Extra3Obj* e = (Extra3Obj*) p;
+			if ( e->ObjectClass == targetClass )
+				return p;
+		}
+	}
+	return NULL;
+}
+
+
+// select the preferred missile pack if running low ---------------------------
+//
+ExtraObject* E_BotPlayer::_SelectPreferredMissileObject()
+{
+	if ( m_nPrefMissile == BOTMISSILE_NONE ) return NULL;
+
+	int targetClass = -1;
+
+	switch ( m_nPrefMissile ) {
+		case BOTMISSILE_DUMB:
+			if ( m_pShip->NumMissls >= (int)( m_pShip->MaxNumMissls * 0.5f ) )
+				return NULL;
+			targetClass = DUMB_PACK_CLASS;
+			break;
+		case BOTMISSILE_GUIDE:
+			if ( m_pShip->NumHomMissls >= (int)( m_pShip->MaxNumHomMissls * 0.5f ) )
+				return NULL;
+			targetClass = GUIDE_PACK_CLASS;
+			break;
+		case BOTMISSILE_SWARM:
+			if ( m_pShip->NumPartMissls >= (int)( m_pShip->MaxNumPartMissls * 0.5f ) )
+				return NULL;
+			targetClass = SWARM_PACK_CLASS;
+			break;
+		default:
+			return NULL;
+	}
+
+	for ( ExtraObject* p = FetchFirstExtra(); p != NULL;
+	      p = (ExtraObject*) p->NextObj ) {
+		if ( p->ObjectType == EXTRA2TYPE ) {
+			Extra2Obj* e = (Extra2Obj*) p;
+			if ( e->ObjectClass == targetClass )
+				return p;
+		}
+	}
+	return NULL;
+}
+
+
+// select a mine pack (mine-layer role) ---------------------------------------
+//
+ExtraObject* E_BotPlayer::_SelectMinePackObject()
+{
+	// already at capacity
+	if ( m_pShip->NumMines >= m_pShip->MaxNumMines ) return NULL;
+
+	for ( ExtraObject* p = FetchFirstExtra(); p != NULL;
+	      p = (ExtraObject*) p->NextObj ) {
+		if ( p->ObjectType == EXTRA2TYPE ) {
+			Extra2Obj* e = (Extra2Obj*) p;
+			if ( e->ObjectClass == MINE_PACK_CLASS )
+				return p;
+		}
+	}
+	return NULL;
+}
+
+
+// decide whether a mine-layer bot should drop a mine now ---------------------
+//
+bool E_BotPlayer::_ShouldLayMine()
+{
+	if ( m_pShip->NumMines <= 0 ) return false;
+
+	// condition 1: an enemy ship is within 250 units (being chased)
+	for ( ShipObject* s = FetchFirstShip(); s != NULL;
+	      s = (ShipObject*) s->NextObj ) {
+		if ( s == m_pShip ) continue;
+		Vector3 spos;
+		FetchTVector( s->ObjPosition, &spos );
+		Vector3 diff;
+		VECSUB( &diff, &spos, &m_AgentPos );
+		float dist = GEOMV_TO_FLOAT( VctLenX( &diff ) );
+		if ( dist < 250.0f ) return true;
+	}
+
+	// condition 2: within 400 units of a stargate or teleporter
+	static dword sg_typeid = TYPE_ID_INVALID;
+	if ( sg_typeid == TYPE_ID_INVALID )
+		sg_typeid = OBJ_FetchCustomTypeId( "stargate" );
+
+	for ( CustomObject* obj = FetchFirstCustom(); obj != NULL;
+	      obj = (CustomObject*) obj->NextObj ) {
+		if ( obj->ObjectType == CUSTM_LIST_NO ) break;
+		if ( obj->ObjectType == teleporter_type || obj->ObjectType == sg_typeid ) {
+			Vector3 opos;
+			FetchTVector( obj->ObjPosition, &opos );
+			Vector3 diff;
+			VECSUB( &diff, &opos, &m_AgentPos );
+			float dist = GEOMV_TO_FLOAT( VctLenX( &diff ) );
+			if ( dist < 400.0f ) return true;
+		}
+	}
+
+	return false;
+}
+
+
+// apply a named config parameter (returns false if param unknown) ------------
+//
+bool E_BotPlayer::ApplyConfig( const char* param, const char* value )
+{
+	ASSERT( param != NULL );
+
+	if ( strcmp( param, "empdly" ) == 0 ) {
+		float v = (float)atof( value ? value : "1" );
+		if ( v < 0.5f ) v = 0.5f;
+		if ( v > 60.0f ) v = 60.0f;
+		m_fEMPMinDelay = v;
+		MSGOUT( "BOT[%d] empdly = %.2f", m_nClientID, m_fEMPMinDelay );
+		return true;
+	}
+
+	if ( strcmp( param, "weapon" ) == 0 ) {
+		const char* v = value ? value : "none";
+		if      ( strcmp( v, "none"      ) == 0 ) m_nPrefWeapon = BOTWEAPON_NONE;
+		else if ( strcmp( v, "laser2"    ) == 0 ) m_nPrefWeapon = BOTWEAPON_LASER2;
+		else if ( strcmp( v, "laser3"    ) == 0 ) m_nPrefWeapon = BOTWEAPON_LASER3;
+		else if ( strcmp( v, "helix"     ) == 0 ) m_nPrefWeapon = BOTWEAPON_HELIX;
+		else if ( strcmp( v, "lightning" ) == 0 ) m_nPrefWeapon = BOTWEAPON_LIGHTNING;
+		else if ( strcmp( v, "photon"    ) == 0 ) m_nPrefWeapon = BOTWEAPON_PHOTON;
+		else {
+			MSGOUT( "BOT[%d] weapon: unknown value '%s' (none|laser2|laser3|helix|lightning|photon)", m_nClientID, v );
+			return false;
+		}
+		MSGOUT( "BOT[%d] weapon = %s", m_nClientID, v );
+		return true;
+	}
+
+	if ( strcmp( param, "missile" ) == 0 ) {
+		const char* v = value ? value : "none";
+		if      ( strcmp( v, "none"  ) == 0 ) m_nPrefMissile = BOTMISSILE_NONE;
+		else if ( strcmp( v, "dumb"  ) == 0 ) m_nPrefMissile = BOTMISSILE_DUMB;
+		else if ( strcmp( v, "guide" ) == 0 ) m_nPrefMissile = BOTMISSILE_GUIDE;
+		else if ( strcmp( v, "swarm" ) == 0 ) m_nPrefMissile = BOTMISSILE_SWARM;
+		else {
+			MSGOUT( "BOT[%d] missile: unknown value '%s' (none|dumb|guide|swarm)", m_nClientID, v );
+			return false;
+		}
+		MSGOUT( "BOT[%d] missile = %s", m_nClientID, v );
+		return true;
+	}
+
+	if ( strcmp( param, "miner" ) == 0 ) {
+		m_bMineLayer = ( value && atoi( value ) != 0 );
+		MSGOUT( "BOT[%d] miner = %d", m_nClientID, (int)m_bMineLayer );
+		return true;
+	}
+
+	if ( strcmp( param, "retreathp" ) == 0 ) {
+		float v = (float)atof( value ? value : "10" );
+		if ( v < 1.0f )  v = 1.0f;
+		if ( v > 99.0f ) v = 99.0f;
+		m_fRetreatHP = v / 100.0f;
+		MSGOUT( "BOT[%d] retreathp = %.0f%%", m_nClientID, v );
+		return true;
+	}
+
+	MSGOUT( "BOT[%d] unknown config param '%s'", m_nClientID, param );
+	return false;
+}
+
+
+// print the bot's current config to the console ------------------------------
+//
+void E_BotPlayer::PrintConfig() const
+{
+	static const char* kWeaponNames[]  = { "none", "laser2", "laser3", "helix", "lightning", "photon" };
+	static const char* kMissileNames[] = { "none", "dumb", "guide", "swarm" };
+
+	const char* wname = ( m_nPrefWeapon  >= 0 && m_nPrefWeapon  <= 5 ) ? kWeaponNames[ m_nPrefWeapon ]  : "?";
+	const char* mname = ( m_nPrefMissile >= 0 && m_nPrefMissile <= 3 ) ? kMissileNames[ m_nPrefMissile ] : "?";
+
+	char buf[ 256 ];
+	snprintf( buf, sizeof(buf),
+	          "BOT[%d] '%s'  empdly=%.2f  weapon=%s  missile=%s  miner=%d  retreathp=%.0f%%",
+	          m_nClientID, m_szName,
+	          m_fEMPMinDelay, wname, mname, (int)m_bMineLayer,
+	          m_fRetreatHP * 100.0f );
+	MSGOUT( "%s", buf );
+}
+
+
 // ---------------------------------------------------------------------------
 // E_BotManager
 // ---------------------------------------------------------------------------
@@ -713,6 +976,39 @@ bool E_BotManager::SetBotDebug( int nClientID, bool b )
 	}
 	MSGOUT( "E_BotManager::SetBotDebug(): no bot found in slot %d", nClientID );
 	return false;
+}
+
+
+// find a bot by client slot (returns NULL if not found) ----------------------
+//
+E_BotPlayer* E_BotManager::GetBotByClientID( int nClientID )
+{
+	for ( int i = 0; i < m_nNumBots; i++ ) {
+		if ( m_Bots[ i ].GetClientID() == nClientID )
+			return &m_Bots[ i ];
+	}
+	return NULL;
+}
+
+
+// configure a per-bot personality parameter ----------------------------------
+// param == NULL → print current config; value ignored for miner/weapon/missile
+// when value == NULL the parameter is reset to its default.
+//
+bool E_BotManager::ConfigBot( int nClientID, const char* param, const char* value )
+{
+	E_BotPlayer* pBot = GetBotByClientID( nClientID );
+	if ( pBot == NULL ) {
+		MSGOUT( "E_BotManager::ConfigBot(): no bot in slot %d", nClientID );
+		return false;
+	}
+
+	if ( param == NULL ) {
+		pBot->PrintConfig();
+		return true;
+	}
+
+	return pBot->ApplyConfig( param, value );
 }
 
 
@@ -830,6 +1126,60 @@ int Cmd_SVBOT_DEBUG( char* pszArgs )
 }
 
 
+PRIVATE
+int Cmd_SVBOT_CONFIG( char* pszArgs )
+{
+	ASSERT( pszArgs != NULL );
+	HANDLE_COMMAND_DOMAIN_SEP( pszArgs );
+
+	// trim leading whitespace
+	while ( *pszArgs == ' ' ) pszArgs++;
+
+	if ( *pszArgs == '\0' ) {
+		CON_AddLine( "usage: sv.bot.config <slot> [param] [value]" );
+		CON_AddLine( "  params: empdly <sec>  weapon <none|laser2|laser3|helix|lightning|photon>" );
+		CON_AddLine( "          missile <none|dumb|guide|swarm>  miner <0|1>  retreathp <pct>" );
+		CON_AddLine( "  omit param to print current config for that slot" );
+		return TRUE;
+	}
+
+	// parse slot number
+	char* pEnd = NULL;
+	long slot = strtol( pszArgs, &pEnd, 10 );
+	if ( pEnd == pszArgs || slot < 0 ) {
+		CON_AddLine( "sv.bot.config: invalid slot number" );
+		return TRUE;
+	}
+
+	// skip whitespace after slot
+	while ( *pEnd == ' ' ) pEnd++;
+
+	if ( *pEnd == '\0' ) {
+		// no param — print config
+		if ( !SV_GetBotManager()->ConfigBot( (int)slot, NULL, NULL ) )
+			CON_AddLine( "no bot found in that slot." );
+		return TRUE;
+	}
+
+	// parse param name
+	char param[ 32 ] = {};
+	const char* pParam = pEnd;
+	int plen = 0;
+	while ( *pEnd != '\0' && *pEnd != ' ' && plen < (int)sizeof(param) - 1 )
+		param[ plen++ ] = *pEnd++;
+	param[ plen ] = '\0';
+
+	// skip whitespace before value
+	while ( *pEnd == ' ' ) pEnd++;
+	const char* pValue = ( *pEnd != '\0' ) ? pEnd : NULL;
+
+	if ( !SV_GetBotManager()->ConfigBot( (int)slot, param, pValue ) )
+		CON_AddLine( "no bot found in that slot, or unknown param." );
+
+	return TRUE;
+}
+
+
 // register server bot console commands (called from E_GameServer::Init) -----
 //
 void SV_BotManager_RegisterCommands()
@@ -852,6 +1202,12 @@ void SV_BotManager_RegisterCommands()
 	regcom.command   = "sv.bot.debug";
 	regcom.numparams = 1;
 	regcom.execute   = Cmd_SVBOT_DEBUG;
+	regcom.statedump = NULL;
+	CON_RegisterUserCommand( &regcom );
+
+	regcom.command   = "sv.bot.config";
+	regcom.numparams = 1;
+	regcom.execute   = Cmd_SVBOT_CONFIG;
 	regcom.statedump = NULL;
 	CON_RegisterUserCommand( &regcom );
 }
