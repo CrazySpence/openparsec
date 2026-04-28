@@ -325,6 +325,12 @@ void MaintainMessages()
 	}
 	if ( maxlen > MAX_MESSAGELEN )
 		maxlen = MAX_MESSAGELEN;
+	// Screen_Width may be 0 before display initialisation completes.
+	// In Debug the ASSERT below fires cleanly; in Release it was silently
+	// passing a negative int as size_t to strncpy, producing a ~2^64 byte
+	// count that zero-fills through __LINKEDIT → SIGBUS on macOS.
+	if ( maxlen <= 0 )
+		return;
 	ASSERT( maxlen > 0 );
 
 	int curmsg = head_message;
