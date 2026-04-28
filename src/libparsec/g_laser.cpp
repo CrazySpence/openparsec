@@ -40,8 +40,10 @@
 // global externals
 #include "globals.h"
 
-#ifndef PARSEC_SERVER
 // subsystem headers
+#include "net_defs.h"
+
+#ifndef PARSEC_SERVER
 #include "aud_defs.h"
 
 // drawing subsystem
