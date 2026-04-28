@@ -1325,7 +1325,7 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 						if ( TheMaster->ClaimPlayerRecord( qname, &rec ) ) {
 							char resp[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
 							snprintf( resp, sizeof(resp),
-								"TRANSIT_RESPONSE %s %x %x %x %x %x %x %x %x",
+								"TRANSIT_RESPONSE %s %x %x %x %x %x %x %x %x %x",
 								rec.name,
 								(unsigned)rec.NumMissls,
 								(unsigned)rec.NumHomMissls,
@@ -1334,7 +1334,8 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 								(unsigned)rec.CurEnergy,
 								(unsigned)rec.CurShield,
 								(unsigned)rec.Weapons,
-								(unsigned)rec.Specials );
+								(unsigned)rec.Specials,
+								(unsigned)rec.CurDamage );
 							ThePacketHandler->Send_COMMAND_Datagram( resp, clientnode, PLAYERID_MASTERSERVER );
 							MSGOUT( "transit: sent RESPONSE for %s to game server", qname );
 						}
@@ -1373,7 +1374,7 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 }
 
 // parse TRANSIT_SAVE command (client → master) --------------------------------
-// format: "TRANSIT_SAVE <name> <missls> <hommissls> <partmissls> <mines> <energy> <shield> <weapons> <specials>"
+// format: "TRANSIT_SAVE <name> <missls> <hommissls> <partmissls> <mines> <energy> <shield> <weapons> <specials> <damage>"
 // all numeric fields are hex
 //
 int E_PacketHandler::_ParseTransitSave( const char* cmd, PlayerRecord* out )
@@ -1382,12 +1383,12 @@ int E_PacketHandler::_ParseTransitSave( const char* cmd, PlayerRecord* out )
 	ASSERT( out != NULL );
 
 	char prefix[ 16 ];
-	unsigned missls, hommissls, partmissls, mines, energy, shield, weapons, specials;
+	unsigned missls, hommissls, partmissls, mines, energy, shield, weapons, specials, damage;
 
-	if ( sscanf( cmd, "%15s %31s %x %x %x %x %x %x %x %x",
+	if ( sscanf( cmd, "%15s %31s %x %x %x %x %x %x %x %x %x",
 				 prefix, out->name,
 				 &missls, &hommissls, &partmissls, &mines,
-				 &energy, &shield, &weapons, &specials ) != 10 )
+				 &energy, &shield, &weapons, &specials, &damage ) != 11 )
 		return FALSE;
 
 	if ( strcmp( prefix, "TRANSIT_SAVE" ) != 0 )
@@ -1403,6 +1404,7 @@ int E_PacketHandler::_ParseTransitSave( const char* cmd, PlayerRecord* out )
 	out->CurShield    = (geomv_t)  shield;
 	out->Weapons      = (dword)    weapons;
 	out->Specials     = (dword)    specials;
+	out->CurDamage    = (int)      damage;
 	return TRUE;
 }
 
@@ -1428,7 +1430,7 @@ int E_PacketHandler::_ParseTransitQuery( const char* cmd, char* name_out )
 
 
 // parse TRANSIT_RESPONSE command (master → game server) ----------------------
-// format: "TRANSIT_RESPONSE <name> <missls> <hommissls> <partmissls> <mines> <energy> <shield> <weapons> <specials>"
+// format: "TRANSIT_RESPONSE <name> <missls> <hommissls> <partmissls> <mines> <energy> <shield> <weapons> <specials> <damage>"
 //
 int E_PacketHandler::_ParseTransitResponse( const char* cmd, char* name_out, PlayerRecord* out )
 {
@@ -1437,12 +1439,12 @@ int E_PacketHandler::_ParseTransitResponse( const char* cmd, char* name_out, Pla
 	ASSERT( out != NULL );
 
 	char prefix[ 20 ];
-	unsigned missls, hommissls, partmissls, mines, energy, shield, weapons, specials;
+	unsigned missls, hommissls, partmissls, mines, energy, shield, weapons, specials, damage;
 
-	if ( sscanf( cmd, "%19s %31s %x %x %x %x %x %x %x %x",
+	if ( sscanf( cmd, "%19s %31s %x %x %x %x %x %x %x %x %x",
 				 prefix, name_out,
 				 &missls, &hommissls, &partmissls, &mines,
-				 &energy, &shield, &weapons, &specials ) != 10 )
+				 &energy, &shield, &weapons, &specials, &damage ) != 11 )
 		return FALSE;
 
 	if ( strcmp( prefix, "TRANSIT_RESPONSE" ) != 0 )
@@ -1457,6 +1459,7 @@ int E_PacketHandler::_ParseTransitResponse( const char* cmd, char* name_out, Pla
 	out->CurShield    = (geomv_t)  shield;
 	out->Weapons      = (dword)    weapons;
 	out->Specials     = (dword)    specials;
+	out->CurDamage    = (int)      damage;
 	return TRUE;
 }
 
@@ -1542,6 +1545,12 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 						ship->NumMines      = (word)( rec.NumMines      < ship->MaxNumMines      ? rec.NumMines      : ship->MaxNumMines );
 						ship->CurEnergy     = ( rec.CurEnergy < ship->MaxEnergy ? rec.CurEnergy : ship->MaxEnergy );
 						ship->CurShield     = ( rec.CurShield < ship->MaxShield ? rec.CurShield : ship->MaxShield );
+						// restore hull damage; clamp to [0, MaxDamage] so the ship cannot
+						// arrive in an already-dead state due to a corrupt record
+						ship->CurDamage     = ( rec.CurDamage > 0
+						                        ? ( rec.CurDamage < ship->MaxDamage ? rec.CurDamage : ship->MaxDamage )
+						                        : 0 );
+						ship->CurDamageFrac = 0;
 						// restore weapons/specials directly — the source server already
 						// validated the player legitimately had these
 						ship->Weapons  = rec.Weapons;
