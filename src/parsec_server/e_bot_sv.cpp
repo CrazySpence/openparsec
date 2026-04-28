@@ -56,6 +56,7 @@
 #include "obj_cust.h"			// OBJ_FetchCustomTypeId
 #include "g_telep.h"			// teleporter_type
 #include "g_wfx.h"				// WFX_Activate/Deactivate Helix/Lightning/Photon
+#include "e_simnetoutput.h"		// TheSimNetOutput, BufferForMulticastRE
 #include "od_class.h"			// EXTRAINDX_*, *_CLASS constants
 #include "od_masks.h"			// WPMASK_*, SPMASK_*
 
@@ -423,20 +424,33 @@ void E_BotPlayer::_GoalCheck_Attack()
 	// weapon firing
 	if ( _TargetInRange( m_pShip, (ShipObject*) pTargetObject, 1500.0f ) ) {
 
-		// fire preferred cannon weapon if equipped (these are continuous beams —
-		// FireHelix/Lightning/Photon() only activates if not already active)
+		// fire preferred cannon weapon if equipped — these are continuous beams.
+		// Check WeaponsActive before and after: if it just turned on, multicast
+		// RE_WEAPONSTATE WPSTATE_ON so clients render the beam effect.
 		switch ( m_nPrefWeapon ) {
 			case BOTWEAPON_HELIX:
-				if ( m_pShip->Weapons & WPMASK_CANNON_HELIX )
+				if ( m_pShip->Weapons & WPMASK_CANNON_HELIX ) {
+					bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) != 0;
 					m_pPlayer->FireHelix();
+					if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) )
+						_MulticastWeaponState( WPMASK_CANNON_HELIX, WPSTATE_ON );
+				}
 				break;
 			case BOTWEAPON_LIGHTNING:
-				if ( m_pShip->Weapons & WPMASK_CANNON_LIGHTNING )
+				if ( m_pShip->Weapons & WPMASK_CANNON_LIGHTNING ) {
+					bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) != 0;
 					m_pPlayer->FireLightning();
+					if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) )
+						_MulticastWeaponState( WPMASK_CANNON_LIGHTNING, WPSTATE_ON );
+				}
 				break;
 			case BOTWEAPON_PHOTON:
-				if ( m_pShip->Weapons & WPMASK_CANNON_PHOTON )
+				if ( m_pShip->Weapons & WPMASK_CANNON_PHOTON ) {
+					bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) != 0;
 					m_pPlayer->FirePhoton();
+					if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) )
+						_MulticastWeaponState( WPMASK_CANNON_PHOTON, WPSTATE_ON );
+				}
 				break;
 			default:
 				break;
@@ -693,18 +707,41 @@ ExtraObject* E_BotPlayer::_SelectMissileObject()
 }
 
 
+// send RE_WEAPONSTATE to all clients for this bot's ship ---------------------
+// mirrors what e_simnetinput.cpp does when a real client fires a duration weapon
+//
+void E_BotPlayer::_MulticastWeaponState( dword weaponMask, byte state )
+{
+	RE_WeaponState re;
+	memset( &re, 0, sizeof( re ) );
+	re.RE_Type      = RE_WEAPONSTATE;
+	re.RE_BlockSize = sizeof( RE_WeaponState );
+	re.WeaponMask   = weaponMask;
+	re.State        = state;
+	re.CurEnergy    = m_pShip ? m_pShip->CurEnergy : 0;
+	re.SenderId     = m_nClientID;
+	TheSimNetOutput->BufferForMulticastRE( (RE_Header*)&re, m_nClientID, FALSE );
+}
+
+
 // deactivate any continuous cannon weapon that is currently firing -----------
 // called whenever the bot stops attacking (target lost, mode change, death).
 //
 void E_BotPlayer::_DeactivatePrefWeaponIfActive()
 {
 	if ( m_pShip == NULL ) return;
-	if ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX )
+	if ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) {
 		WFX_DeactivateHelix( m_pShip );
-	if ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING )
+		_MulticastWeaponState( WPMASK_CANNON_HELIX, WPSTATE_OFF );
+	}
+	if ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) {
 		WFX_DeactivateLightning( m_pShip );
-	if ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON )
+		_MulticastWeaponState( WPMASK_CANNON_LIGHTNING, WPSTATE_OFF );
+	}
+	if ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) {
 		WFX_DeactivatePhoton( m_pShip );
+		_MulticastWeaponState( WPMASK_CANNON_PHOTON, WPSTATE_OFF );
+	}
 }
 
 
