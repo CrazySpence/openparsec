@@ -190,6 +190,7 @@ protected:
 	ExtraObject* _SelectMinePackObject();
 	bool         _ShouldLayMine();
 	void         _DeactivatePrefWeaponIfActive();
+	void         _MulticastWeaponState( dword weaponMask, byte state );
 };
 
 
