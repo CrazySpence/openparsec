@@ -76,10 +76,15 @@ enum {
     RMEVSTATE_HOMPACK,
     RMEVSTATE_SWARMPACK,
     RMEVSTATE_PROXPACK,
+    RMEVSTATE_JOINDONE,    // server → client: full join burst is complete
 
 	RMEVSTATE_NUMSTATES
 };
 
+
+// client-side flag: set to 1 by RMEVSTATE_JOINDONE when burst complete -------
+//
+extern dword NetJoinBurstDone;
 
 // external functions ---------------------------------------------------------
 //
