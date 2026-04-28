@@ -535,7 +535,7 @@ void JumpToCurJumpServer()
 			UDP_StoreNodePort( &masternode, DEFAULT_MASTERSERVER_UDP_PORT );
 			char cmd[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
 			snprintf( cmd, sizeof(cmd),
-				"TRANSIT_SAVE %s %x %x %x %x %x %x %x %x",
+				"TRANSIT_SAVE %s %x %x %x %x %x %x %x %x %x",
 				LocalPlayerName,
 				(unsigned)MyShip->NumMissls,
 				(unsigned)MyShip->NumHomMissls,
@@ -544,7 +544,8 @@ void JumpToCurJumpServer()
 				(unsigned)MyShip->CurEnergy,
 				(unsigned)MyShip->CurShield,
 				(unsigned)MyShip->Weapons,
-				(unsigned)MyShip->Specials );
+				(unsigned)MyShip->Specials,
+				(unsigned)MyShip->CurDamage );
 			Send_COMMAND_Datagram( cmd, &masternode, FALSE );
 			MSGOUT( "transit: sent SAVE for %s", LocalPlayerName );
 		}

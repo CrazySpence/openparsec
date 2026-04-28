@@ -29,6 +29,7 @@ struct PlayerRecord {
 	geomv_t  CurShield;
 	dword    Weapons;
 	dword    Specials;
+	int      CurDamage;
 };
 
 
