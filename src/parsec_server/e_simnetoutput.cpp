@@ -107,6 +107,7 @@ E_SimClientNetOutput::E_SimClientNetOutput()
 	m_nSizeAvail			= NET_UDP_DATA_LENGTH;
 
 	m_bIncludeDestClientState= FALSE;
+	m_bJoinBurstPending      = FALSE;
 }
 
 
@@ -144,6 +145,7 @@ void E_SimClientNetOutput::_Reset()
 	m_nNumPacketSlots			= 0;
 	m_nAveragePacketSize		= NET_UDP_DATA_LENGTH;
 	m_Heartbeat_Timeout_Frame	= -1;
+	m_bJoinBurstPending			= FALSE;
 
 	delete []m_ClientIDList;
 	delete []m_SendReliable;
@@ -946,7 +948,6 @@ void E_SimClientNetOutput::_ClearUpdates()
     m_bIncludeStateSync     = SEND_MODE_NONE;
 	m_nNumDistsForNextPacket= 0;
 	m_nSizeAvail			= RE_LIST_MAXAVAIL;
-	m_bJoinBurstPending     = FALSE;
 }
 
 
