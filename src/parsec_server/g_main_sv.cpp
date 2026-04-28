@@ -622,8 +622,7 @@ void G_Main::MaintainGame()
 		if ( m_TimeManager.IsGameTimeLimitHit() ) {
 
 			m_TimeManager.StopGame_TimeLimit();
-
-			//FIXME: unjoin all joined players
+			_OnGameFinished();
 
 		} else {
 
@@ -639,6 +638,7 @@ void G_Main::MaintainGame()
 			// stop the game if kill limit hit
 			if ( nMaxKills >= m_nKillLimit ) {
 				m_TimeManager.StopGame_KillLimit();
+				_OnGameFinished();
 			}
 		}
 	} else {
@@ -662,8 +662,61 @@ void G_Main::MaintainGame()
 }
 
 
+// called when kill/time limit is reached: unjoin all players + clean world ----
+//
+void G_Main::_OnGameFinished()
+{
+	// Unjoin every currently joined player (bot or human) so they return to the
+	// lobby / waiting state for the duration of the restart timeout.
+	for ( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
+		E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( nClientID );
+		if ( pSPI != NULL && pSPI->IsPlayerJoined() ) {
+			RE_PlayerStatus ps;
+			memset( &ps, 0, sizeof( RE_PlayerStatus ) );
+			ps.player_status = PLAYER_CONNECTED;
+			ps.senderid      = nClientID;
+			ps.params[ 0 ]   = USER_EXIT;
+			pSPI->PerformUnjoin( &ps );
+		}
+	}
+
+	// Remove all remaining extras (energy/weapon pickups) from the world.
+	// OBJ_KillExtra handles distributable release so connected clients are
+	// notified, and FreeObjectMem (called inside) decrements m_nCurrentNumExtras.
+	// Walk from the header each time since KillExtra relinks.
+	{
+		ExtraObject* precnode = (ExtraObject*) TheWorld->m_ExtraObjects;
+		while ( precnode->NextObj != NULL ) {
+			TheGameExtraManager->OBJ_KillExtra( precnode, FALSE );
+		}
+	}
+
+	// Remove all in-flight lasers.
+	{
+		GenObject* precnode = TheWorld->m_LaserObjects;
+		while ( precnode->NextObj != NULL ) {
+			LaserObject* laserpo = (LaserObject*) precnode->NextObj;
+			TheSimNetOutput->ReleaseDistributable( laserpo->pDist );
+			precnode->NextObj = laserpo->NextObj;
+			TheWorld->FreeObjectMem( laserpo );
+		}
+	}
+
+	// Remove all in-flight missiles.
+	{
+		GenObject* precnode = TheWorld->m_MisslObjects;
+		while ( precnode->NextObj != NULL ) {
+			MissileObject* missilepo = (MissileObject*) precnode->NextObj;
+			TheSimNetOutput->ReleaseDistributable( missilepo->pDist );
+			precnode->NextObj = missilepo->NextObj;
+			TheWorld->FreeObjectMem( missilepo );
+		}
+	}
+}
+
+
 // reset all player game vars -------------------------------------------------
-// 
+//
 void G_Main::_ResetPlayerVars()
 {
 	for( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
