@@ -87,8 +87,9 @@ protected:
 	object_control_s          m_oc;
 	Vector3                   m_AgentPos;
 
-	// bot name (for respawn)
+	// bot name and ship class (for respawn)
 	char    m_szName[ 32 ];
+	int     m_nShipClassIdx;    // index into ShipClasses[]; -1 = random
 
 	// current tracked speed (fixed_t, managed by bot since sim state carries absolute speed)
 	fixed_t m_fCurSpeed;
@@ -130,6 +131,7 @@ public:
 		, m_nDebugCounter( 0 )
 		, m_nTargetObjNumber( 0 )
 		, m_nCurLauncher( 0 )
+		, m_nShipClassIdx( -1 )
 		, m_fFireDelay( 0.0f )
 		, m_fMissileDelay( 0.0f )
 		, m_fEMPDelay( 0.0f )
@@ -144,7 +146,7 @@ public:
 	}
 
 	// initialise the bot for a connected + joined player slot
-	void Init( int nClientID, const char* name, G_Player* pPlayer, E_SimClientState* pSimState, ShipObject* pShip );
+	void Init( int nClientID, const char* name, int shipClassIdx, G_Player* pPlayer, E_SimClientState* pSimState, ShipObject* pShip );
 
 	// run one AI tick
 	void DoThink( refframe_t refframes );
