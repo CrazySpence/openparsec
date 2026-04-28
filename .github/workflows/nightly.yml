@@ -121,9 +121,14 @@ jobs:
       - name: Build AppImage
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
+          # Set a predictable app name so the output file is openparsec-x86_64.AppImage
+          VERSION: nightly
         run: |
           # linuxdeploy bundles SDL2, SDL2_mixer, and their audio codec deps
-          # (libFLAC, libvorbis, libopus, libmpg123, libogg) automatically via ldd
+          # (libFLAC, libvorbis, libopus, libmpg123, libogg) automatically via ldd.
+          # The output filename is derived from the desktop file Name= field:
+          # "Open Parsec" → Open_Parsec-x86_64.AppImage.  We rename it to a
+          # fixed name immediately after so the bundle step is not fragile.
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             -l /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0 \
@@ -131,11 +136,15 @@ jobs:
             --desktop-file AppDir/usr/share/applications/openparsec.desktop \
             --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/openparsec.png \
             --output appimage
+          echo "--- AppImage files produced ---"
+          ls -lh *AppImage
+          # Rename whatever linuxdeploy produced to a fixed name
+          mv *x86_64.AppImage openparsec-x86_64.AppImage
 
       - name: Bundle AppImage + assets into tarball
         run: |
           mkdir openparsec-linux
-          cp Parsec-x86_64.AppImage openparsec-linux/openparsec.AppImage
+          cp openparsec-x86_64.AppImage openparsec-linux/openparsec.AppImage
           chmod +x openparsec-linux/openparsec.AppImage
 
           # Game assets
