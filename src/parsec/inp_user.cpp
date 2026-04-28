@@ -63,6 +63,9 @@
 #include "g_wfx.h"
 #include "g_emp.h"
 
+// forward declaration — avoids pulling in the full net_subh.h header chain
+extern int NET_ConnectedGMSV();
+
 
 // flags
 #define TRACE_ABS_ANGLES
@@ -672,6 +675,13 @@ void User_SpeedControl()
 	}
 }
 
+// Extra refframes added to the client fire-disable counter when connected to a
+// game server.  The server decrements its own counter in discrete sim-tick steps
+// (typically 20 refframes at 30 Hz), so firing exactly when the client counter
+// hits zero can race the server tick boundary.  32 refframes (≈ 53 ms) covers
+// up to a 20 Hz server tick (30 rf headroom) plus a small network jitter buffer.
+#define FIRE_ONLINE_MARGIN  32
+
 // user fired laser -----------------------------------------------------------
 //
 INLINE
@@ -689,6 +699,14 @@ void User_FireLaser()
 	}
 	if ( ( FireDisable += MyShip->FireDisableDelay ) <= 0 ) {
 		FireDisable = 1;
+	}
+
+	// When connected to a game server the server validates shots with its own
+	// discrete-tick counter.  Add a small margin so the client never fires a
+	// second shot before the server's counter has expired, preventing the
+	// server from rejecting shots and resyncing ammo/energy visibly.
+	if ( NET_ConnectedGMSV() ) {
+		FireDisable += FIRE_ONLINE_MARGIN;
 	}
 }
 
@@ -869,6 +887,9 @@ void User_CheckMissileLaunch()
 
 			if ( ( MissileDisable += MyShip->MissileDisableDelay ) <= 0 ) {
 				MissileDisable = 1;
+			}
+			if ( NET_ConnectedGMSV() ) {
+				MissileDisable += FIRE_ONLINE_MARGIN;
 			}
 		}
 	}
