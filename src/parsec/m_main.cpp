@@ -928,9 +928,17 @@ void MENU_FloatingMenuEnterGame()
 
 		InitJoinPosition();
 		NETs_Join();
+
+		// Stay in entry mode — cleared by JOINDONE after the server's join burst
+		// completes and the spawn position is confirmed.  Clearing it here caused
+		// a visible "lurch" as the client rendered from the wrong position.
+
+	} else {
+
+		// Offline play: no join burst, enter game mode immediately.
+		EntryMode = FALSE;
 	}
 
-	EntryMode		= FALSE;
 	InFloatingMenu	= FALSE;
 	ExitGameLoop	= 0;
 }
