@@ -581,6 +581,14 @@ void JumpToCurJumpServer()
 
 			// auto-join game if we were joined before jump
 			if ( oldjoinedstate ) {
+				// Put the client back into entry mode so the player sees the
+				// kill/menu screen while the new server distributes world objects
+				// (stargates, teleporters, planets).  RMEVSTATE_JOINDONE will clear
+				// EntryMode once the distributable queue on the new server drains,
+				// exactly as it does for a normal spawn or respawn.
+				EntryMode        = TRUE;
+				InFloatingMenu   = FALSE;
+				NetJoinBurstDone = 0;
 				NETs_Join();
 			}
 
