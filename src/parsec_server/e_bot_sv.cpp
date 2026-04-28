@@ -85,9 +85,11 @@ void E_BotPlayer::Init( int nClientID, const char* name, int shipClassIdx,
 	m_pPlayer     = pPlayer;
 	m_pSimState   = pSimState;
 	m_pShip       = pShip;
-	m_nAgentMode  = AGENTMODE_ATTACK;
-	m_fCurSpeed   = 0;
+	m_nAgentMode     = AGENTMODE_ATTACK;
+	m_fCurSpeed      = 0;
+	m_bPatrolGoalSet = false;
 	m_Goal.Reset();
+	memset( &m_vPatrolGoal, 0, sizeof( Vector3 ) );
 	memset( &m_oc, 0, sizeof( object_control_s ) );
 	m_oc.pShip    = pShip;
 }
@@ -138,9 +140,10 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 
 		// Delay elapsed — respawn now, restoring the configured ship class.
 		pSPI->BotPerformJoin( m_szName, m_nShipClassIdx );
-		m_pShip       = pSPI->GetShipObject();
-		m_fCurSpeed   = 0;
-		m_DeathRefFrame = 0;
+		m_pShip          = pSPI->GetShipObject();
+		m_fCurSpeed      = 0;
+		m_DeathRefFrame  = 0;
+		m_bPatrolGoalSet = false;
 		m_Goal.Reset();
 		m_nAgentMode  = AGENTMODE_ATTACK;
 		if ( m_pShip ) {
@@ -172,14 +175,6 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 		case AGENTMODE_IDLE:     _GoalCheck_Idle();     break;
 		case AGENTMODE_POWERUP:  _GoalCheck_Powerup();  break;
 		default: return;
-	}
-
-	// Nothing to do — bleed off speed and hold heading rather than steering
-	// toward (0,0,0) which is what an unset goal contains.
-	if ( m_nAgentMode == AGENTMODE_IDLE ) {
-		m_fCurSpeed = 0;
-		m_pSimState->ApplyBotInput( 0, 0, 0, 0, m_pShip->MaxSpeed );
-		return;
 	}
 
 	// Debug: log bot state every ~2 seconds when debug is enabled
@@ -337,14 +332,48 @@ static ExtraObject* ValidateCachedExtra( ExtraObject* pExtra )
 }
 
 
-// idle: re-plan each tick in case enemies or powerups have appeared -----------
+// idle: re-plan each tick in case enemies or powerups have appeared; if still
+// idle, patrol toward a random waypoint so the bot keeps moving instead of
+// parking in place.
 //
+#define BOT_PATROL_RADIUS   4000.0f   // half-extent of patrol cube around spawn point
+#define BOT_PATROL_ARRIVE   300.0f    // distance at which we pick a new waypoint
+
 void E_BotPlayer::_GoalCheck_Idle()
 {
-	m_Goal.Reset();   // clear any stale (0,0,0) goal before re-planning
+	// Give _DoPlan() a chance to switch to ATTACK/POWERUP if targets appeared.
 	_DoPlan();
-	// if _DoPlan() changed the mode, the next tick's goal-check will handle it;
-	// this tick we do nothing (the AGENTMODE_IDLE early-out in DoThink halts us)
+	if ( m_nAgentMode != AGENTMODE_IDLE )
+		return;   // mode changed — next tick's goal-check will handle it
+
+	Vector3* pGoalPos = m_Goal.GetGoalPosition();
+
+	// Pick a new patrol waypoint if we don't have one yet or we've arrived.
+	if ( !m_bPatrolGoalSet ) {
+		float ox = (float)( ( rand() % (int)( BOT_PATROL_RADIUS * 2 ) ) - (int)BOT_PATROL_RADIUS );
+		float oy = (float)( ( rand() % (int)( BOT_PATROL_RADIUS * 2 ) ) - (int)BOT_PATROL_RADIUS );
+		float oz = (float)( ( rand() % (int)( BOT_PATROL_RADIUS * 2 ) ) - (int)BOT_PATROL_RADIUS );
+		m_vPatrolGoal.X = m_AgentPos.X + FLOAT_TO_GEOMV( ox );
+		m_vPatrolGoal.Y = m_AgentPos.Y + FLOAT_TO_GEOMV( oy );
+		m_vPatrolGoal.Z = m_AgentPos.Z + FLOAT_TO_GEOMV( oz );
+		m_bPatrolGoalSet = true;
+		if ( m_bDebug )
+			MSGOUT( "BOT[%d] IDLE patrol waypoint (%.0f,%.0f,%.0f)",
+			        m_nClientID,
+			        GEOMV_TO_FLOAT( m_vPatrolGoal.X ),
+			        GEOMV_TO_FLOAT( m_vPatrolGoal.Y ),
+			        GEOMV_TO_FLOAT( m_vPatrolGoal.Z ) );
+	}
+
+	// Check arrival.
+	Vector3 vec2Wp;
+	VECSUB( &vec2Wp, &m_vPatrolGoal, &m_AgentPos );
+	float dist = GEOMV_TO_FLOAT( VctLenX( &vec2Wp ) );
+	if ( dist < BOT_PATROL_ARRIVE )
+		m_bPatrolGoalSet = false;   // will pick a new one next tick
+
+	// Steer toward the patrol waypoint this tick.
+	memcpy( pGoalPos, &m_vPatrolGoal, sizeof( Vector3 ) );
 }
 
 

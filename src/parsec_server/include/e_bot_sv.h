@@ -117,6 +117,10 @@ protected:
 	bool    m_bMineLayer;      // true = mine-layer role
 	float   m_fRetreatHP;      // retreat when HP% falls below this (0.1 = 10%, default)
 
+	// patrol state: used in IDLE mode so the bot flies around instead of parking
+	Vector3 m_vPatrolGoal;     // current patrol waypoint
+	bool    m_bPatrolGoalSet;  // false = must pick a new waypoint this tick
+
 public:
 
 	E_BotPlayer()
@@ -140,9 +144,11 @@ public:
 		, m_nPrefMissile( BOTMISSILE_NONE )
 		, m_bMineLayer( false )
 		, m_fRetreatHP( 0.1f )
+		, m_bPatrolGoalSet( false )
 	{
 		memset( &m_oc, 0, sizeof( object_control_s ) );
 		memset( m_szName, 0, sizeof( m_szName ) );
+		memset( &m_vPatrolGoal, 0, sizeof( Vector3 ) );
 	}
 
 	// initialise the bot for a connected + joined player slot
