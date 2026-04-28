@@ -1044,7 +1044,12 @@ void NET_ExecRmEvWeaponState( RE_Header *rmev, int ownerid )
 
 	// fetch pointer to remote player's ship
 	ShipObject *shippo = NET_FetchOwnersShip( re_ws->SenderId );
-	ASSERT( shippo != NULL );
+	if ( shippo == NULL ) {
+		// Ship not yet materialised on this client (e.g. join burst still in flight).
+		// Drop the update — the weapon will resync when the ship arrives.
+		DBGTXT( MSGOUT( "NET_ExecRmEvWeaponState: ignoring — ship %d not yet created.", re_ws->SenderId ); );
+		return;
+	}
 	ASSERT( shippo != MyShip );
 
 	// update energy
