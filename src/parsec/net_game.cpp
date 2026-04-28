@@ -56,6 +56,7 @@
 
 // local module header
 #include "net_game.h"
+#include "net_rmev.h"
 
 // proprietary module headers
 #include "aud_game.h"
@@ -329,14 +330,19 @@ void NET_SetRemotePlayerState( int id, int status, int objclass, int killstat )
 		// restore join state
 		NetJoined = ( status == PLAYER_JOINED );
 
-		// restore entry-mode state
-		int emstate = ( status == PLAYER_JOINED ) ? FALSE : TRUE;
-		DBGTXT(
-			if ( emstate != EntryMode )
-				MSGOUT( "NET_SetRemotePlayerState(): changing entry-mode state to %d.", emstate );
-		);
-		EntryMode		= emstate;
-		InFloatingMenu	= EntryMode ? FloatingMenu : FALSE;
+		if ( status == PLAYER_JOINED ) {
+			// Stay in entry mode until the server signals the join burst is complete
+			// (via RMEVSTATE_JOINDONE in NET_ExecRmEvStateSync).  Clearing EntryMode
+			// here would cause a visible "lurch" because world objects and spawn
+			// position may not have arrived yet.
+			NetJoinBurstDone = 0;
+			DBGTXT( MSGOUT( "NET_SetRemotePlayerState(): JOINED — deferring entry-mode clear until JOINDONE." ); );
+		} else {
+			// Not joined: show entry mode / kill screen immediately.
+			EntryMode      = TRUE;
+			InFloatingMenu = FloatingMenu;
+			DBGTXT( MSGOUT( "NET_SetRemotePlayerState(): not joined — entry mode ON." ); );
+		}
 
 	} else {
 

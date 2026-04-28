@@ -54,7 +54,8 @@ enum {
     RMEVSTATE_HOMPACK,
     RMEVSTATE_SWARMPACK,
     RMEVSTATE_PROXPACK,
-    
+    RMEVSTATE_JOINDONE,    // server → client: full join burst is complete
+
 	RMEVSTATE_NUMSTATES
 };
 
@@ -217,6 +218,9 @@ protected:
 
     //Indicate whether to send state variables to client
     bool_t          m_bIncludeStateSync;
+
+	// set after RescheduleAllDistributables; cleared once queue empties and JOINDONE sent
+	bool_t          m_bJoinBurstPending;
     
 	// array of distributables for next packet
 	E_Distributable*	m_DistsForNextPacket[ MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET ];
@@ -245,6 +249,9 @@ public:
 
 	// (re)calculate the average packet size
 	void CalculateAveragePacketSize();
+
+	// mark that a join burst is in progress for this client
+	void SetJoinBurstPending() { m_bJoinBurstPending = TRUE; }
 
 	// schedule a E_Distributable to be sent to the client
 	// Schedule pDist for delivery to this client.

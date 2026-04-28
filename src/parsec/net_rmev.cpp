@@ -72,6 +72,10 @@
 #define PASTE_STR_LEN 1023
 static char	paste_str[ PASTE_STR_LEN + 1 ];
 
+// set to 1 when the server signals that the join burst is complete ------------
+//
+dword NetJoinBurstDone = 0;
+
 // external flag
 int name_change_notification = TRUE;
 
@@ -1125,6 +1129,7 @@ static dword *rmev_sync_states[ RMEVSTATE_NUMSTATES ] = {
     (dword*)&HomPackNumMissls,
     (dword*)&SwarmPackNumMissls,
     (dword*)&ProxPackNumMines,
+    (dword*)&NetJoinBurstDone,   // RMEVSTATE_JOINDONE
 };
 
 /*
@@ -1163,6 +1168,15 @@ void NET_ExecRmEvStateSync( RE_Header *rmev, int ownerid )
 		// the server-replicated instances and re-spawn wrong local ones.
 		// The skybox/panorama in ro_sfx.cpp reads AUXDATA_BACKGROUND_NEBULA_ID
 		// directly every frame, so updating the value above is sufficient.
+
+		// When the server signals that the join burst is complete, leave entry mode.
+		if ( re_ss->StateKey == RMEVSTATE_JOINDONE && re_ss->StateValue != 0 ) {
+			if ( NetJoined ) {
+				EntryMode      = FALSE;
+				InFloatingMenu = FALSE;
+				MSGOUT( "join burst complete — leaving entry mode." );
+			}
+		}
 	}
 
 	RMEVTXT( MSGOUT( "--executing RE_STATESYNC: %d=%d (%d).", re_ss->StateKey, re_ss->StateValue, ownerid ); );

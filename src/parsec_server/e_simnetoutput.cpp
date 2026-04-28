@@ -503,6 +503,14 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 		entry = nextentry;
 	}
 
+	// If a join burst was in progress and the queue just drained, send JOINDONE
+	// to the client so it can leave entry mode.
+	if ( m_bJoinBurstPending && ( m_AllDistributables->GetHead() == NULL ) ) {
+		m_bJoinBurstPending = FALSE;
+		m_pReliableBuffer->RmEvStateSync( RMEVSTATE_JOINDONE, 1 );
+		MSGOUT( "join burst complete for client %d — sending JOINDONE", m_nDestClientID );
+	}
+
 
 	return _HasUpdates();
 }
@@ -938,6 +946,7 @@ void E_SimClientNetOutput::_ClearUpdates()
     m_bIncludeStateSync     = SEND_MODE_NONE;
 	m_nNumDistsForNextPacket= 0;
 	m_nSizeAvail			= RE_LIST_MAXAVAIL;
+	m_bJoinBurstPending     = FALSE;
 }
 
 
@@ -1073,6 +1082,10 @@ void E_SimNetOutput::RescheduleAllDistributables( int nClientID )
 		pDist->MarkForUpdate( nClientID );
 		m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist );
 	}
+
+	// Mark that a join burst is now in progress for this client.
+	// JOINDONE will be sent once m_AllDistributables empties in _PrepareClientUpdateInfo.
+	m_SimClientNetOutput[ nClientID ].SetJoinBurstPending();
 }
 
 // disconnect the player in a specific slot -----------------------------------
