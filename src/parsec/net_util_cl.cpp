@@ -281,8 +281,27 @@ void NET_DrawEntryModeText()
 	// this function is declared in NET_SUBH.H
 
 	ASSERT( EntryMode );
-	ASSERT( NetConnected && !NetJoined );
+	ASSERT( NetConnected );
 	ASSERT( !FloatingMenu && !InFloatingMenu );
+
+	// If already joined but waiting for the server's join burst to complete,
+	// show a "Entering Game..." message instead of the lobby player list.
+	if ( NetJoined ) {
+
+		static const char entering_str[] = "Entering Game...";
+
+		D_SetWStrContext( CharsetInfo[ MSG_CHARSETNO ].charsetpointer,
+						  CharsetInfo[ MSG_CHARSETNO ].geompointer,
+						  NULL,
+						  CharsetInfo[ MSG_CHARSETNO ].width,
+						  CharsetInfo[ MSG_CHARSETNO ].height );
+
+		int strx = ( Screen_Width  - (int)strlen( entering_str ) * CharsetInfo[ MSG_CHARSETNO ].width  ) / 2;
+		int stry = ( Screen_Height - CharsetInfo[ MSG_CHARSETNO ].height ) / 2;
+
+		D_WriteString( entering_str, strx, stry );
+		return;
+	}
 
 	DrawRemotePlayerListScreen();
 }
