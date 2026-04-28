@@ -210,8 +210,14 @@ INLINE
 void Gm_EntryModeSpecifics()
 {
 	ASSERT( EntryMode );
-	ASSERT( NetConnected && !NetJoined );
+	ASSERT( NetConnected );
 	ASSERT( !FloatingMenu && !InFloatingMenu );
+
+	// If already joined (waiting for JOINDONE burst to complete), just spin —
+	// EntryMode will be cleared by NET_ExecRmEvStateSync(RMEVSTATE_JOINDONE).
+	if ( NetJoined ) {
+		return;
+	}
 
 	// keep extras turning
 	OBJ_BackgroundAnimateExtras();
@@ -219,12 +225,10 @@ void Gm_EntryModeSpecifics()
 	if ( SELECT_KEYS_PRESSED() ) {
 		SELECT_KEYS_RESET();
 
-		// enter network game
+		// enter network game — stay in entry mode until server confirms burst complete
 		InitJoinPosition();
 		NETs_Join();
-
-		EntryMode = FALSE;
-		MSGOUT( "entering game mode." );
+		MSGOUT( "join request sent — waiting for JOINDONE." );
 	}
 }
 
