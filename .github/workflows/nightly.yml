@@ -1,0 +1,305 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC every day
+  workflow_dispatch:        # manual trigger from GitHub Actions UI
+
+# Rolling nightly tag — only one nightly release exists at a time.
+# Each run replaces the previous one so testers always have a single URL.
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Windows: MSBuild Release x64 → NSIS installer
+  # ---------------------------------------------------------------------------
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: platforms\vs
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
+        with:
+          msbuild-architecture: x64
+
+      - name: Build (Release x64)
+        run: msbuild Parsec.vcxproj -t:rebuild -property:Configuration=Release /p:Platform=x64
+
+      - name: Copy MSVC runtime DLLs
+        shell: powershell
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath  = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $crt     = Get-ChildItem "$vsPath\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT" | Sort-Object Name | Select-Object -Last 1
+          Write-Host "Copying from $($crt.FullName)"
+          Copy-Item "$($crt.FullName)\MSVCP140.dll"       lib\x64\
+          Copy-Item "$($crt.FullName)\VCRUNTIME140.dll"   lib\x64\
+          Copy-Item "$($crt.FullName)\VCRUNTIME140_1.dll" lib\x64\ -ErrorAction SilentlyContinue
+
+      - name: Install NSIS 3.10
+        shell: powershell
+        run: |
+          curl.exe -L "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10-setup.exe" `
+            --output "$env:TEMP\nsis-setup.exe" --retry 3 --retry-delay 5
+          Start-Process -FilePath "$env:TEMP\nsis-setup.exe" -ArgumentList '/S' -Wait -NoNewWindow
+          Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\NSIS"
+
+      - name: Create NSIS installer
+        uses: joncloud/makensis-action@v3.3
+        with:
+          script-file: platforms\vs\openparsec.nsi
+          arguments: "/V3"
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openparsec-windows-installer
+          path: platforms\vs\openparsec-installer.exe
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # Linux: release_x64 → linuxdeploy AppImage + assets tarball
+  # ---------------------------------------------------------------------------
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsdl2-dev libsdl2-mixer-dev \
+            libgl1-mesa-dev \
+            imagemagick
+
+      - name: Build client (release_x64)
+        working-directory: platforms/premake
+        run: |
+          export config=release_x64
+          make client
+
+      - name: Download linuxdeploy
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+      - name: Create AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          cp platforms/premake/build/client/parsec AppDir/usr/bin/parsec
+
+          # .desktop file required by linuxdeploy
+          cat > AppDir/usr/share/applications/openparsec.desktop << 'EOF'
+          [Desktop Entry]
+          Name=Open Parsec
+          Exec=parsec
+          Icon=openparsec
+          Type=Application
+          Categories=Game;
+          EOF
+
+          # Convert .ico to PNG for the AppImage icon
+          convert openparsec-assets/openparsec.ico[0] \
+            AppDir/usr/share/icons/hicolor/256x256/apps/openparsec.png \
+            || cp platforms/premake/build/client/parsec AppDir/usr/share/icons/hicolor/256x256/apps/openparsec.png
+
+      - name: Build AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          # linuxdeploy bundles SDL2, SDL2_mixer, and their audio codec deps
+          # (libFLAC, libvorbis, libopus, libmpg123, libogg) automatically via ldd
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            -l /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0 \
+            -l /usr/lib/x86_64-linux-gnu/libSDL2_mixer-2.0.so.0 \
+            --desktop-file AppDir/usr/share/applications/openparsec.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/openparsec.png \
+            --output appimage
+
+      - name: Bundle AppImage + assets into tarball
+        run: |
+          mkdir openparsec-linux
+          cp Parsec-x86_64.AppImage openparsec-linux/openparsec.AppImage
+          chmod +x openparsec-linux/openparsec.AppImage
+
+          # Game assets
+          cp -r openparsec-assets/cons       openparsec-linux/
+          cp -r openparsec-assets/Images     openparsec-linux/
+          cp -r openparsec-assets/gamedata   openparsec-linux/
+          cp    openparsec-assets/*.con      openparsec-linux/ 2>/dev/null || true
+          cp    openparsec-assets/*.tga      openparsec-linux/ 2>/dev/null || true
+          cp    openparsec-assets/*.dat      openparsec-linux/ 2>/dev/null || true
+          cp    openparsec-assets/LICENSE.artwork_sound openparsec-linux/ 2>/dev/null || true
+          cp    openparsec-assets/README.md  openparsec-linux/ 2>/dev/null || true
+
+          # Launch instructions
+          cat > openparsec-linux/README-LINUX.txt << 'EOF'
+          Open Parsec - Linux
+          ===================
+          Run:  ./openparsec.AppImage
+          (No installation needed. The AppImage is self-contained.)
+          EOF
+
+          tar -czf openparsec-linux-x64.tar.gz openparsec-linux/
+
+      - name: Upload Linux tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openparsec-linux-x64
+          path: openparsec-linux-x64.tar.gz
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # macOS: Xcode Universal Binary (arm64 + x86_64) → DMG
+  # ---------------------------------------------------------------------------
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install SDL2 Universal frameworks
+        run: |
+          SDL2_VER=2.30.3
+          SDL2_MIXER_VER=2.8.0
+
+          curl -fL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VER}/SDL2-${SDL2_VER}.dmg" \
+            -o SDL2.dmg
+          curl -fL "https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VER}/SDL2_mixer-${SDL2_MIXER_VER}.dmg" \
+            -o SDL2_mixer.dmg
+
+          hdiutil attach SDL2.dmg       -mountpoint /Volumes/SDL2      -quiet
+          hdiutil attach SDL2_mixer.dmg -mountpoint /Volumes/SDL2_mixer -quiet
+
+          sudo cp -r /Volumes/SDL2/SDL2.framework             /Library/Frameworks/
+          sudo cp -r /Volumes/SDL2_mixer/SDL2_mixer.framework /Library/Frameworks/
+
+          hdiutil detach /Volumes/SDL2      -quiet
+          hdiutil detach /Volumes/SDL2_mixer -quiet
+
+      - name: Build Universal Binary (arm64 + x86_64)
+        working-directory: platforms/xcode
+        run: |
+          xcodebuild \
+            -project Parsec.xcodeproj \
+            -scheme Parsec \
+            -configuration Release \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            MACOSX_DEPLOYMENT_TARGET=11.0 \
+            -derivedDataPath build \
+            build
+
+      - name: Verify Universal Binary
+        working-directory: platforms/xcode
+        run: |
+          file build/Build/Products/Release/Parsec.app/Contents/MacOS/Parsec
+          file build/Build/Products/Release/Parsec.app/Contents/MacOS/Parsec \
+            | grep -q "universal binary" \
+            || (echo "ERROR: not a universal binary" && exit 1)
+
+      - name: Copy game assets into app bundle
+        working-directory: platforms/xcode
+        run: |
+          RES="build/Build/Products/Release/Parsec.app/Contents/Resources"
+          cp -r ../../openparsec-assets/cons     "$RES/"
+          cp -r ../../openparsec-assets/Images   "$RES/"
+          cp -r ../../openparsec-assets/gamedata "$RES/"
+          cp    ../../openparsec-assets/*.con     "$RES/" 2>/dev/null || true
+          cp    ../../openparsec-assets/*.tga     "$RES/" 2>/dev/null || true
+          cp    ../../openparsec-assets/*.dat     "$RES/" 2>/dev/null || true
+          cp    ../../openparsec-assets/LICENSE.artwork_sound "$RES/" 2>/dev/null || true
+
+      - name: Create DMG
+        working-directory: platforms/xcode
+        run: |
+          hdiutil create \
+            -volname "Open Parsec" \
+            -srcfolder "build/Build/Products/Release/Parsec.app" \
+            -ov -format UDZO \
+            openparsec-macos-universal.dmg
+
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openparsec-macos-universal
+          path: platforms/xcode/openparsec-macos-universal.dmg
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # Release: collect all three artifacts → rolling "nightly" GitHub pre-release
+  # ---------------------------------------------------------------------------
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-linux, build-macos]
+    permissions:
+      contents: write   # needed to create/update releases and tags
+
+    steps:
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: openparsec-windows-installer
+          path: dist/
+
+      - name: Download Linux tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: openparsec-linux-x64
+          path: dist/
+
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: openparsec-macos-universal
+          path: dist/
+
+      - name: Set build date
+        id: date
+        run: echo "value=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Publish nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: "Nightly Build (${{ steps.date.outputs.value }})"
+          prerelease: true
+          make_latest: false
+          body: |
+            Automated nightly build from `main`. **Not a stable release.**
+
+            > macOS: unsigned — right-click the app and choose **Open** to bypass Gatekeeper.
+            > Linux: no install needed — just run `./openparsec.AppImage` from inside the extracted folder.
+
+            | Platform | File | Notes |
+            |----------|------|-------|
+            | Windows 10/11 x64 | `openparsec-installer.exe` | NSIS installer |
+            | Linux x64 | `openparsec-linux-x64.tar.gz` | AppImage bundle, SDL2 included |
+            | macOS Universal | `openparsec-macos-universal.dmg` | arm64 + x86_64 |
+
+            Built from commit ${{ github.sha }}
+          files: |
+            dist/openparsec-installer.exe
+            dist/openparsec-linux-x64.tar.gz
+            dist/openparsec-macos-universal.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
