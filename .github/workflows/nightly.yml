@@ -138,8 +138,9 @@ jobs:
             --output appimage
           echo "--- AppImage files produced ---"
           ls -lh *AppImage
-          # Rename whatever linuxdeploy produced to a fixed name
-          mv *x86_64.AppImage openparsec-x86_64.AppImage
+          # Rename the output AppImage to a fixed name, excluding linuxdeploy itself
+          find . -maxdepth 1 -name '*.AppImage' ! -name 'linuxdeploy*' \
+            | head -1 | xargs -I{} mv {} openparsec-x86_64.AppImage
 
       - name: Bundle AppImage + assets into tarball
         run: |
