@@ -113,6 +113,14 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 
 	// Respawn after a delay when the ship has been destroyed.
 	if ( !pSPI->IsPlayerJoined() ) {
+
+		// During game-over / restart countdown, don't respawn.  Reset the death
+		// timer so the bot gets a fresh 5-second delay when the round restarts.
+		if ( !TheGame->IsGameRunning() ) {
+			m_DeathRefFrame = 0;
+			return;
+		}
+
 		refframe_t now = SYSs_GetRefFrameCount();
 
 		if ( m_DeathRefFrame == 0 ) {

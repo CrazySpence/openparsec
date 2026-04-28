@@ -121,12 +121,16 @@ protected:
 
 	// walk list of laser objects and advance them ( also handle timeout )
 	void _WalkLaserObjects();
-    
+
     //walk list of missile objects and advance them
     void _WalkMissileObjects();
-    
+
     //Do particle weapon maintenence
     void MaintainDurationWeapons( int playerid );
+
+	// called once when kill/time limit is reached: unjoin all players and
+	// clear all dynamic world objects (extras, projectiles)
+	void _OnGameFinished();
     
 public:
 

@@ -428,8 +428,8 @@ void G_ExtraManager::OBJ_DoExtraPlacement()
 		return;
 	}
 
-	// determine upper bound to number of extras
-	int maxextras = SV_GAME_EXTRAS_MAXNUM * TheConnManager->GetNumConnected();
+	// determine upper bound to number of extras (total cap, not per-player)
+	int maxextras = SV_GAME_EXTRAS_MAXNUM;
 
 #else // !PARSEC_SERVER
 
