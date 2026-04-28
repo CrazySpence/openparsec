@@ -71,14 +71,15 @@
 
 // initialise the bot for an already-connected/joined slot -------------------
 //
-void E_BotPlayer::Init( int nClientID, const char* name, G_Player* pPlayer,
-                        E_SimClientState* pSimState, ShipObject* pShip )
+void E_BotPlayer::Init( int nClientID, const char* name, int shipClassIdx,
+                        G_Player* pPlayer, E_SimClientState* pSimState, ShipObject* pShip )
 {
 	ASSERT( pPlayer   != NULL );
 	ASSERT( pSimState != NULL );
 	ASSERT( pShip     != NULL );
 
-	m_nClientID   = nClientID;
+	m_nClientID     = nClientID;
+	m_nShipClassIdx = shipClassIdx;
 	strncpy( m_szName, name ? name : "bot", sizeof( m_szName ) - 1 );
 	m_szName[ sizeof( m_szName ) - 1 ] = '\0';
 	m_pPlayer     = pPlayer;
@@ -127,8 +128,8 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 			return;
 		}
 
-		// Delay elapsed — respawn now.
-		pSPI->BotPerformJoin( m_szName );
+		// Delay elapsed — respawn now, restoring the configured ship class.
+		pSPI->BotPerformJoin( m_szName, m_nShipClassIdx );
 		m_pShip       = pSPI->GetShipObject();
 		m_fCurSpeed   = 0;
 		m_DeathRefFrame = 0;
@@ -1030,7 +1031,7 @@ bool E_BotManager::AddBot( const char* name, int shipClassIdx )
 	ShipObject* pShip = pSPI->GetShipObject();
 	ASSERT( pShip != NULL );
 
-	m_Bots[ m_nNumBots ].Init( nClientID, name, pPlayer, pSimState, pShip );
+	m_Bots[ m_nNumBots ].Init( nClientID, name, shipClassIdx, pPlayer, pSimState, pShip );
 	m_nNumBots++;
 
 	MSGOUT( "E_BotManager: added bot '%s' (slot %d), total bots: %d", name, nClientID, m_nNumBots );
