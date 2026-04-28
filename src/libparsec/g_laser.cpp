@@ -73,6 +73,8 @@
 #else
 #include "con_info_sv.h"
 #include "con_main_sv.h"
+#include "e_global_sv.h"
+#include "e_simulator.h"
 #endif
 
 
@@ -422,7 +424,7 @@ int LaserBeamAnimate( CustomObject *base )
 	}
 
 #ifdef PARSEC_SERVER
-	cur_energy_consumption = ( 10 * laserbeam->energy_consumption ) / 10;
+	cur_energy_consumption = ( TheSimulator->GetThisFrameRefFrames() * laserbeam->energy_consumption ) / 10;
 #else
 	// check energy consumption
 	cur_energy_consumption = ( CurScreenRefFrames * laserbeam->energy_consumption ) / 10;
@@ -447,7 +449,7 @@ int LaserBeamAnimate( CustomObject *base )
 
 #ifdef PARSEC_SERVER
 		// on the server apply damage unconditionally (authoritative)
-		int hpf = ( 10 * laserbeam->hitpoints_per_frame ) / 10;
+		int hpf = ( TheSimulator->GetThisFrameRefFrames() * laserbeam->hitpoints_per_frame ) / 10;
 		targetpo->CurDamage += hpf;
 		if ( targetpo->CurDamage > targetpo->MaxDamage ) {
 			ownerpo->WeaponsActive &= ~WPMASK_LASER_BEAM;

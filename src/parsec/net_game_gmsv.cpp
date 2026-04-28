@@ -72,6 +72,7 @@
 #include "net_stream.h"
 #include "net_udpdf.h"
 #include "net_wrap.h"
+#include "g_global.h"
 #include "obj_ctrl.h"
 #include "obj_xtra.h"
 #include "g_sfx.h"
@@ -214,12 +215,35 @@ void NET_ResyncLocalPlayer( RE_PlayerAndShipStatus* pas_status )
 			MSGOUT("new CurEnergy from server: %d ( was %d )", pas_status->CurEnergy, MyShip->CurEnergy );
 #endif // PARSEC_DEBUG
 
+		// The extra refframes added to the client fire-disable counter after each
+		// shot online (matching FIRE_ONLINE_MARGIN in inp_user.cpp).
+		#define PNSS_FIRE_MARGIN 32
+
+		// Detect server-rejected laser shots: if the server's energy is higher
+		// than the client's, a shot the client fired was rejected (server did not
+		// deduct energy).  Reset the client-side fire disable counter with the
+		// same margin used at fire-time so the next shot is also correctly spaced.
+		if ( pas_status->CurEnergy > MyShip->CurEnergy ) {
+			DBGTXT( MSGOUT( "NET_ResyncLocalPlayer: server rejected laser shot — resetting FireDisable." ); );
+			FireDisable = MyShip->FireDisableDelay + PNSS_FIRE_MARGIN;
+		}
+
+		// Detect server-rejected missile launches: if the server's missile count
+		// is higher than the client's, a missile the client fired was rejected.
+		if ( pas_status->NumMissls > MyShip->NumMissls ||
+		     pas_status->NumHomMissls > MyShip->NumHomMissls ||
+		     pas_status->NumPartMissls > MyShip->NumPartMissls ) {
+			DBGTXT( MSGOUT( "NET_ResyncLocalPlayer: server rejected missile — resetting MissileDisable." ); );
+			MissileDisable = MyShip->MissileDisableDelay + PNSS_FIRE_MARGIN;
+		}
+
 		MyShip->CurEnergy			= pas_status->CurEnergy;
 		MyShip->CurDamage			= pas_status->CurDamage;
 		MyShip->CurShield			= pas_status->CurShield;
 		MyShip->NumMissls           = pas_status->NumMissls;
 		MyShip->NumHomMissls        = pas_status->NumHomMissls;
 		MyShip->NumMines            = pas_status->NumMines;
+		MyShip->NumPartMissls       = pas_status->NumPartMissls;
 	}
 
 	// got new speeds from server ?
