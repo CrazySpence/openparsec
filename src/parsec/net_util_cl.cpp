@@ -55,6 +55,7 @@
 
 // proprietary module headers
 #include "e_color.h"
+#include "h_supp.h"
 #include "net_swap.h"
 #include "sys_bind.h"
 
@@ -235,26 +236,29 @@ void NET_KillStatForceIdleZero()
 }
 
 
-// old remote player-list with big opaque font --------------------------------
+// remote player-list shown while waiting to join ------------------------------
 //
 PRIVATE
 void DrawRemotePlayerListScreen()
 {
-//	if ( !NetConnected )
-//		return;
-
-	D_SetWStrContext( CharsetInfo[ MSG_CHARSETNO ].charsetpointer,
-					  CharsetInfo[ MSG_CHARSETNO ].geompointer,
+	// Only HUD_CHARSETNO (index 2) is converted to a GL texture and can be
+	// rendered in-game.  All other charset indices (including MSG_CHARSETNO)
+	// silently draw nothing in release builds.
+	D_SetWStrContext( CharsetInfo[ HUD_CHARSETNO ].charsetpointer,
+					  CharsetInfo[ HUD_CHARSETNO ].geompointer,
 					  NULL,
-					  CharsetInfo[ MSG_CHARSETNO ].width,
-					  CharsetInfo[ MSG_CHARSETNO ].height );
+					  CharsetInfo[ HUD_CHARSETNO ].width,
+					  CharsetInfo[ HUD_CHARSETNO ].height );
+	SetHudCharColor( 4 );   // near-white
 
+	int cw          = CharsetInfo[ HUD_CHARSETNO ].width;
+	int ch          = CharsetInfo[ HUD_CHARSETNO ].height;
 	int EM_Title_Y  = 100;
-	int EM_PName_Y  = 150;
-	int EM_LineDist = 12;
+	int EM_PName_Y  = 120;
+	int EM_LineDist = ch + 4;
 
 	D_WriteString( logged_in_str,
-				 ( Screen_Width - strlen( logged_in_str ) * CharsetInfo[ MSG_CHARSETNO ].width ) / 2, EM_Title_Y );
+				 ( Screen_Width - (int)strlen( logged_in_str ) * cw ) / 2, EM_Title_Y );
 
 	const char *voidstr = "- available -";
 	int stry = EM_PName_Y;
@@ -266,9 +270,9 @@ void DrawRemotePlayerListScreen()
 		if ( i == LocalPlayerId )
 			strp = LocalPlayerName; // so local name can be changed on the fly
 
-		int strx = ( Screen_Width - strlen( strp ) * CharsetInfo[ MSG_CHARSETNO ].width ) / 2;
+		int strx = ( Screen_Width - (int)strlen( strp ) * cw ) / 2;
 		D_WriteString( strp, strx, stry );
-		stry += CharsetInfo[ MSG_CHARSETNO ].height + EM_LineDist;
+		stry += EM_LineDist;
 	}
 }
 
@@ -284,24 +288,92 @@ void NET_DrawEntryModeText()
 	ASSERT( NetConnected );
 	ASSERT( !FloatingMenu && !InFloatingMenu );
 
-	// If already joined but waiting for the server's join burst to complete,
-	// show a "Entering Game..." message instead of the lobby player list.
+	// When NetJoined is TRUE the burst is in progress; NET_DrawJoiningOverlay()
+	// handles the flashing "ENTERING GAME..." display in that case.
 	if ( NetJoined ) {
-
-		static const char entering_str[] = "Entering Game...";
-
-		D_SetWStrContext( CharsetInfo[ MSG_CHARSETNO ].charsetpointer,
-						  CharsetInfo[ MSG_CHARSETNO ].geompointer,
-						  NULL,
-						  CharsetInfo[ MSG_CHARSETNO ].width,
-						  CharsetInfo[ MSG_CHARSETNO ].height );
-
-		int strx = ( Screen_Width  - (int)strlen( entering_str ) * CharsetInfo[ MSG_CHARSETNO ].width  ) / 2;
-		int stry = ( Screen_Height - CharsetInfo[ MSG_CHARSETNO ].height ) / 2;
-
-		D_WriteString( entering_str, strx, stry );
 		return;
 	}
 
 	DrawRemotePlayerListScreen();
+}
+
+
+// joining overlay: flash "ENTERING GAME..." during burst and for a short time
+// after the burst completes so the message is always perceptible.
+// -----------------------------------------------------------------
+//
+// Flash interval: half-period in refframes (300 = 0.5 s at 600 Hz → 1 Hz blink)
+#define JOINING_FLASH_HALF  300
+// Minimum display duration in refframes (600 = 1 s).  Guarantees visibility
+// even when the burst completes before a single render frame fires (localhost).
+#define JOINING_MIN_RF      600
+
+static refframe_t s_JoiningRF      = 0;   // countdown: > 0 means display active
+static refframe_t s_FlashPhaseRF   = 0;   // accumulates refframes for flash timing
+static int        s_FlashVisible   = 1;   // 1 = text on, 0 = text off
+
+
+// Call when the client joins (sends the join packet to the server).
+// Resets the overlay timer so the message is guaranteed to appear.
+//
+void NET_StartJoiningDisplay()
+{
+	s_JoiningRF    = JOINING_MIN_RF;
+	s_FlashPhaseRF = 0;
+	s_FlashVisible = 1;
+}
+
+
+// Draw the flashing "ENTERING GAME..." overlay.
+// Called unconditionally from the render section of g_gameloop.cpp so it keeps
+// running even after EntryMode clears (provides the minimum-display linger).
+//
+void NET_DrawJoiningOverlay()
+{
+	// While the burst is still in progress keep the timer alive so the message
+	// doesn't vanish before JOINDONE arrives.
+	if ( EntryMode && NetJoined && NetConnected ) {
+		if ( s_JoiningRF < JOINING_MIN_RF ) {
+			s_JoiningRF = JOINING_MIN_RF;
+		}
+	}
+
+	if ( s_JoiningRF <= 0 ) {
+		return;
+	}
+
+	// Decrement countdown.
+	s_JoiningRF -= CurScreenRefFrames;
+	if ( s_JoiningRF < 0 ) {
+		s_JoiningRF = 0;
+	}
+
+	// Advance flash phase and toggle visibility each half-period.
+	s_FlashPhaseRF += CurScreenRefFrames;
+	if ( s_FlashPhaseRF >= JOINING_FLASH_HALF ) {
+		s_FlashPhaseRF -= JOINING_FLASH_HALF;
+		s_FlashVisible  = !s_FlashVisible;
+	}
+
+	if ( !s_FlashVisible ) {
+		return;
+	}
+
+	// Draw centered "ENTERING GAME..." using HUD_CHARSETNO — the only charset
+	// that is converted to a GL texture and can actually render in-game.
+	static const char joining_str[] = "ENTERING GAME...";
+
+	D_SetWStrContext( CharsetInfo[ HUD_CHARSETNO ].charsetpointer,
+	                  CharsetInfo[ HUD_CHARSETNO ].geompointer,
+	                  NULL,
+	                  CharsetInfo[ HUD_CHARSETNO ].width,
+	                  CharsetInfo[ HUD_CHARSETNO ].height );
+	SetHudCharColor( 4 );   // near-white — readable on any background
+
+	int cw   = CharsetInfo[ HUD_CHARSETNO ].width;
+	int ch   = CharsetInfo[ HUD_CHARSETNO ].height;
+	int strx = ( Screen_Width  - (int)strlen( joining_str ) * cw ) / 2;
+	int stry = ( Screen_Height - ch ) / 2;
+
+	D_WriteString( joining_str, strx, stry );
 }

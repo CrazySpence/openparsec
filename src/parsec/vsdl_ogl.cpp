@@ -152,6 +152,10 @@ int VSDL_InitOGLInterface( int printmodelistflags )
 	SDL_DisplayMode curmode = {};
 	SDL_GetDesktopDisplayMode(0, &curmode);
 
+	// Save desktop dimensions before the display-mode loop overwrites curmode.
+	const int desk_w = curmode.w;
+	const int desk_h = curmode.h;
+
 	MaxScreenBPP = SDL_BITSPERPIXEL(curmode.format);
 
 	// grab the display count, and check it prior to entering the loop
@@ -219,6 +223,21 @@ int VSDL_InitOGLInterface( int printmodelistflags )
 
 	// sort resolution list, putting the smallest at the front
 	std::sort(Resolutions.begin(), Resolutions.end());
+
+	// Default GameScreenRes to the largest available resolution that fits within the
+	// desktop dimensions.  This gives first-run users the best quality setting
+	// automatically.  Saved preferences from parsecrc override this later in
+	// VID_SetInitOptions(), so returning players are unaffected.
+	{
+		resinfo_s best = Resolutions.front(); // smallest as safe fallback
+		for (size_t ri = 0; ri < Resolutions.size(); ri++) {
+			if (Resolutions[ri].width <= desk_w && Resolutions[ri].height <= desk_h)
+				best = Resolutions[ri];
+		}
+		GameScreenRes = best;
+		MSGOUT("[VIDEO]: Default resolution set to %dx%d (desktop %dx%d)\n",
+		       best.width, best.height, desk_w, desk_h);
+	}
 
 	return TRUE;
 }

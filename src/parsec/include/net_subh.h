@@ -75,6 +75,8 @@ int			NET_KillStatLimitReached( int limit );
 void		NET_KillStatForceIdleZero();
 
 void		NET_DrawEntryModeText();
+void		NET_StartJoiningDisplay();
+void		NET_DrawJoiningOverlay();
 
 
 #ifdef DBIND_PROTOCOL

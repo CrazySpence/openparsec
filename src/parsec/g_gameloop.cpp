@@ -1263,6 +1263,10 @@ void GameLoop()
 					// display current server ping
 					WriteServerPing();
 
+					// flashing "ENTERING GAME..." overlay during join burst
+					// (also provides minimum-visibility linger for fast servers)
+					NET_DrawJoiningOverlay();
+
 					// draw on-line help
 					if ( GAME_MODE_ACTIVE() && HelpActive ) {
 						DrawOnlineHelp();

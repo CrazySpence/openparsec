@@ -224,6 +224,11 @@ int NETs_Join()
 		//FIXME Put this back one day when the server actually verifies this stuff (which it currently doesn't)
 		//but for now this fixes/works around stargate jump sync issues
 		HaveFullPlayerState = TRUE;
+
+		// Start the "ENTERING GAME..." flashing overlay.  The overlay persists
+		// for a minimum duration so it's always visible even on a local server
+		// where the burst can complete before a single render frame fires.
+		NET_StartJoiningDisplay();
 		
 		// open stargate
 		if ( !AUX_DISABLE_LOCAL_STARGATE ) {
