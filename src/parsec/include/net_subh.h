@@ -28,6 +28,7 @@ int							NET_RmEvWeaponState( dword weapon, byte state, int energy, dword speci
 int							NET_RmEvStateSync( dword statekey, dword stateval );
 int 						NET_RmEvCreateSwarm( Vector3 *origin, dword targetobjid, dword seed );
 int 						NET_RmEvCreateEmp( int upgradelevel );
+int							NET_RmEvHelixParticle( const Vertex3& position, const Vector3& velocity );
 RE_PlayerStatus*			NET_RmEvPlayerStatus( byte last_unjoin_flag );
 RE_PlayerAndShipStatus*		NET_RmEvPlayerAndShipStatus( byte last_unjoin_flag );
 RE_ClientInfo*				NET_RmEvClientInfo( int nSendFreq, int nRecvRate );

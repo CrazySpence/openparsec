@@ -80,6 +80,7 @@
 #include "e_packethandler.h"
 //#include "e_relist.h"
 #include "sys_refframe_sv.h"
+#include "g_wfx.h"
 
 
 // default ctor ---------------------------------------------------------------
@@ -287,10 +288,27 @@ void E_SimNetInput::ProcessInputREList()
                     TheGameInput->CreateEMP( nClientID, ((RE_CreateEmp *)relist)->Upgradelevel); //Set up Sim Object
                     TheSimNetOutput->BufferForMulticastRE( relist, nClientID, FALSE ); //Notify Clients of firing
                 }
-
-
             }
             break;
+
+            case RE_HELIXPARTICLE:
+            {
+                // Client-reported helix damage particle: create a server-side
+                // collision particle from the client's exact geometry.
+                // SV_CreateHelixCollisionParticle advances the position by RTT/2
+                // to align it with the current server simulation frame.
+                ASSERT( nClientID != PLAYERID_ANONYMOUS );
+                if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
+                    RE_HelixParticle *re = (RE_HelixParticle *) relist;
+                    int rtt_ms = TheConnManager->GetClientInfo( nClientID )->m_nRTT_ms;
+                    SV_CreateHelixCollisionParticle( nClientID,
+                                                     re->X, re->Y, re->Z,
+                                                     re->VX, re->VY, re->VZ,
+                                                     rtt_ms );
+                }
+            }
+            break;
+
 			default:
 				// we must handle all REs in this function
 				MSGOUT("UNKNOWN RE: %d received. ", relist->RE_Type);

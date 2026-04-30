@@ -36,8 +36,21 @@ void    WFX_RemoteDeactivatePhoton( int playerid );
 
 #endif // !PARSEC_SERVER
 
-int		WFX_MaintainHelix( ShipObject *shippo, int playerid );
+// server_use_re_collision: server passes true for real network clients so the
+// function skips creating server-side collision particles (RE_HelixParticle
+// from the client provides authoritative geometry instead).  Client always
+// uses the default (false).
+int		WFX_MaintainHelix( ShipObject *shippo, int playerid, bool server_use_re_collision = false );
 int		WFX_ActivateHelix( ShipObject *shippo );
+
+#ifdef PARSEC_SERVER
+// Create a collision particle on the server from a client-reported position.
+// Called by the RE_HelixParticle handler in e_simnetinput.cpp.
+void    SV_CreateHelixCollisionParticle( int playerid,
+                                          geomv_t x,  geomv_t y,  geomv_t z,
+                                          geomv_t vx, geomv_t vy, geomv_t vz,
+                                          int rtt_ms );
+#endif // PARSEC_SERVER
 void	WFX_DeactivateHelix( ShipObject *shippo );
 void	WFX_EnsureHelixInactive( ShipObject *shippo );
 

@@ -308,7 +308,7 @@ void WFX_RemoteShootSpreadfire( int playerid )
 
 // create helix particles for current frame -----------------------------------
 //
-int WFX_MaintainHelix( ShipObject *shippo, int playerid )
+int WFX_MaintainHelix( ShipObject *shippo, int playerid, bool server_use_re_collision )
 {
 	ASSERT( shippo != NULL );
 
@@ -382,6 +382,18 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 		}
 		shippo->CurEnergy -= HELIX_ENERGY_CONSUMPTION;
 
+#ifdef PARSEC_SERVER
+		// For real network clients, RE_HelixParticle provides the authoritative
+		// particle positions (from the client's exact orientation).  Skip
+		// server-side collision particle creation to avoid the shooter
+		// orientation lag mismatch.  Bot ships (server_use_re_collision==false)
+		// still get the old server-side particles.
+		if ( server_use_re_collision ) {
+			shippo->HelixCurBams = ( shippo->HelixCurBams + HelixBamsInc ) & 0xffff;
+			continue;
+		}
+#endif // PARSEC_SERVER
+
 		sincosval_s resultp;
 		GetSinCos( shippo->HelixCurBams, &resultp );
 
@@ -453,6 +465,13 @@ int WFX_MaintainHelix( ShipObject *shippo, int playerid )
 		TheWorld->PRT_CreateLinearParticle( particle );
 #else
 		PRT_CreateLinearParticle( particle );
+
+		// Send the damage particle's world position + velocity to the server.
+		// The server will reconstruct the collision geometry from this data
+		// rather than from its own (orientation-lagged) ship simulation.
+		if ( NetConnected && NET_RmEvAllowed( RE_HELIXPARTICLE ) ) {
+			NET_RmEvHelixParticle( world_space, dirvec );
+		}
 #endif
 
 		shippo->HelixCurBams = ( shippo->HelixCurBams + HelixBamsInc ) & 0xffff;
@@ -604,6 +623,48 @@ void WFX_EnsureHelixInactive( ShipObject *shippo )
 	ASSERT( ( shippo->WeaponsActive & WPMASK_CANNON_HELIX ) == 0 );
 }
 
+
+#ifdef PARSEC_SERVER
+
+// Create a helix collision particle from client-reported geometry ------------
+//
+// Called by the RE_HelixParticle handler when a real network client reports a
+// PARTICLE_IS_HELIX particle.  The position is advanced by RTT/2 to align
+// it with the server's current simulation frame.
+//
+void SV_CreateHelixCollisionParticle( int playerid,
+                                       geomv_t x,  geomv_t y,  geomv_t z,
+                                       geomv_t vx, geomv_t vy, geomv_t vz,
+                                       int rtt_ms )
+{
+	// Advance the particle position by the one-way transit time so that it
+	// lands in the server frame that corresponds to what the client saw.
+	int rtt_half_frames = ( rtt_ms / 2 ) / 10;   // 100 Hz sim → 10 ms per frame
+
+	Vertex3 pos;
+	pos.X = x + vx * (geomv_t)rtt_half_frames;
+	pos.Y = y + vy * (geomv_t)rtt_half_frames;
+	pos.Z = z + vz * (geomv_t)rtt_half_frames;
+
+	Vector3 vel;
+	vel.X = vx;
+	vel.Y = vy;
+	vel.Z = vz;
+
+	particle_s particle;
+	TheWorld->PRT_InitParticle( particle,
+	                             SPREADFIRE_PARTICLE_COLOR,
+	                             partbitmap_size_bound,
+	                             1.0f,
+	                             &pos, &vel,
+	                             HELIX_LIFETIME,
+	                             playerid,
+	                             NULL );
+	particle.flags |= PARTICLE_COLLISION | PARTICLE_IS_HELIX;
+	TheWorld->PRT_CreateLinearParticle( particle );
+}
+
+#endif // PARSEC_SERVER
 
 
 // ----------------------------------------------------------------------------

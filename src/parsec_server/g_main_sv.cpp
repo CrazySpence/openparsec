@@ -809,8 +809,12 @@ void G_Main::MaintainDurationWeapons( int playerid )
 	ASSERT( pShip != NULL );
     
 	// maintain helix
+	// Real network clients send RE_HelixParticle for collision detection, so
+	// pass server_use_re_collision=true to skip server-side collision particles.
+	// Bot ships have no network client; they keep the old server-side particles.
 	if ( pShip->WeaponsActive & WPMASK_CANNON_HELIX ) {
-		WFX_MaintainHelix( pShip, playerid );
+		bool is_bot = TheConnManager->GetClientInfo( playerid )->IsBot();
+		WFX_MaintainHelix( pShip, playerid, !is_bot );
 	}
 
 	// maintain lightning

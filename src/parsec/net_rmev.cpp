@@ -519,6 +519,47 @@ int NET_RmEvWeaponState( dword weapon, byte state, int energy, dword specials )
 }
 
 
+// insert helix damage particle position into RE_List -------------------------
+//
+// Called from WFX_MaintainHelix (client side) once per PARTICLE_IS_HELIX
+// particle created.  The server uses this to run collision detection from
+// the client's exact particle geometry rather than its own lagged simulation.
+//
+int NET_RmEvHelixParticle( const Vertex3& position, const Vector3& velocity )
+{
+	//NOTE:
+	// calling NET_RmEvAllowed() is mandatory
+	// before calling this function.
+
+	if ( NetConnected == NETWORK_GAME_ON ) {
+
+		if ( (size_t)RE_List_Avail < sizeof( RE_HelixParticle ) ) {
+			ASSERT( 0 );
+			return 0;
+		}
+
+		RE_HelixParticle *re = (RE_HelixParticle *) RE_List_CurPos;
+		re->RE_Type      = RE_HELIXPARTICLE;
+		re->RE_BlockSize = sizeof( RE_HelixParticle );
+		re->Pad          = 0;
+		re->X            = position.X;
+		re->Y            = position.Y;
+		re->Z            = position.Z;
+		re->VX           = velocity.X;
+		re->VY           = velocity.Y;
+		re->VZ           = velocity.Z;
+
+		re++;
+		re->RE_Type = RE_EMPTY;
+
+		RE_List_CurPos = (char *) re;
+		RE_List_Avail -= sizeof( RE_HelixParticle );
+	}
+
+	return 1;
+}
+
+
 // insert state sync into RE_List ---------------------------------------------
 //
 int NET_RmEvStateSync( dword statekey, dword stateval )

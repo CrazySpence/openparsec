@@ -649,6 +649,7 @@ enum re_events {
     RE_TELEPORTER,
     RE_GENERIC,
 	RE_PLANET,
+	RE_HELIXPARTICLE,   // 0x20 — client sends helix damage particle to server for collision
 	RE_NUMEVENTS
 };
 	
@@ -962,6 +963,24 @@ struct RE_Planet : RE_Header {
 	char	ringtexname[ 64 ];		// 64 — ring texture name (MAX_RING_TEXNAME+1)
 	char	surtexname[ 64 ];		// 64 — surface texture name (MAX_SURF_TEXNAME+1)
 	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 64 + 64 = 174
+};
+
+
+// helix damage particle — client reports world position + velocity to server --
+//
+// Only the second (PARTICLE_IS_HELIX, damage-dealing) particle is sent.
+// Server creates a collision particle from the client's geometry, advancing it
+// by RTT/2 to align with the server simulation frame.
+//
+struct RE_HelixParticle : RE_Header {  // 2 bytes
+	word    Pad;    // alignment pad — brings geomv_t to 4-byte boundary (2 bytes)
+	geomv_t X;     // world-space position (4 bytes each)
+	geomv_t Y;
+	geomv_t Z;
+	geomv_t VX;    // world-space velocity / dirvec from WFX_MaintainHelix (4 bytes each)
+	geomv_t VY;
+	geomv_t VZ;
+	// sizeof( RE_HelixParticle ) = 2 + 2 + 24 = 28
 };
 
 
