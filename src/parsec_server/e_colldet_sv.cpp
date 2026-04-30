@@ -479,7 +479,8 @@ void G_CollDet::_CheckShipLaserCollision()
 			// Per-shooter lag compensation: rewind target to where the shooter saw it
 			if ( tgt_cs_l != NULL ) {
 				int shooter_rtt = TheConnManager->GetClientInfo( curlaser->Owner )->m_nRTT_ms;
-				int frames_back = shooter_rtt / 2 / 10;
+				int frames_back = shooter_rtt / 10;
+				if ( frames_back < 1 ) frames_back = 1;   // floor: at least 1 frame for sim timing
 				if ( frames_back > lag_max_frames_l ) frames_back = lag_max_frames_l;
 				pXmatrx hist = ( frames_back > 0 )
 				             ? tgt_cs_l->GetHistoricalPosition( frames_back, cur_sim_frame_l )
@@ -1427,7 +1428,8 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 	int frames_back_p   = 0;
 	if ( lag_max_frames_p > 0 ) {
 		shooter_rtt_p = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
-		frames_back_p = shooter_rtt_p / 2 / 10;
+		frames_back_p = shooter_rtt_p / 10;
+		if ( frames_back_p < 1 ) frames_back_p = 1;   // floor: at least 1 frame for sim timing
 		if ( frames_back_p > lag_max_frames_p ) frames_back_p = lag_max_frames_p;
 	}
 	const int cur_sim_frame_p = TheSimulator->GetSimFrame();
@@ -1562,7 +1564,8 @@ int G_CollDet::CheckLightningParticleShipCollision( Vertex3& particlepos, int ow
 	int frames_back_lt = 0;
 	if ( lag_max_frames_lt > 0 ) {
 		int shooter_rtt_lt = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
-		frames_back_lt = shooter_rtt_lt / 2 / 10;
+		frames_back_lt = shooter_rtt_lt / 10;
+		if ( frames_back_lt < 1 ) frames_back_lt = 1;   // floor: at least 1 frame for sim timing
 		if ( frames_back_lt > lag_max_frames_lt ) frames_back_lt = lag_max_frames_lt;
 	}
 	const int cur_sim_frame_lt = TheSimulator->GetSimFrame();
