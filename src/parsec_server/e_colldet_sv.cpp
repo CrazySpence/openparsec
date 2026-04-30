@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 // compilation flags/debug support
 #include "config.h"
@@ -1415,12 +1416,37 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 	ASSERT( cluster != NULL );
 	ASSERT( ( pid >= 0 ) && ( pid < cluster->numel ) );
 	ASSERT( cluster->rep[ pid ].flags & PARTICLE_COLLISION );
-    
+
 	//NOTE:
 	// this is set as callback by PART_WFX::MaintainHelix()
 	// to detect collisions of helix particles.
-    
+
 	int owner = cluster->rep[ pid ].owner;
+
+	// Debug: log particle/ship proximity for helix particles
+	bool dbg_is_helix_particle = ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) == PARTICLE_IS_HELIX;
+	static int dbg_helix_call_count = 0;
+	if ( dbg_is_helix_particle ) {
+		dbg_helix_call_count++;
+		if ( ( dbg_helix_call_count % 200 ) == 1 ) {
+			Vertex3& pp = cluster->rep[ pid ].position;
+			ShipObject *dbg_ship = TheWorld->FetchFirstShip();
+			for ( ; dbg_ship; dbg_ship = (ShipObject*) dbg_ship->NextObj ) {
+				if ( GetObjectOwner( dbg_ship ) == (dword)owner ) continue;
+				float dx = pp.X - dbg_ship->ObjPosition[0][3];
+				float dy = pp.Y - dbg_ship->ObjPosition[1][3];
+				float dz = pp.Z - dbg_ship->ObjPosition[2][3];
+				float dist2 = dx*dx + dy*dy + dz*dz;
+				float dist  = sqrtf( dist2 );
+				MSGOUT( "DBG helix: prt(%.1f,%.1f,%.1f) ship(%.1f,%.1f,%.1f) dist=%.1f bs=%.1f",
+				        (float)pp.X, (float)pp.Y, (float)pp.Z,
+				        (float)dbg_ship->ObjPosition[0][3],
+				        (float)dbg_ship->ObjPosition[1][3],
+				        (float)dbg_ship->ObjPosition[2][3],
+				        dist, (float)dbg_ship->BoundingSphere );
+			}
+		}
+	}
 
 	// Lag compensation: derive per-shooter rewind amount once
 	const int lag_max_frames_p = SV_LAG_COMPENSATION_MAX_MS / 10;
@@ -1474,7 +1500,7 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 		switch ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) {
 
 			case PARTICLE_IS_HELIX :
-			//   MSGOUT("G_CollDet::LinearParticleCollision(): Helix particle collision with player %d",GetObjectOwner( walkships ));
+			    MSGOUT("DBG helix HIT: owner=%d target=%d",owner,GetObjectOwner(walkships));
 				OBJ_ShipHelixDamage( walkships, owner );
 				break;
 			case PARTICLE_IS_PHOTON :
