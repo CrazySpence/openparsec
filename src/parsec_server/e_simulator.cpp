@@ -457,6 +457,26 @@ E_SimShipState* E_SimClientState::GetPrevSimFrameStateSlot()
 	return &m_States[ ( TheSimulator->GetSimFrame() - 1 ) % m_nNumStateSlots ];
 }
 
+
+// return the world-position matrix from N simulation frames ago --------------
+//
+pXmatrx E_SimClientState::GetHistoricalPosition( int frames_back, int cur_sim_frame )
+{
+	if ( m_States == NULL || m_nNumStateSlots <= 0 )
+		return NULL;
+
+	// Clamp to available history (buffer holds m_nNumStateSlots frames = 1 s at 100 Hz)
+	if ( frames_back < 0 )                    frames_back = 0;
+	if ( frames_back >= m_nNumStateSlots )     frames_back = m_nNumStateSlots - 1;
+
+	// Double-modulo keeps the index non-negative even when cur_sim_frame < frames_back
+	int slot = ( ( cur_sim_frame - frames_back ) % m_nNumStateSlots
+	             + m_nNumStateSlots ) % m_nNumStateSlots;
+
+	return m_States[ slot ].m_ObjPosition;
+}
+
+
 // update the shipstate -------------------------------------------------------
 //
 void E_SimClientState::CalcNewState( refframe_t CurSimRefFrames )

@@ -877,8 +877,11 @@ void E_ConnManager::NET_ExecRmEvClientInfo( int nClientID, RE_ClientInfo* re_cli
 		_ClientInfo.m_nRecvRate = max( _ClientInfo.m_nRecvRate, CLIENT_RECV_RATE_MIN );
 		_ClientInfo.m_nRecvRate = min( _ClientInfo.m_nRecvRate, CLIENT_RECV_RATE_MAX );
 
-		//DBGTXT( MSGOUT( "E_ConnManager::NET_ExecRmEvClientInfo(): client %d: new CLIENTRATE: %d new SERVERRATE: %d", 
+		//DBGTXT( MSGOUT( "E_ConnManager::NET_ExecRmEvClientInfo(): client %d: new CLIENTRATE: %d new SERVERRATE: %d",
 		//	nClientID, _ClientInfo.m_nSendFreq, _ClientInfo.m_nRecvRate ); );
+
+		// store client-reported round-trip time for lag compensation
+		_ClientInfo.m_nRTT_ms = (int)re_clientinfo->rtt_ms;
 
 		// reconfigure the network output
 		TheSimNetOutput->RateChangedForClient( nClientID );

@@ -55,6 +55,9 @@
 // local module header
 #include "net_rmev_gmsv.h"
 
+// net globals (ServerPingTime)
+#include "net_glob.h"
+
 // proprietary module headers
 #include "con_aux.h"
 //#include "con_say.h"
@@ -820,12 +823,13 @@ RE_ClientInfo* NET_RmEvClientInfo( int nSendFreq, int nRecvRate )
 		// scan remote event list for already inserted RE_ClientInfo
 		RE_ClientInfo* re_clientinfo = (RE_ClientInfo*)FindInREList( (RE_Header *) REListMem, RE_CLIENTINFO );
 
-		// reuse already inserted RE 
+		// reuse already inserted RE
 		if ( re_clientinfo != NULL ) {
 
 			// fill in info
 			re_clientinfo->client_sendfreq = (byte)nSendFreq;
 			re_clientinfo->server_sendrate = PACK_SERVERRATE( nRecvRate );
+			re_clientinfo->rtt_ms          = (uint16_t)( ServerPingTime > 0 ? ServerPingTime : 0 );
 
 		} else {
 
@@ -842,6 +846,7 @@ RE_ClientInfo* NET_RmEvClientInfo( int nSendFreq, int nRecvRate )
 			// fill in info
 			re_clientinfo->client_sendfreq = (byte)nSendFreq;
 			re_clientinfo->server_sendrate = PACK_SERVERRATE( nRecvRate );
+			re_clientinfo->rtt_ms          = (uint16_t)( ServerPingTime > 0 ? ServerPingTime : 0 );
 
 			// maintain list
 			re_clientinfo++;

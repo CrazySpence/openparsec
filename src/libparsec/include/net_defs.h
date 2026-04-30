@@ -853,9 +853,10 @@ struct RE_CommandInfo : RE_Header { //2
 
 // clientinfo ( GMSV mode only )
 struct RE_ClientInfo : RE_Header {
-	byte client_sendfreq;		// packets per sec.
-	byte server_sendrate;		// bytes per sec.
-	// 4
+	byte     client_sendfreq;	// packets per sec.
+	byte     server_sendrate;	// bytes per sec.
+	uint16_t rtt_ms;			// client's measured full RTT (ms); 0 = unknown
+	// 6
 };
 
 

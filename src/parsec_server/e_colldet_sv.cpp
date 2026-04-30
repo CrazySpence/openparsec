@@ -57,6 +57,7 @@
 #include "e_connmanager.h"
 #include "e_simnetoutput.h"
 #include "e_simulator.h"
+#include "con_aux_sv.h"
 #include "parttype.h"
 
 #define SET_SHIELD_TESTING()					{ test_shield = TRUE; }
@@ -319,16 +320,19 @@ void G_CollDet::_CheckShipMissileCollision()
 
 		ShipObject *nextship = (ShipObject*) cur_ship->NextObj;
 
-		obj_pos.X  = cur_ship->ObjPosition[ 0 ][ 3 ];
-		obj_pos.Y  = cur_ship->ObjPosition[ 1 ][ 3 ];
-		obj_pos.Z  = cur_ship->ObjPosition[ 2 ][ 3 ];
 		bd_sphere  = cur_ship->BoundingSphere;
 		bd_sphere2 = cur_ship->BoundingSphere2;
 
-		
-        int cur_ship_owner = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
+		int cur_ship_owner = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
 
-        // walk all missiles
+		// Lag compensation: pre-fetch target state once per ship (zero overhead when disabled)
+		const int lag_max_frames_m = SV_LAG_COMPENSATION_MAX_MS / 10;
+		const int cur_sim_frame_m  = TheSimulator->GetSimFrame();
+		E_SimClientState* tgt_cs_m = ( lag_max_frames_m > 0 )
+		                            ? TheSimulator->GetSimClientState( cur_ship_owner )
+		                            : NULL;
+
+		// walk all missiles
 		MissileObject *walkmissiles = TheWorld->FetchFirstMissile();
 		while ( walkmissiles != NULL ) {
 
@@ -338,6 +342,29 @@ void G_CollDet::_CheckShipMissileCollision()
 			// owner can't be hit by own missile
 			if ( curmissile->Owner == cur_ship_owner ) {
 				continue;
+			}
+
+			// Per-shooter lag compensation: rewind target to where the shooter saw it
+			if ( tgt_cs_m != NULL ) {
+				int shooter_rtt = TheConnManager->GetClientInfo( curmissile->Owner )->m_nRTT_ms;
+				int frames_back = shooter_rtt / 2 / 10;
+				if ( frames_back > lag_max_frames_m ) frames_back = lag_max_frames_m;
+				pXmatrx hist = ( frames_back > 0 )
+				             ? tgt_cs_m->GetHistoricalPosition( frames_back, cur_sim_frame_m )
+				             : NULL;
+				if ( hist ) {
+					obj_pos.X = hist[ 0 ][ 3 ];
+					obj_pos.Y = hist[ 1 ][ 3 ];
+					obj_pos.Z = hist[ 2 ][ 3 ];
+				} else {
+					obj_pos.X = cur_ship->ObjPosition[ 0 ][ 3 ];
+					obj_pos.Y = cur_ship->ObjPosition[ 1 ][ 3 ];
+					obj_pos.Z = cur_ship->ObjPosition[ 2 ][ 3 ];
+				}
+			} else {
+				obj_pos.X = cur_ship->ObjPosition[ 0 ][ 3 ];
+				obj_pos.Y = cur_ship->ObjPosition[ 1 ][ 3 ];
+				obj_pos.Z = cur_ship->ObjPosition[ 2 ][ 3 ];
 			}
 
 			test_pos.X = curmissile->ObjPosition[ 0 ][ 3 ];
@@ -426,13 +453,17 @@ void G_CollDet::_CheckShipLaserCollision()
 		// get pointer to next ship in list, as the current might get removed upon collision
 		ShipObject* nextship = (ShipObject *) cur_ship->NextObj;
 
-		obj_pos.X  = cur_ship->ObjPosition[ 0 ][ 3 ];
-		obj_pos.Y  = cur_ship->ObjPosition[ 1 ][ 3 ];
-		obj_pos.Z  = cur_ship->ObjPosition[ 2 ][ 3 ];
 		bd_sphere  = cur_ship->BoundingSphere;
 		bd_sphere2 = cur_ship->BoundingSphere2;
 
 		int cur_ship_owner = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
+
+		// Lag compensation: pre-fetch target state once per ship (zero overhead when disabled)
+		const int lag_max_frames_l = SV_LAG_COMPENSATION_MAX_MS / 10;   // 100 Hz → 10 ms/frame
+		const int cur_sim_frame_l  = TheSimulator->GetSimFrame();
+		E_SimClientState* tgt_cs_l = ( lag_max_frames_l > 0 )
+		                            ? TheSimulator->GetSimClientState( cur_ship_owner )
+		                            : NULL;
 
 		// walk all laser projectiles
 		for ( LaserObject *walklasers = TheWorld->FetchFirstLaser(); walklasers != NULL; ) {
@@ -443,6 +474,29 @@ void G_CollDet::_CheckShipLaserCollision()
 			// owner can't be hit by own laser projectile
 			if ( curlaser->Owner == cur_ship_owner ) {
 				continue;
+			}
+
+			// Per-shooter lag compensation: rewind target to where the shooter saw it
+			if ( tgt_cs_l != NULL ) {
+				int shooter_rtt = TheConnManager->GetClientInfo( curlaser->Owner )->m_nRTT_ms;
+				int frames_back = shooter_rtt / 2 / 10;
+				if ( frames_back > lag_max_frames_l ) frames_back = lag_max_frames_l;
+				pXmatrx hist = ( frames_back > 0 )
+				             ? tgt_cs_l->GetHistoricalPosition( frames_back, cur_sim_frame_l )
+				             : NULL;
+				if ( hist ) {
+					obj_pos.X = hist[ 0 ][ 3 ];
+					obj_pos.Y = hist[ 1 ][ 3 ];
+					obj_pos.Z = hist[ 2 ][ 3 ];
+				} else {
+					obj_pos.X = cur_ship->ObjPosition[ 0 ][ 3 ];
+					obj_pos.Y = cur_ship->ObjPosition[ 1 ][ 3 ];
+					obj_pos.Z = cur_ship->ObjPosition[ 2 ][ 3 ];
+				}
+			} else {
+				obj_pos.X = cur_ship->ObjPosition[ 0 ][ 3 ];
+				obj_pos.Y = cur_ship->ObjPosition[ 1 ][ 3 ];
+				obj_pos.Z = cur_ship->ObjPosition[ 2 ][ 3 ];
 			}
 
 			test_pos.X = curlaser->ObjPosition[ 0 ][ 3 ];
@@ -1326,6 +1380,33 @@ int G_CollDet::PRT_ParticleInBoundingSphere( ShipObject *shippo, Vertex3& point 
 	return ( DOT_PRODUCT( &dvec, &dvec ) < bdsphere2 );
 }
 
+// variant using an explicit centre (for lag-compensated collision tests) -----
+//
+int G_CollDet::PRT_ParticleInBoundingSphereAt(
+		ShipObject *shippo, Vertex3& point,
+		geomv_t cx, geomv_t cy, geomv_t cz )
+{
+	ASSERT( shippo != NULL );
+
+	geomv_t bdsphere  = shippo->BoundingSphere;
+	geomv_t bdsphere2 = shippo->BoundingSphere2;
+
+	if ( point.X < ( cx - bdsphere ) ) return FALSE;
+	if ( point.X > ( cx + bdsphere ) ) return FALSE;
+	if ( point.Y < ( cy - bdsphere ) ) return FALSE;
+	if ( point.Y > ( cy + bdsphere ) ) return FALSE;
+	if ( point.Z < ( cz - bdsphere ) ) return FALSE;
+	if ( point.Z > ( cz + bdsphere ) ) return FALSE;
+
+	Vector3 dvec;
+	dvec.X = point.X - cx;
+	dvec.Y = point.Y - cy;
+	dvec.Z = point.Z - cz;
+
+	return ( DOT_PRODUCT( &dvec, &dvec ) < bdsphere2 );
+}
+
+
 // brute force collision detection of linear particle with all ships ----------
 //
 void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
@@ -1339,37 +1420,67 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 	// to detect collisions of helix particles.
     
 	int owner = cluster->rep[ pid ].owner;
-    
+
+	// Lag compensation: derive per-shooter rewind amount once
+	const int lag_max_frames_p = SV_LAG_COMPENSATION_MAX_MS / 10;
+	int shooter_rtt_p   = 0;
+	int frames_back_p   = 0;
+	if ( lag_max_frames_p > 0 ) {
+		shooter_rtt_p = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
+		frames_back_p = shooter_rtt_p / 2 / 10;
+		if ( frames_back_p > lag_max_frames_p ) frames_back_p = lag_max_frames_p;
+	}
+	const int cur_sim_frame_p = TheSimulator->GetSimFrame();
+
 	// check shiplist
 	ShipObject *walkships = TheWorld->FetchFirstShip();
 	for ( ; walkships; walkships = (ShipObject*) walkships->NextObj ) {
-        
+
 		// prevent collision with owner of particle
 		if ( ( GetObjectOwner( walkships ) == (dword)owner ) )
 			continue;
-        
-		if ( !PRT_ParticleInBoundingSphere( walkships, cluster->rep[ pid ].position ) )
+
+		// Per-shooter lag compensation for helix / photon particles
+		int hit;
+		if ( lag_max_frames_p > 0 && frames_back_p > 0 ) {
+			int ship_owner_p = GetObjectOwner( walkships );
+			E_SimClientState* tgt_cs_p = TheSimulator->GetSimClientState( ship_owner_p );
+			pXmatrx hist = tgt_cs_p
+			             ? tgt_cs_p->GetHistoricalPosition( frames_back_p, cur_sim_frame_p )
+			             : NULL;
+			if ( hist ) {
+				hit = PRT_ParticleInBoundingSphereAt(
+				          walkships, cluster->rep[ pid ].position,
+				          hist[ 0 ][ 3 ], hist[ 1 ][ 3 ], hist[ 2 ][ 3 ] );
+			} else {
+				hit = PRT_ParticleInBoundingSphere( walkships, cluster->rep[ pid ].position );
+			}
+		} else {
+			hit = PRT_ParticleInBoundingSphere( walkships, cluster->rep[ pid ].position );
+		}
+
+		if ( !hit )
 			continue;
-        
+
 		// disable particle
 		cluster->rep[ pid ].flags &= ~PARTICLE_ACTIVE;
-    	    
-              switch ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) {
 
-                 case PARTICLE_IS_HELIX :
-                 //   MSGOUT("G_CollDet::LinearParticleCollision(): Helix particle collision with player %d",GetObjectOwner( walkships ));
-                    OBJ_ShipHelixDamage( walkships, owner );
-                    break;
-                 case PARTICLE_IS_PHOTON :
-                    OBJ_ShipPhotonDamage( walkships, owner );
-                    break;
-                 default:
-                    break;
-              }
-              // Particle hit one ship and is now deactivated. Stop iterating — avoids
-              // advancing walkships->NextObj if PerformUnjoin freed the ship above.
-              return;
-       }
+		switch ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) {
+
+			case PARTICLE_IS_HELIX :
+			//   MSGOUT("G_CollDet::LinearParticleCollision(): Helix particle collision with player %d",GetObjectOwner( walkships ));
+				OBJ_ShipHelixDamage( walkships, owner );
+				break;
+			case PARTICLE_IS_PHOTON :
+				OBJ_ShipPhotonDamage( walkships, owner );
+				break;
+			default:
+				break;
+		}
+		// Particle hit one ship and is now deactivated. Stop iterating — avoids
+		// advancing walkships->NextObj if PerformUnjoin freed the ship above.
+		return;
+	}
 }
 
 // inflict damage upon ship hit by photon weapon ------------------------------
@@ -1446,22 +1557,48 @@ void G_CollDet::CheckEnergyField( pcluster_s *cluster )
 
 int G_CollDet::CheckLightningParticleShipCollision( Vertex3& particlepos, int owner )
 {
+	// Lag compensation: derive per-shooter rewind amount once
+	const int lag_max_frames_lt = SV_LAG_COMPENSATION_MAX_MS / 10;
+	int frames_back_lt = 0;
+	if ( lag_max_frames_lt > 0 ) {
+		int shooter_rtt_lt = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
+		frames_back_lt = shooter_rtt_lt / 2 / 10;
+		if ( frames_back_lt > lag_max_frames_lt ) frames_back_lt = lag_max_frames_lt;
+	}
+	const int cur_sim_frame_lt = TheSimulator->GetSimFrame();
+
 	// check shiplist
 	ShipObject *walkships = TheWorld->FetchFirstShip();
 	for ( ; walkships; walkships = (ShipObject*) walkships->NextObj ) {
-        
+
 		// prevent collision with owner of particle
 		if ( ( GetObjectOwner( walkships ) == (dword)owner ) )
 			continue;
-        
-		if ( !PRT_ParticleInBoundingSphere( walkships, particlepos ) )
+
+		// Per-shooter lag compensation for lightning particles
+		int hit;
+		if ( lag_max_frames_lt > 0 && frames_back_lt > 0 ) {
+			int ship_owner_lt = GetObjectOwner( walkships );
+			E_SimClientState* tgt_cs_lt = TheSimulator->GetSimClientState( ship_owner_lt );
+			pXmatrx hist = tgt_cs_lt
+			             ? tgt_cs_lt->GetHistoricalPosition( frames_back_lt, cur_sim_frame_lt )
+			             : NULL;
+			hit = hist ? PRT_ParticleInBoundingSphereAt(
+			                 walkships, particlepos,
+			                 hist[ 0 ][ 3 ], hist[ 1 ][ 3 ], hist[ 2 ][ 3 ] )
+			           : PRT_ParticleInBoundingSphere( walkships, particlepos );
+		} else {
+			hit = PRT_ParticleInBoundingSphere( walkships, particlepos );
+		}
+
+		if ( !hit )
 			continue;
-        
+
 		OBJ_ShipLightningDamage( walkships, owner );
-        
+
 		return TRUE;
 	}
-    
+
 	return FALSE;
 }
 

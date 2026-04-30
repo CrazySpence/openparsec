@@ -183,6 +183,11 @@ public:
 	E_SimShipState* GetCurSimFrameStateSlot();
 	E_SimShipState* GetPrevSimFrameStateSlot();
 
+	// Return the world-position matrix from `frames_back` simulation frames ago.
+	// `cur_sim_frame` is E_Simulator::GetSimFrame() at the call site.
+	// Returns NULL if the history buffer is not yet ready.
+	pXmatrx GetHistoricalPosition( int frames_back, int cur_sim_frame );
+
 	// Set bot movement for this think tick (server-side bots only).
 	// yaw/pitch/roll are RATES in bams/refframe (CalcNewState multiplies by CurSimRefFrames).
 	// speed is the ABSOLUTE current speed (bot manages accumulation; clamped to maxSpeed).

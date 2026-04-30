@@ -97,11 +97,14 @@ protected:
 	bool				m_bIsBot;		// true for server-internal bot players
 
 public:
+	int					m_nRTT_ms;		// last reported full RTT from this client (ms); 0 = unknown
+
 	E_ClientInfo() :
 	  m_slotfree( TRUE ),
 	  m_nAliveCounter( MAX_ALIVE_COUNTER ),
 	  m_pSimPlayerInfo( NULL ),
-	  m_bIsBot( false )
+	  m_bIsBot( false ),
+	  m_nRTT_ms( 0 )
 	{
 	}
 
@@ -114,6 +117,7 @@ public:
 		m_slotfree		= TRUE;
 		m_nAliveCounter = MAX_ALIVE_COUNTER;
 		m_bIsBot		= false;
+		m_nRTT_ms		= 0;
 	}
 
 	// check / set whether this slot is a server-internal bot (no network connection)

@@ -140,6 +140,8 @@ int_command_s verbose_sv_commands[] = {
 	{ 0x80, "sv.map.x",									-1, 32767,	&SV_MAP_X,									NULL,					NULL,		-1 },
 	{ 0x80, "sv.map.y",									-1, 32767,	&SV_MAP_Y,									NULL,					NULL,		-1 },
 
+	{ 0x80, "sv.lag_compensation_max_ms",				0, 500,		&SV_LAG_COMPENSATION_MAX_MS,				NULL,					NULL,		0 },
+
 };
 
 #define NUM_VERBOSE_SV_COMMANDS	CALC_NUM_ARRAY_ENTRIES( verbose_sv_commands )

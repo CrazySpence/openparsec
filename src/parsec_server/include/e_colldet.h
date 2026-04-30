@@ -83,6 +83,9 @@ public:
     int CheckLightningParticleShipCollision( Vertex3& particlepos, int owner );
     //Particle Collisions
     int PRT_ParticleInBoundingSphere( ShipObject *shippo, Vertex3& point );
+    // Variant that uses an explicit centre instead of shippo->ObjPosition (for lag compensation)
+    int PRT_ParticleInBoundingSphereAt( ShipObject *shippo, Vertex3& point,
+                                        geomv_t cx, geomv_t cy, geomv_t cz );
 
 };
 
