@@ -1442,9 +1442,13 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 		if ( ( GetObjectOwner( walkships ) == (dword)owner ) )
 			continue;
 
-		// Per-shooter lag compensation for helix / photon particles
+		// Per-shooter lag compensation for photon particles only.
+		// Helix uses a tight rotating spiral — rewinding the target centre
+		// moves it outside the spiral's coverage area and nearly kills all hits.
+		// Current-position check is correct for helix (close-range spray weapon).
 		int hit;
-		if ( lag_max_frames_p > 0 && frames_back_p > 0 ) {
+		bool is_helix = ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) == PARTICLE_IS_HELIX;
+		if ( !is_helix && lag_max_frames_p > 0 && frames_back_p > 0 ) {
 			int ship_owner_p = GetObjectOwner( walkships );
 			E_SimClientState* tgt_cs_p = TheSimulator->GetSimClientState( ship_owner_p );
 			pXmatrx hist = tgt_cs_p
