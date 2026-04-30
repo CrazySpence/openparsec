@@ -1423,15 +1423,24 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 	int owner = cluster->rep[ pid ].owner;
 
 
-	// Lag compensation: derive per-shooter rewind amount once
+	// Lag compensation setup.
+	// Helix and photon particles both exist simultaneously on client and server,
+	// so the client-server target position mismatch is only RTT/2 (one-way latency),
+	// unlike lasers/missiles where the full RTT elapses between client aim and server check.
+	// Helix uses RTT/2; photon uses full RTT (it fires along the aim axis so it
+	// tolerates larger rewinds without the spiral geometry issue helix has).
 	const int lag_max_frames_p = SV_LAG_COMPENSATION_MAX_MS / 10;
-	int shooter_rtt_p   = 0;
-	int frames_back_p   = 0;
+	int shooter_rtt_p    = 0;
+	int frames_back_p    = 0;   // photon: full RTT rewind
+	int frames_back_helix = 0;  // helix:  RTT/2 rewind (smaller to stay inside spiral)
 	if ( lag_max_frames_p > 0 ) {
-		shooter_rtt_p = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
-		frames_back_p = shooter_rtt_p / 10;
-		if ( frames_back_p < 1 ) frames_back_p = 1;   // floor: at least 1 frame for sim timing
-		if ( frames_back_p > lag_max_frames_p ) frames_back_p = lag_max_frames_p;
+		shooter_rtt_p     = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
+		frames_back_p     = shooter_rtt_p / 10;
+		frames_back_helix = shooter_rtt_p / 2 / 10;
+		if ( frames_back_p     < 1 ) frames_back_p     = 1;
+		if ( frames_back_helix < 1 ) frames_back_helix = 1;
+		if ( frames_back_p     > lag_max_frames_p ) frames_back_p     = lag_max_frames_p;
+		if ( frames_back_helix > lag_max_frames_p ) frames_back_helix = lag_max_frames_p;
 	}
 	const int cur_sim_frame_p = TheSimulator->GetSimFrame();
 
@@ -1443,17 +1452,17 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 		if ( ( GetObjectOwner( walkships ) == (dword)owner ) )
 			continue;
 
-		// Per-shooter lag compensation for photon particles only.
-		// Helix uses a tight rotating spiral — rewinding the target centre
-		// moves it outside the spiral's coverage area and nearly kills all hits.
-		// Current-position check is correct for helix (close-range spray weapon).
+		// Per-shooter lag compensation: use historical target position.
+		// Helix uses RTT/2 rewind (shorter, preserves spiral geometry).
+		// Photon uses full RTT rewind (fires along aim axis, tolerates more).
 		int hit;
 		bool is_helix = ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) == PARTICLE_IS_HELIX;
-		if ( !is_helix && lag_max_frames_p > 0 && frames_back_p > 0 ) {
+		int fb = is_helix ? frames_back_helix : frames_back_p;
+		if ( lag_max_frames_p > 0 && fb > 0 ) {
 			int ship_owner_p = GetObjectOwner( walkships );
 			E_SimClientState* tgt_cs_p = TheSimulator->GetSimClientState( ship_owner_p );
 			pXmatrx hist = tgt_cs_p
-			             ? tgt_cs_p->GetHistoricalPosition( frames_back_p, cur_sim_frame_p )
+			             ? tgt_cs_p->GetHistoricalPosition( fb, cur_sim_frame_p )
 			             : NULL;
 			if ( hist ) {
 				hit = PRT_ParticleInBoundingSphereAt(
