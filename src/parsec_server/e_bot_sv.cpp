@@ -165,6 +165,21 @@ void E_BotPlayer::DoThink( refframe_t refframes )
 	// update current position
 	FetchTVector( m_pShip->ObjPosition, &m_AgentPos );
 
+	// Debug movement override — bypass all AI when active
+	if ( m_nDebugMove != DEBUGMOVE_NONE ) {
+		if ( m_nDebugMove == DEBUGMOVE_STOP ) {
+			// Stand completely still
+			m_pSimState->ApplyBotInput( 0, 0, 0, 0, m_pShip->MaxSpeed );
+		} else if ( m_nDebugMove == DEBUGMOVE_CIRCLE ) {
+			// Fly forward at half speed while yawing at a steady rate
+			fixed_t circleSpeed = m_pShip->MaxSpeed / 2;
+			m_fCurSpeed = circleSpeed;
+			bams_t circleYaw = (bams_t)( m_pShip->YawPerRefFrame / 3 );
+			m_pSimState->ApplyBotInput( circleYaw, 0, 0, circleSpeed, m_pShip->MaxSpeed );
+		}
+		return;
+	}
+
 	// determine mode
 	_DoPlan();
 
@@ -998,6 +1013,19 @@ bool E_BotPlayer::ApplyConfig( const char* param, const char* value )
 		return true;
 	}
 
+	if ( strcmp( param, "move" ) == 0 ) {
+		const char* v = value ? value : "none";
+		if      ( strcmp( v, "none"   ) == 0 ) m_nDebugMove = DEBUGMOVE_NONE;
+		else if ( strcmp( v, "stop"   ) == 0 ) m_nDebugMove = DEBUGMOVE_STOP;
+		else if ( strcmp( v, "circle" ) == 0 ) m_nDebugMove = DEBUGMOVE_CIRCLE;
+		else {
+			MSGOUT( "BOT[%d] move: unknown value '%s' (none|stop|circle)", m_nClientID, v );
+			return false;
+		}
+		MSGOUT( "BOT[%d] move = %s", m_nClientID, v );
+		return true;
+	}
+
 	MSGOUT( "BOT[%d] unknown config param '%s'", m_nClientID, param );
 	return false;
 }
@@ -1013,12 +1041,15 @@ void E_BotPlayer::PrintConfig() const
 	const char* wname = ( m_nPrefWeapon  >= 0 && m_nPrefWeapon  <= 5 ) ? kWeaponNames[ m_nPrefWeapon ]  : "?";
 	const char* mname = ( m_nPrefMissile >= 0 && m_nPrefMissile <= 3 ) ? kMissileNames[ m_nPrefMissile ] : "?";
 
+	static const char* kMoveNames[] = { "none", "stop", "circle" };
+	const char* movename = ( m_nDebugMove >= 0 && m_nDebugMove <= 2 ) ? kMoveNames[ m_nDebugMove ] : "?";
+
 	char buf[ 256 ];
 	snprintf( buf, sizeof(buf),
-	          "BOT[%d] '%s'  empdly=%.2f  weapon=%s  missile=%s  miner=%d  retreathp=%.0f%%",
+	          "BOT[%d] '%s'  empdly=%.2f  weapon=%s  missile=%s  miner=%d  retreathp=%.0f%%  move=%s",
 	          m_nClientID, m_szName,
 	          m_fEMPMinDelay, wname, mname, (int)m_bMineLayer,
-	          m_fRetreatHP * 100.0f );
+	          m_fRetreatHP * 100.0f, movename );
 	MSGOUT( "%s", buf );
 }
 
@@ -1296,6 +1327,7 @@ int Cmd_SVBOT_CONFIG( char* pszArgs )
 		CON_AddLine( "usage: sv.bot.config <slot> [param] [value]" );
 		CON_AddLine( "  params: empdly <sec>  weapon <none|laser2|laser3|helix|lightning|photon>" );
 		CON_AddLine( "          missile <none|dumb|guide|swarm>  miner <0|1>  retreathp <pct>" );
+		CON_AddLine( "          move <none|stop|circle>" );
 		CON_AddLine( "  omit param to print current config for that slot" );
 		return TRUE;
 	}
