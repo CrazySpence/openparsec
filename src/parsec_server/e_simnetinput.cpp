@@ -293,13 +293,12 @@ void E_SimNetInput::ProcessInputREList()
 
             case RE_HELIXPARTICLE:
             {
-                // Client-reported helix damage particle: create a server-side
-                // collision particle from the client's exact geometry.
-                // SV_CreateHelixCollisionParticle advances the position by RTT/2
-                // to align it with the current server simulation frame.
+                MSGOUT( "DBG RE_HELIXPARTICLE received from client %d", nClientID );
                 ASSERT( nClientID != PLAYERID_ANONYMOUS );
                 if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
                     RE_HelixParticle *re = (RE_HelixParticle *) relist;
+                    MSGOUT( "DBG creating helix particle at (%.1f,%.1f,%.1f) v=(%.1f,%.1f,%.1f)",
+                            re->X, re->Y, re->Z, re->VX, re->VY, re->VZ );
                     int rtt_ms = TheConnManager->GetClientInfo( nClientID )->m_nRTT_ms;
                     SV_CreateHelixCollisionParticle( nClientID,
                                                      re->X, re->Y, re->Z,
