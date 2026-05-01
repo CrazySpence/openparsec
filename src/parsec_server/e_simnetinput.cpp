@@ -256,30 +256,32 @@ void E_SimNetInput::ProcessInputREList()
             break;
             case RE_WEAPONSTATE:
             {
-               switch (((RE_WeaponState *)relist)->WeaponMask ) {
-                    case WPMASK_CANNON_LIGHTNING:
-                        if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
-                            TheGameInput->ActivateGun( nClientID, 2 );
-                        else
-                            TheGameInput->DeactivateGun( nClientID, 2 );
-                        break;
-                        
-                    case WPMASK_CANNON_HELIX:
-                        if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
-                            TheGameInput->ActivateGun( nClientID, 1 );
-                        else
-                            TheGameInput->DeactivateGun( nClientID, 1 );
-                        break;
-                        
-                    case WPMASK_CANNON_PHOTON:
-                        if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
-                            TheGameInput->ActivateGun( nClientID, 3 );
-                        else
-                            TheGameInput->DeactivateGun( nClientID, 3 );
-                        break;
-                
+                ASSERT( nClientID != PLAYERID_ANONYMOUS );
+                if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
+                    switch (((RE_WeaponState *)relist)->WeaponMask ) {
+                        case WPMASK_CANNON_LIGHTNING:
+                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
+                                TheGameInput->ActivateGun( nClientID, 2 );
+                            else
+                                TheGameInput->DeactivateGun( nClientID, 2 );
+                            break;
+
+                        case WPMASK_CANNON_HELIX:
+                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
+                                TheGameInput->ActivateGun( nClientID, 1 );
+                            else
+                                TheGameInput->DeactivateGun( nClientID, 1 );
+                            break;
+
+                        case WPMASK_CANNON_PHOTON:
+                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
+                                TheGameInput->ActivateGun( nClientID, 3 );
+                            else
+                                TheGameInput->DeactivateGun( nClientID, 3 );
+                            break;
+                    }
+                    TheSimNetOutput->BufferForMulticastRE( relist, nClientID, FALSE ); //Duration weapons are not objects, just tell the client someone has fired/stopped
                 }
-                TheSimNetOutput->BufferForMulticastRE( relist, nClientID, FALSE ); //Duration weapons are not objects, just tell the client someone has fired/stopped
             }
                 break;
             case RE_CREATEEMP:

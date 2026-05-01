@@ -1571,7 +1571,6 @@ int G_CollDet::CheckLightningParticleShipCollision( Vertex3& particlepos, int ow
 	if ( lag_max_frames_lt > 0 ) {
 		int shooter_rtt_lt = TheConnManager->GetClientInfo( owner )->m_nRTT_ms;
 		frames_back_lt = shooter_rtt_lt / 10;
-		if ( frames_back_lt < 1 ) frames_back_lt = 1;   // floor: at least 1 frame for sim timing
 		if ( frames_back_lt > lag_max_frames_lt ) frames_back_lt = lag_max_frames_lt;
 	}
 	const int cur_sim_frame_lt = TheSimulator->GetSimFrame();
