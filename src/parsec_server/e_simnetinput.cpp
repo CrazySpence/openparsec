@@ -296,13 +296,9 @@ void E_SimNetInput::ProcessInputREList()
             case RE_HELIXPARTICLE:
             {
                 ASSERT( nClientID != PLAYERID_ANONYMOUS );
+                MSGOUT( "DBG [1] RE_HELIXPARTICLE from client %d (joined=%d)", nClientID, TheSimulator->IsPlayerJoined( nClientID ) );
                 if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
                     RE_HelixParticle *re = (RE_HelixParticle *) relist;
-                    // Buffer this particle — do NOT call SV_CreateHelixCollisionParticle
-                    // here because PRT_NewCluster/PRT_CreateLinearParticle must only be
-                    // invoked during _MaintainSimulation, not during RE list processing.
-                    // FlushPendingHelixParticles() is called by ServerFrame just before
-                    // _MaintainSimulation().
                     if ( m_nPendingHelix < MAX_PENDING_HELIX ) {
                         PendingHelixParticle &p = m_PendingHelix[ m_nPendingHelix++ ];
                         p.playerid = nClientID;
@@ -337,6 +333,8 @@ void E_SimNetInput::ProcessInputREList()
 //
 void E_SimNetInput::FlushPendingHelixParticles()
 {
+	if ( m_nPendingHelix > 0 )
+		MSGOUT( "DBG [2] FlushPendingHelixParticles: creating %d particles", m_nPendingHelix );
 	for ( int i = 0; i < m_nPendingHelix; i++ ) {
 		const PendingHelixParticle &p = m_PendingHelix[ i ];
 		SV_CreateHelixCollisionParticle( p.playerid,
@@ -398,6 +396,8 @@ int E_SimNetInput::HandleOneClient( int nClientID, RE_Header* relist )
 
 			default:
 				{
+					if ( relist->RE_Type == RE_HELIXPARTICLE )
+						MSGOUT( "DBG [0] HandleOneClient: appending RE_HELIXPARTICLE from client %d", nClientID );
 					// append a RE_OWNERSECTION to sender in input RE list
 					if ( nNumEventsAppended == 0 ) {
 						if ( !m_pInputREList->NET_Append_RE_OwnerSection( nClientID ) ) {
