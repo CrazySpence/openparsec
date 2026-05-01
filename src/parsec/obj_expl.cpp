@@ -441,7 +441,9 @@ void OBJ_CheckExplosions()
 			if ( ( shippo->ExplosionCount / EXPL_REF_SPEED == BM_EXPLPARTCLFRAME ) &&
 			     ( shippo->DelayExplosion == 0 ) ) {
 
-				if ( !AUX_USE_SIMPLE_EXPLOSION )
+				// suppress the particle sphere when the shockwave is active —
+				// the shockwave is the expansion visual; the sphere is a legacy effect
+				if ( !AUX_USE_SIMPLE_EXPLOSION && !AUX_EXPLOSION_DRAW_SHOCKWAVE )
 					SFX_ParticleExplosion( shippo );
 
 				OBJ_CreateShipExtras( shippo );
