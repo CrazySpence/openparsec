@@ -85,8 +85,9 @@
 
 // default ctor ---------------------------------------------------------------
 //
-E_SimNetInput::E_SimNetInput() : 
-	m_pInputREList( NULL )
+E_SimNetInput::E_SimNetInput() :
+	m_pInputREList( NULL ),
+	m_nPendingHelix( 0 )
 {
 }
 
@@ -109,6 +110,7 @@ void E_SimNetInput::Reset()
 	}
 	// initialize input remote event list
 	m_pInputREList = E_REList::CreateAndAddRef( (size_t)RE_LIST_MAXAVAIL * ( MAX_NUM_CLIENTS + 1 ) );
+	m_nPendingHelix = 0;
 }
 
 
@@ -293,17 +295,21 @@ void E_SimNetInput::ProcessInputREList()
 
             case RE_HELIXPARTICLE:
             {
-                MSGOUT( "DBG RE_HELIXPARTICLE received from client %d", nClientID );
                 ASSERT( nClientID != PLAYERID_ANONYMOUS );
                 if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
                     RE_HelixParticle *re = (RE_HelixParticle *) relist;
-                    MSGOUT( "DBG creating helix particle at (%.1f,%.1f,%.1f) v=(%.1f,%.1f,%.1f)",
-                            re->X, re->Y, re->Z, re->VX, re->VY, re->VZ );
-                    int rtt_ms = TheConnManager->GetClientInfo( nClientID )->m_nRTT_ms;
-                    SV_CreateHelixCollisionParticle( nClientID,
-                                                     re->X, re->Y, re->Z,
-                                                     re->VX, re->VY, re->VZ,
-                                                     rtt_ms );
+                    // Buffer this particle — do NOT call SV_CreateHelixCollisionParticle
+                    // here because PRT_NewCluster/PRT_CreateLinearParticle must only be
+                    // invoked during _MaintainSimulation, not during RE list processing.
+                    // FlushPendingHelixParticles() is called by ServerFrame just before
+                    // _MaintainSimulation().
+                    if ( m_nPendingHelix < MAX_PENDING_HELIX ) {
+                        PendingHelixParticle &p = m_PendingHelix[ m_nPendingHelix++ ];
+                        p.playerid = nClientID;
+                        p.x  = re->X;  p.y  = re->Y;  p.z  = re->Z;
+                        p.vx = re->VX; p.vy = re->VY; p.vz = re->VZ;
+                        p.rtt_ms = TheConnManager->GetClientInfo( nClientID )->m_nRTT_ms;
+                    }
                 }
             }
             break;
@@ -327,7 +333,22 @@ void E_SimNetInput::ProcessInputREList()
 
 
 
-// handle the network input from a client ( filter out invalid events, append valid ones to the input RE list ) 
+// create helix collision particles that were buffered during ProcessInputREList --
+//
+void E_SimNetInput::FlushPendingHelixParticles()
+{
+	for ( int i = 0; i < m_nPendingHelix; i++ ) {
+		const PendingHelixParticle &p = m_PendingHelix[ i ];
+		SV_CreateHelixCollisionParticle( p.playerid,
+		                                 p.x,  p.y,  p.z,
+		                                 p.vx, p.vy, p.vz,
+		                                 p.rtt_ms );
+	}
+	m_nPendingHelix = 0;
+}
+
+
+// handle the network input from a client ( filter out invalid events, append valid ones to the input RE list )
 //
 int E_SimNetInput::HandleOneClient( int nClientID, RE_Header* relist )
 {

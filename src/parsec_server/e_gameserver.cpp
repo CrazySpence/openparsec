@@ -834,6 +834,12 @@ refframe_t E_GameServer::ServerFrame()
 		// process queue with input from all clients
 		TheSimNetInput->ProcessInputREList();
 
+		// Create helix collision particles from RE_HelixParticle events that were
+		// buffered during ProcessInputREList().  Must run AFTER ProcessInputREList()
+		// (so all REs are collected) but BEFORE _MaintainSimulation() (so
+		// PAN_AnimateParticles picks them up in the same frame they arrive).
+		TheSimNetInput->FlushPendingHelixParticles();
+
 		// run server-side bot AI
 		m_BotManager.Tick( m_SimTick_FrameTime );
 
