@@ -581,10 +581,27 @@ void NET_RmEvList_Swap( RE_Header* relist, int incoming )
 					}
 				}
 				break;
-				//break;
-				//break;
-				//break;
-				//break;
+				case RE_HELIXPARTICLE:
+				{
+					RE_HelixParticle* re_hp = (RE_HelixParticle*) relist;
+					if ( incoming ) {
+						Geomv_in( &re_hp->X );
+						Geomv_in( &re_hp->Y );
+						Geomv_in( &re_hp->Z );
+						Geomv_in( &re_hp->VX );
+						Geomv_in( &re_hp->VY );
+						Geomv_in( &re_hp->VZ );
+					} else {
+						Geomv_out( &re_hp->X );
+						Geomv_out( &re_hp->Y );
+						Geomv_out( &re_hp->Z );
+						Geomv_out( &re_hp->VX );
+						Geomv_out( &re_hp->VY );
+						Geomv_out( &re_hp->VZ );
+					}
+				}
+				break;
+
 			default:
 				MSGOUT( "NET_RmEvList_Swap(): unknown remote event (%d).", relist->RE_Type );
 		}
