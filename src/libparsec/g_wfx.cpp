@@ -651,6 +651,9 @@ void SV_CreateHelixCollisionParticle( int playerid,
 	vel.Y = vy;
 	vel.Z = vz;
 
+	MSGOUT( "HELIX CREATE: playerid=%d pos=(%.1f,%.1f,%.1f) rtt_ms=%d frames_advance=%d",
+	        playerid, (float)pos.X, (float)pos.Y, (float)pos.Z, rtt_ms, rtt_half_frames );
+
 	particle_s particle;
 	TheWorld->PRT_InitParticle( particle,
 	                             SPREADFIRE_PARTICLE_COLOR,

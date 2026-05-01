@@ -1477,6 +1477,10 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 		switch ( cluster->rep[ pid ].flags & PARTICLE_IS_MASK ) {
 
 			case PARTICLE_IS_HELIX :
+				MSGOUT( "HELIX HIT: particle owner=slot%d hit ship slot%d (hostobjnum=0x%08x)",
+				        owner,
+				        (int)GetObjectOwner( walkships ),
+				        (unsigned)walkships->HostObjNumber );
 				OBJ_ShipHelixDamage( walkships, owner );
 				break;
 			case PARTICLE_IS_PHOTON :
