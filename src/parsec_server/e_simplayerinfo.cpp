@@ -243,6 +243,12 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 	// force a client resync
 	pSimClientState->SetClientResync();
 
+	// Purge any stale in-flight linear particles (helix, photon, etc.) that are
+	// still carrying this slot's owner ID from a previous session or bot.
+	// Without this, a ghost kill can occur: old particles hit a live ship and
+	// the kill is attributed to the newly-joined player who never fired.
+	TheWorld->PRT_KillLinearParticlesByOwner( m_nClientID );
+
 	// create ship object for new player
 	GenObject* objectpo = TheWorld->CreateObject( m_objclass, _SimShipState.GetObjPosition(), playerstatus->senderid );
 	ASSERT( objectpo != NULL );

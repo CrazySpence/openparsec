@@ -274,6 +274,11 @@ public:
 
     particle_s* PRT_CreateLinearParticle (particle_s&	particle);
     sphereobj_pcluster_s* PRT_CreateParticleSphereObject (Vertex3& origin,geomv_t radius,int animtype,int clustersiz,int lifetime,pdrwinfo_s* pdinfo,int owner);
+
+    // Deactivate all in-flight linear (constant-velocity) particles owned by
+    // the given player slot.  Called on join to purge stale particles from any
+    // previous occupant of the slot (prevents ghost-kill attribution).
+    void PRT_KillLinearParticlesByOwner( int owner );
     
     pdef_s* PRT_AcquireParticleDefinitionById(int pdefid );
     pdef_s* PRT_AcquireParticleDefinition(const char* pdefname,int* retpdefid);

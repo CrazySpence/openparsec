@@ -1290,6 +1290,31 @@ void E_World::DisableParticle( pcluster_s *cluster, int pid )
    	cluster->rep[ pid ].flags &= ~PARTICLE_ACTIVE;
 }
 
+// purge all in-flight linear particles owned by a given player slot ----------
+//
+// Called from PerformJoin to prevent stale helix/photon particles from a
+// previous occupant of the slot being attributed to the newly-joined player.
+//
+void E_World::PRT_KillLinearParticlesByOwner( int owner )
+{
+	if ( Particles == NULL )
+		return;
+
+	for ( pcluster_s *cluster = Particles->next; cluster->next; cluster = cluster->next ) {
+		if ( ( cluster->type & CT_TYPEENUMERATIONMASK ) !=
+		     ( CT_CONSTANT_VELOCITY & CT_TYPEENUMERATIONMASK ) )
+			continue;
+
+		for ( int i = 0; i < cluster->numel; i++ ) {
+			if ( ( cluster->rep[ i ].flags & PARTICLE_ACTIVE ) &&
+			     ( cluster->rep[ i ].owner == owner ) ) {
+				cluster->rep[ i ].flags &= ~PARTICLE_ACTIVE;
+			}
+		}
+	}
+}
+
+
 // delete entire particle cluster ---------------------------------------------
 //
 void E_World::PRT_DeleteCluster (pcluster_s* cluster)
