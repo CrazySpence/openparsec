@@ -1476,8 +1476,6 @@ void CheckShipExtraCollision()
 				MSGOUT( "OBJ_COLL::CheckShipExtraCollision(): RESET predicted collision with extra object" );
 #endif
 				curextra->VisibleFrame = CurVisibleFrame;
-				//FIXME: better audio sample
-				AUD_SkillAmazing();
 			}
 		}
 		
