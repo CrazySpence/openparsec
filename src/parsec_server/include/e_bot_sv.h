@@ -193,6 +193,10 @@ protected:
 	// range check between two ships
 	int  _TargetInRange( ShipObject* ship, ShipObject* target, geomv_t range );
 
+	// returns true if the bot's forward vector is within minDot (cosine) of
+	// the direction to target.  toTarget and dist must already be computed.
+	bool _IsFacingTarget( const Vector3* toTarget, float dist, float minDot );
+
 	// target selection helpers
 	ShipObject*  _SelectAttackTarget();
 	ExtraObject* _SelectRepairObject();

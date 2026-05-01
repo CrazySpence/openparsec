@@ -477,43 +477,54 @@ void E_BotPlayer::_GoalCheck_Attack()
 	// weapon firing
 	if ( _TargetInRange( m_pShip, (ShipObject*) pTargetObject, 1500.0f ) ) {
 
+		// Facing checks — dot product of bot's forward against direction to target.
+		// Aimed weapons (lasers, cannons) need ~45 deg; homing missiles are looser.
+		bool facingAimed  = _IsFacingTarget( &vec2Target, len, 0.7f );  // ~45 deg
+		bool facingMissle = _IsFacingTarget( &vec2Target, len, 0.5f );  // ~60 deg
+
 		// fire preferred cannon weapon if equipped — these are continuous beams.
 		// Check WeaponsActive before and after: if it just turned on, multicast
 		// RE_WEAPONSTATE WPSTATE_ON so clients render the beam effect.
-		switch ( m_nPrefWeapon ) {
-			case BOTWEAPON_HELIX:
-				if ( m_pShip->Weapons & WPMASK_CANNON_HELIX ) {
-					bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) != 0;
-					m_pPlayer->FireHelix();
-					if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) )
-						_MulticastWeaponState( WPMASK_CANNON_HELIX, WPSTATE_ON );
-				}
-				break;
-			case BOTWEAPON_LIGHTNING:
-				if ( m_pShip->Weapons & WPMASK_CANNON_LIGHTNING ) {
-					bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) != 0;
-					m_pPlayer->FireLightning();
-					if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) )
-						_MulticastWeaponState( WPMASK_CANNON_LIGHTNING, WPSTATE_ON );
-				}
-				break;
-			case BOTWEAPON_PHOTON:
-				if ( m_pShip->Weapons & WPMASK_CANNON_PHOTON ) {
-					bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) != 0;
-					m_pPlayer->FirePhoton();
-					if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) )
-						_MulticastWeaponState( WPMASK_CANNON_PHOTON, WPSTATE_ON );
-				}
-				break;
-			default:
-				break;
+		if ( facingAimed ) {
+			switch ( m_nPrefWeapon ) {
+				case BOTWEAPON_HELIX:
+					if ( m_pShip->Weapons & WPMASK_CANNON_HELIX ) {
+						bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) != 0;
+						m_pPlayer->FireHelix();
+						if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_HELIX ) )
+							_MulticastWeaponState( WPMASK_CANNON_HELIX, WPSTATE_ON );
+					}
+					break;
+				case BOTWEAPON_LIGHTNING:
+					if ( m_pShip->Weapons & WPMASK_CANNON_LIGHTNING ) {
+						bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) != 0;
+						m_pPlayer->FireLightning();
+						if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_LIGHTNING ) )
+							_MulticastWeaponState( WPMASK_CANNON_LIGHTNING, WPSTATE_ON );
+					}
+					break;
+				case BOTWEAPON_PHOTON:
+					if ( m_pShip->Weapons & WPMASK_CANNON_PHOTON ) {
+						bool wasActive = ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) != 0;
+						m_pPlayer->FirePhoton();
+						if ( !wasActive && ( m_pShip->WeaponsActive & WPMASK_CANNON_PHOTON ) )
+							_MulticastWeaponState( WPMASK_CANNON_PHOTON, WPSTATE_ON );
+					}
+					break;
+				default:
+					break;
+			}
+		} else {
+			// Bot is not facing the target — deactivate any continuous cannon so it
+			// doesn't keep beaming sideways while turning.
+			_DeactivatePrefWeaponIfActive();
 		}
 
-		if ( len < 600.0f && m_fFireDelay <= 0.0f ) {
+		if ( facingAimed && len < 600.0f && m_fFireDelay <= 0.0f ) {
 			m_pPlayer->FireLaser();
 			m_fFireDelay = 1.0f;
 		}
-		if ( len > 500.0f && m_pShip->NumHomMissls > 0 ) {
+		if ( facingMissle && len > 500.0f && m_pShip->NumHomMissls > 0 ) {
 			// server bot uses the stored target number for homing missiles
 			m_nTargetObjNumber = ( (ShipObject*) pTargetObject )->HostObjNumber;
 			if ( m_fMissileDelay <= 0.0f ) {
@@ -522,6 +533,7 @@ void E_BotPlayer::_GoalCheck_Attack()
 				m_fMissileDelay = 2.0f;
 			}
 		}
+		// EMP and mines don't require facing — area/positional weapons
 		if ( len < 100.0f && m_fEMPDelay <= 0.0f ) {
 			m_pPlayer->FireEMP( 0, true );  // true = multicast RE_CreateEmp so clients see the blast
 			m_fEMPDelay = m_fEMPMinDelay;
@@ -664,6 +676,22 @@ int E_BotPlayer::_TargetInRange( ShipObject* ship, ShipObject* target, geomv_t r
 	if ( !GEOMV_NEGATIVE( distance ) ) return FALSE;
 	if ( distance < range )            return TRUE;
 	return FALSE;
+}
+
+
+// returns true if the bot is facing the target within minDot (cosine) --------
+// toTarget = vec from bot to target (not normalised); dist = its length.
+//
+bool E_BotPlayer::_IsFacingTarget( const Vector3* toTarget, float dist, float minDot )
+{
+	if ( dist < 1.0f ) return true;   // point-blank — skip angle test
+
+	Vector3 fwd;
+	FetchZVector( m_pShip->ObjPosition, &fwd );  // unit-length forward vector
+
+	// fwd is unit length; dividing dot by dist normalises toTarget inline
+	float dot = GEOMV_TO_FLOAT( DOT_PRODUCT( &fwd, toTarget ) ) / dist;
+	return dot >= minDot;
 }
 
 
