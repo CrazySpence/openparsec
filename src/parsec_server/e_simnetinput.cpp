@@ -121,6 +121,15 @@ void E_SimNetInput::ProcessInputREList()
 	RE_Header* relist = m_pInputREList->GetData();
        ASSERT( relist != NULL );
 
+	// Clear the "just joined" flag for all players at the start of each
+	// processing batch.  The flag was set during PerformJoin in the *previous*
+	// batch to block carry-over weapon fire; it must be cleared so that
+	// legitimate weapon packets in subsequent batches are not suppressed.
+	for ( int i = 0; i < MAX_NUM_CLIENTS; i++ ) {
+		E_SimPlayerInfo* pInfo = TheSimulator->GetSimPlayerInfo( i );
+		if ( pInfo ) pInfo->ClearJustJoined();
+	}
+
 	int nClientID = PLAYERID_ANONYMOUS;
 
 	// process remote event list
@@ -258,26 +267,35 @@ void E_SimNetInput::ProcessInputREList()
             {
                 ASSERT( nClientID != PLAYERID_ANONYMOUS );
                 if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
+                    // Suppress weapon *activation* during the join-burst packet.
+                    // The client may carry over an active weapon state from a
+                    // previous session and immediately re-send WPSTATE_ON; we
+                    // must not honour it until the player explicitly fires again.
+                    // Deactivation is always honoured so the client can clean up.
+                    bool just_joined = TheSimulator->GetSimPlayerInfo( nClientID )->JustJoined();
                     switch (((RE_WeaponState *)relist)->WeaponMask ) {
                         case WPMASK_CANNON_LIGHTNING:
-                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
-                                TheGameInput->ActivateGun( nClientID, 2 );
-                            else
+                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON ) {
+                                if ( !just_joined ) TheGameInput->ActivateGun( nClientID, 2 );
+                            } else {
                                 TheGameInput->DeactivateGun( nClientID, 2 );
+                            }
                             break;
 
                         case WPMASK_CANNON_HELIX:
-                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
-                                TheGameInput->ActivateGun( nClientID, 1 );
-                            else
+                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON ) {
+                                if ( !just_joined ) TheGameInput->ActivateGun( nClientID, 1 );
+                            } else {
                                 TheGameInput->DeactivateGun( nClientID, 1 );
+                            }
                             break;
 
                         case WPMASK_CANNON_PHOTON:
-                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON )
-                                TheGameInput->ActivateGun( nClientID, 3 );
-                            else
+                            if (((RE_WeaponState *) relist)->State == WPSTATE_ON ) {
+                                if ( !just_joined ) TheGameInput->ActivateGun( nClientID, 3 );
+                            } else {
                                 TheGameInput->DeactivateGun( nClientID, 3 );
+                            }
                             break;
                     }
                     TheSimNetOutput->BufferForMulticastRE( relist, nClientID, FALSE ); //Duration weapons are not objects, just tell the client someone has fired/stopped
@@ -298,7 +316,8 @@ void E_SimNetInput::ProcessInputREList()
             case RE_HELIXPARTICLE:
             {
                 ASSERT( nClientID != PLAYERID_ANONYMOUS );
-                if ( TheSimulator->IsPlayerJoined( nClientID ) ) {
+                if ( TheSimulator->IsPlayerJoined( nClientID ) &&
+                     !TheSimulator->GetSimPlayerInfo( nClientID )->JustJoined() ) {
                     RE_HelixParticle *re = (RE_HelixParticle *) relist;
                     if ( m_nPendingHelix < MAX_PENDING_HELIX ) {
                         PendingHelixParticle &p = m_PendingHelix[ m_nPendingHelix++ ];
@@ -336,6 +355,16 @@ void E_SimNetInput::FlushPendingHelixParticles()
 {
 	for ( int i = 0; i < m_nPendingHelix; i++ ) {
 		const PendingHelixParticle &p = m_PendingHelix[ i ];
+
+		// Sanity gate: only create the collision particle if the server's ship
+		// actually has helix active.  This covers the case where the client
+		// continues to send RE_HELIXPARTICLE in frames after join (carry-over
+		// weapon state from a previous session) but the server never activated
+		// the weapon because the activation was suppressed during the join burst.
+		ShipObject* pShip = TheSimulator->GetSimPlayerInfo( p.playerid )->GetShipObject();
+		if ( pShip == NULL || !( pShip->WeaponsActive & WPMASK_CANNON_HELIX ) )
+			continue;
+
 		SV_CreateHelixCollisionParticle( p.playerid,
 		                                 p.x,  p.y,  p.z,
 		                                 p.vx, p.vy, p.vz,

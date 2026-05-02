@@ -78,6 +78,7 @@ void E_SimPlayerInfo::Reset()
 
 	m_nClientID			= -1;
 	m_IgnoreJoinUntilUnjoinFromClient = FALSE;
+	m_bJustJoined       = false;
 }
 
 // set the desired player status ( inactive/joined/unjoined ) -----------------
@@ -263,6 +264,12 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 	DBGTXT( MSGOUT( "player %s joined and got object id %d.", TheConnManager->GetClientName( m_nClientID ), m_nShipID ); );
 
 	MSGOUT( "joined client %d", m_nClientID );
+
+	// Block weapon-fire REs (RE_HELIXPARTICLE, RE_WEAPONSTATE) for the remainder
+	// of the join-burst packet.  The client may carry over active weapon state
+	// from a previous session and immediately send fire packets; those must not
+	// be processed until the player presses fire again in this session.
+	m_bJustJoined = true;
 
 	// Mark the client as joined so _PrepareClientUpdateInfo will now queue
 	// the state sync. Before this point the client ignores RE_STATESYNC

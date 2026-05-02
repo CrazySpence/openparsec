@@ -15,6 +15,7 @@ protected:
 	int						m_nClientID;
 
 	int						m_IgnoreJoinUntilUnjoinFromClient;
+	bool					m_bJustJoined;       // true for the rest of the packet in which PerformJoin ran
 public:
 	E_SimPlayerInfo()
 	{
@@ -51,6 +52,10 @@ public:
 	// join a server-internal bot (skips all network ops).
 	// shipClassIdx: index into ShipClasses[]; -1 = pick randomly.
 	void BotPerformJoin( const char* name, int shipClassIdx = -1 );
+
+	// true while the join-burst packet is still being processed
+	bool JustJoined() const { return m_bJustJoined; }
+	void ClearJustJoined()  { m_bJustJoined = false; }
 
 	// set flag to ignore all joins until we get an unjoin from the client
 	void IgnoreJoinUntilUnjoinFromClient()
