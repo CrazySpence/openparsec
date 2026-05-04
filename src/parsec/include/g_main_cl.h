@@ -96,20 +96,39 @@ public:
 		return true;
 	}
 	
-	// map kill weapon enum to display string ---------------------------------
+	// format kill message matching the server's per-weapon strings -----------
 	//
-	static const char* KillWeaponStr( int wtype )
+	static void FormatKillMessage( char *buf, int bufsz,
+	                               const char *victim, int weapon, const char *attacker )
 	{
-		switch ( wtype ) {
-			case KILL_WEAPON_LASER:     return "laser";
-			case KILL_WEAPON_MISSILE:   return "missile";
-			case KILL_WEAPON_EMP:       return "EMP";
-			case KILL_WEAPON_MINE:      return "mine";
-			case KILL_WEAPON_HELIX:     return "Helix Cannon";
-			case KILL_WEAPON_SWARM:     return "Swarm missiles";
-			case KILL_WEAPON_LIGHTNING: return "Lightning Cannon";
-			case KILL_WEAPON_PHOTON:    return "Photon Cannon";
-			default:                    return "unknown weapon";
+		switch ( weapon ) {
+			case KILL_WEAPON_LASER:
+				snprintf( buf, bufsz, "%s was shot down by %s's laser", victim, attacker );
+				break;
+			case KILL_WEAPON_MISSILE:
+				snprintf( buf, bufsz, "%s was shot down by %s's Missile", victim, attacker );
+				break;
+			case KILL_WEAPON_EMP:
+				snprintf( buf, bufsz, "%s was shot down by %s's EMP", victim, attacker );
+				break;
+			case KILL_WEAPON_MINE:
+				snprintf( buf, bufsz, "%s was destroyed by %s's mine", victim, attacker );
+				break;
+			case KILL_WEAPON_HELIX:
+				snprintf( buf, bufsz, "%s was shot down by %s's Helix Cannon", victim, attacker );
+				break;
+			case KILL_WEAPON_SWARM:
+				snprintf( buf, bufsz, "%s was destroyed by %s's Swarm missiles", victim, attacker );
+				break;
+			case KILL_WEAPON_LIGHTNING:
+				snprintf( buf, bufsz, "%s was cooked %s's Lightning Cannon", victim, attacker );
+				break;
+			case KILL_WEAPON_PHOTON:
+				snprintf( buf, bufsz, "%s was mowed down by %s's Photon Cannon", victim, attacker );
+				break;
+			default:
+				snprintf( buf, bufsz, "%s was killed by %s", victim, attacker );
+				break;
 		}
 	}
 
@@ -133,17 +152,12 @@ public:
 				
 			} else if ( playerstatus->params[ 0 ] == SHIP_DOWNED ) {
 
-				int killer_id  = (int)(signed char)playerstatus->params[ 2 ] - KILLERID_BIAS;
+				int killer_id   = (int)(signed char)playerstatus->params[ 2 ] - KILLERID_BIAS;
 				int weapon_type = (int)(signed char)playerstatus->params[ 3 ];
-				if ( killer_id >= 0 && killer_id < MAX_NET_PROTO_PLAYERS ) {
-					strcat( paste_str, " was shot down by " );
-					strcat( paste_str, Player_Name[ killer_id ] );
-					strcat( paste_str, "'s " );
-					strcat( paste_str, KillWeaponStr( weapon_type ) );
-				} else {
-					strcat( paste_str, " was destroyed by a " );
-					strcat( paste_str, KillWeaponStr( weapon_type ) );
-				}
+				const char *victim   = Player_Name[ playerstatus->senderid ];
+				const char *attacker = ( killer_id >= 0 && killer_id < MAX_NET_PROTO_PLAYERS )
+				                       ? Player_Name[ killer_id ] : "unknown";
+				FormatKillMessage( paste_str, PASTE_STR_LEN + 1, victim, weapon_type, attacker );
 			}
 			ShowMessage( paste_str );
 		}
@@ -200,14 +214,10 @@ public:
 		KillDurationWeapons( MyShip );
 		OBJ_CreateShipExtras( MyShip );
 
-		if ( nClientID_Killer >= 0 && nClientID_Killer < MAX_NET_PROTO_PLAYERS ) {
-			strcpy( paste_str, "shot down by " );
-			strcat( paste_str, NET_FetchPlayerName( nClientID_Killer ) );
-			strcat( paste_str, "'s " );
-			strcat( paste_str, KillWeaponStr( weapon ) );
-		} else {
-			strcpy( paste_str, "destroyed by a " );
-			strcat( paste_str, KillWeaponStr( weapon ) );
+		{
+			const char *killer_name = ( nClientID_Killer >= 0 && nClientID_Killer < MAX_NET_PROTO_PLAYERS )
+			                          ? NET_FetchPlayerName( nClientID_Killer ) : "unknown";
+			FormatKillMessage( paste_str, PASTE_STR_LEN + 1, "you", weapon, killer_name );
 		}
 		ShowMessage( paste_str );
 

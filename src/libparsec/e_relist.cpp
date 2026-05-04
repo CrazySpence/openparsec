@@ -582,7 +582,7 @@ int E_REList::NET_Append_RE_PlayerAndShipStatus( int nClientID, E_SimPlayerInfo*
 	re_pas_status->params[ 0 ]		= pSimPlayerInfo->IsPlayerConnected() ? TheGame->GetPlayerLastUnjoinFlag( nClientID ) : 0;
 	re_pas_status->params[ 1 ]		= 0;
 	re_pas_status->params[ 2 ]		= pSimPlayerInfo->IsPlayerConnected() ? ( TheGame->GetPlayerLastKiller( nClientID ) + KILLERID_BIAS ) : 0;
-	re_pas_status->params[ 3 ]		= 0;
+	re_pas_status->params[ 3 ]		= pSimPlayerInfo->IsPlayerConnected() ? TheGame->GetPlayerLastWeapon( nClientID ) : 0;
 	re_pas_status->senderid			= nClientID;
 	//FIXME: is this the global object class id ?
 	re_pas_status->objectindex		= ObjClassShipIndex[ pSimPlayerInfo->GetShipObjectClass() ];

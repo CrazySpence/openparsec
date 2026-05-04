@@ -83,6 +83,7 @@ void G_Player::ResetGameVars()
       m_nPoints               = 0;
       m_nLastUnjoinFlag       = USER_EXIT;
       m_nLastKiller           = KILLERID_UNKNOWN;
+      m_nLastWeapon           = KILL_WEAPON_UNKNOWN;
 
       m_FireDisableFrames     = 1;
       m_MissileDisableFrames  = 1;
@@ -492,13 +493,14 @@ void G_Player::RecordKill()
 
 // record a death -------------------------------------------------------------
 //
-void G_Player::RecordDeath( int nClientID_Killer ) 
+void G_Player::RecordDeath( int nClientID_Killer, int nWeapon )
 {
 	ASSERT( ( nClientID_Killer >= 0 ) && ( nClientID_Killer < MAX_NUM_CLIENTS ) );
 	if ( m_pSimPlayerInfo->IsPlayerJoined() ) {
 		m_nDeaths++;
 		m_nLastUnjoinFlag	= SHIP_DOWNED;
 		m_nLastKiller		= nClientID_Killer;
+		m_nLastWeapon		= nWeapon;
         WFX_EnsureParticleWeaponsInactive( m_pSimPlayerInfo->GetShipObject() );
 	}
 }
@@ -510,6 +512,7 @@ void G_Player::ResetDeathInfo()
 {
 	m_nLastUnjoinFlag		= USER_EXIT;
 	m_nLastKiller			= KILLERID_UNKNOWN;
+	m_nLastWeapon			= KILL_WEAPON_UNKNOWN;
 }
 
 

@@ -11,6 +11,7 @@ protected:
 	int			m_nPoints;				// # of points for this player
 	int			m_nLastUnjoinFlag;		// the last unjoin flag
 	int			m_nLastKiller;			// the playerid of last killer
+	int			m_nLastWeapon;			// the weapon type used to kill this player
 
 	refframe_t	m_FireDisableFrames;	// refframes gun-fire is disabled                  ( = G_GLOBAL::FireDisable	in old CLIENT code )
 	refframe_t  m_MissileDisableFrames;	// refframes missile-fire is disabled              ( = G_GLOBAL::MissileDisable	in old CLIENT code )
@@ -87,7 +88,7 @@ public:
 	void RecordKill();
 
 	// record a death
-	void RecordDeath( int nClientID_Killer );
+	void RecordDeath( int nClientID_Killer, int nWeapon );
 
 	// reset any death info
 	void ResetDeathInfo();
@@ -109,5 +110,8 @@ public:
 
 	// return the player id that last killed this player
 	int GetLastKiller() { return m_nLastKiller; }
+
+	// return the weapon type used to kill this player last
+	int GetLastWeapon() { return m_nLastWeapon; }
 };
 

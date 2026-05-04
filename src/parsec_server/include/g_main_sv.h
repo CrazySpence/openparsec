@@ -167,11 +167,14 @@ public:
 	// retrieve the last killer of the player
 	int GetPlayerLastKiller( int nClientID );
 
+	// retrieve the weapon used to kill the player last
+	int GetPlayerLastWeapon( int nClientID );
+
 	// record a kill of another client
 	void RecordKill( int nClientID );
 
 	// record a death of the client
-	void RecordDeath( int nClientID, int nClientID_Killer );
+	void RecordDeath( int nClientID, int nClientID_Killer, int nWeapon = KILL_WEAPON_UNKNOWN );
 
 	// reset the death info of the client
 	void ResetDeathInfo( int nClientID );

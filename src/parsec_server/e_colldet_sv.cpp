@@ -734,7 +734,7 @@ void G_CollDet::_CollisionResponse_PlanetShip( Planet *curplanet )
 	E_SimPlayerInfo* pSimPlayerInfo = TheSimulator->GetSimPlayerInfo( nClientID_Downed );
 
 	// no kill credit for planet collision — attacker == victim
-	TheGame->RecordDeath( nClientID_Downed, nClientID_Downed );
+	TheGame->RecordDeath( nClientID_Downed, nClientID_Downed, KILL_WEAPON_UNKNOWN );
 
 	// fill rudimentary RE
 	RE_PlayerStatus ps;
@@ -851,7 +851,7 @@ void G_CollDet::_CollisionResponse_EmpShip( Emp *curemp )
 
 		// maintain stats
 		TheGame->RecordKill ( nClientID_Attacker );
-		TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
+		TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_EMP );
 
 		// fill rudimentary RE
 		RE_PlayerStatus ps;
@@ -912,7 +912,7 @@ void G_CollDet::_CollisionResponse_MissileShip( MissileObject *curmissile )
 
 		// maintain stats
 		TheGame->RecordKill ( nClientID_Attacker );
-		TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
+		TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_MISSILE );
 
 		// fill rudimentary RE
 		RE_PlayerStatus ps;
@@ -986,7 +986,7 @@ void G_CollDet::_CollisionResponse_LaserShip( LaserObject *curlaser )
 
 		// maintain stats
 		TheGame->RecordKill ( nClientID_Attacker );
-		TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
+		TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_LASER );
 
 		// fill rudimentary RE
 		RE_PlayerStatus ps;
@@ -1086,7 +1086,7 @@ void G_CollDet::_CollisionResponse_MineShip( Mine1Obj *curmine )
 		     if(cur_ship_owner != curmine->Owner) {
 		          TheGame->RecordKill ( nClientID_Attacker );
              }
-             TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
+             TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_MINE );
 
 		     // fill rudimentary RE
 		     RE_PlayerStatus ps;
@@ -1155,8 +1155,8 @@ void G_CollDet::OBJ_ShipHelixDamage( ShipObject *shippo, int owner )
             
             // maintain stats
             TheGame->RecordKill ( nClientID_Attacker );
-            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
-            
+            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_HELIX );
+
             // fill rudimentary RE
             RE_PlayerStatus ps;
             memset( &ps, 0, sizeof ( RE_PlayerStatus ) );
@@ -1215,8 +1215,8 @@ void G_CollDet::OBJ_ShipSwarmDamage( ShipObject *shippo, int owner )
             
             // maintain stats
             TheGame->RecordKill ( nClientID_Attacker );
-            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
-            
+            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_SWARM );
+
             // fill rudimentary RE
             RE_PlayerStatus ps;
             memset( &ps, 0, sizeof ( RE_PlayerStatus ) );
@@ -1274,8 +1274,8 @@ void G_CollDet::OBJ_ShipLightningDamage( ShipObject *shippo, int owner )
             
             // maintain stats
             TheGame->RecordKill ( nClientID_Attacker );
-            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
-            
+            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_LIGHTNING );
+
             // fill rudimentary RE
             RE_PlayerStatus ps;
             memset( &ps, 0, sizeof ( RE_PlayerStatus ) );
@@ -1572,8 +1572,8 @@ void G_CollDet::OBJ_ShipPhotonDamage( ShipObject *shippo, int owner )
             
             // maintain stats
             TheGame->RecordKill ( nClientID_Attacker );
-            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker );
-            
+            TheGame->RecordDeath( nClientID_Downed, nClientID_Attacker, KILL_WEAPON_PHOTON );
+
             // fill rudimentary RE
             RE_PlayerStatus ps;
             memset( &ps, 0, sizeof ( RE_PlayerStatus ) );

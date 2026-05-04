@@ -565,6 +565,15 @@ int G_Main::GetPlayerLastKiller( int nClientID )
 }
 
 
+// retrieve the weapon used to kill the player last ---------------------------
+//
+int G_Main::GetPlayerLastWeapon( int nClientID )
+{
+	ASSERT( ( nClientID >= 0 ) && ( nClientID < MAX_NUM_CLIENTS ) );
+	return m_Players[ nClientID ].GetLastWeapon();
+}
+
+
 // record a kill --------------------------------------------------------------
 //
 void G_Main::RecordKill( int nClientID )
@@ -577,10 +586,10 @@ void G_Main::RecordKill( int nClientID )
 // record a death -------------------------------------------------------------
 //
 
-void G_Main::RecordDeath( int nClientID, int nClientID_Killer )
+void G_Main::RecordDeath( int nClientID, int nClientID_Killer, int nWeapon )
 {
 	ASSERT( ( nClientID >= 0 ) && ( nClientID < MAX_NUM_CLIENTS ) );
-	m_Players[ nClientID ].RecordDeath( nClientID_Killer );
+	m_Players[ nClientID ].RecordDeath( nClientID_Killer, nWeapon );
 	if (opt_fraglog) {
 		FILE *fp;
 		char buffer[255];
