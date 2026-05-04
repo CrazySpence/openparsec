@@ -265,6 +265,24 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 
 	MSGOUT( "joined client %d", m_nClientID );
 
+	// Apply join-burst invulnerability so the ship cannot be damaged before the
+	// player's HUD appears.  MegaShieldAbsorption is paused in MaintainSpecialsCounters
+	// while m_bJoinBurstPending is true; it drops to 1 (expires next tick) when
+	// JOINDONE is sent.  Broadcast RE_Generic so all clients show the shield glow.
+	m_pShip->Specials             |= SPMASK_INVULNERABILITY;
+	m_pShip->MegaShieldAbsorption  = TheGame->MegaShieldStrength;
+	{
+	    RE_Generic *re_gen = new RE_Generic;
+	    re_gen->RE_ActionFlags = 1 << INVUNERABLE;
+	    re_gen->HostObjId      = m_pShip->HostObjNumber;
+	    re_gen->TargetId       = 0;
+	    re_gen->Padding        = 0;
+	    re_gen->RE_BlockSize   = sizeof( RE_Generic );
+	    re_gen->RE_Type        = RE_GENERIC;
+	    TheSimNetOutput->BufferForMulticastRE( re_gen, PLAYERID_SERVER, true );
+	    delete re_gen;
+	}
+
 	// Block weapon-fire REs (RE_HELIXPARTICLE, RE_WEAPONSTATE) for the remainder
 	// of the join-burst packet.  The client may carry over active weapon state
 	// from a previous session and immediately send fire packets; those must not

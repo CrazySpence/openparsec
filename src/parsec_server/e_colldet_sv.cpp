@@ -325,6 +325,12 @@ void G_CollDet::_CheckShipMissileCollision()
 
 		int cur_ship_owner = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
 
+		// Skip ships that are still in the join burst — they are not yet in play.
+		if ( TheSimNetOutput->IsJoinBurstPending( cur_ship_owner ) ) {
+			cur_ship = nextship;
+			continue;
+		}
+
 		// Lag compensation: pre-fetch target state once per ship (zero overhead when disabled)
 		const int lag_max_frames_m = SV_LAG_COMPENSATION_MAX_MS / 10;
 		const int cur_sim_frame_m  = TheSimulator->GetSimFrame();
@@ -457,6 +463,12 @@ void G_CollDet::_CheckShipLaserCollision()
 		bd_sphere2 = cur_ship->BoundingSphere2;
 
 		int cur_ship_owner = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
+
+		// Skip ships that are still in the join burst — they are not yet in play.
+		if ( TheSimNetOutput->IsJoinBurstPending( cur_ship_owner ) ) {
+			cur_ship = nextship;
+			continue;
+		}
 
 		// Lag compensation: pre-fetch target state once per ship (zero overhead when disabled)
 		const int lag_max_frames_l = SV_LAG_COMPENSATION_MAX_MS / 10;   // 100 Hz → 10 ms/frame
@@ -768,6 +780,12 @@ void G_CollDet::_CheckShipEmpCollision()
 
 					// get pointer to next ship in list, as the current might get removed upon collision
 					ShipObject* nextship = (ShipObject *) cur_ship->NextObj;
+
+					// Skip ships that are still in the join burst — they are not yet in play.
+					if ( TheSimNetOutput->IsJoinBurstPending( cur_ship_owner ) ) {
+						cur_ship = nextship;
+						continue;
+					}
 
 					// cant collide with the owner
 					if(tmpemp->Owner != cur_ship_owner){
@@ -1161,11 +1179,12 @@ void G_CollDet::OBJ_ShipSwarmDamage( ShipObject *shippo, int owner )
 	// S_SWARM::SWARM_Animate().
     
 #define SWARM_HITPOINTS_PER_PARTICLE 1
-    
-	// no damage at all if megashield active
-	if ( shippo->MegaShieldAbsorption > 0 )
+
+	// no damage at all if megashield active or join burst still in progress
+	int nClientID_Swarm = GetOwnerFromHostOjbNumber( shippo->HostObjNumber );
+	if ( shippo->MegaShieldAbsorption > 0 || TheSimNetOutput->IsJoinBurstPending( nClientID_Swarm ) )
 		return;
-    
+
 	if ( shippo->ExplosionCount == 0  ) {
         
 		shippo->CurDamage += SWARM_HITPOINTS_PER_PARTICLE;
@@ -1275,6 +1294,15 @@ void G_CollDet::_CheckShipExtraCollision()
 		// destroy cur_ship via PerformUnjoin() (e.g. mine self-kill).
 		// The EMP loop (_CheckShipEmpCollision) already does this correctly.
 		ShipObject *next_ship = (ShipObject*)cur_ship->NextObj;
+
+		// Skip ships that are still in the join burst — they are not yet in play.
+		{
+			int extra_ship_owner = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
+			if ( TheSimNetOutput->IsJoinBurstPending( extra_ship_owner ) ) {
+				cur_ship = next_ship;
+				continue;
+			}
+		}
 
 		// fetch location of local ship
 		geomv_t	objX = cur_ship->ObjPosition[ 0 ][ 3 ];
@@ -1444,6 +1472,13 @@ void G_CollDet::LinearParticleCollision( linear_pcluster_s *cluster, int pid )
 		if ( ( GetObjectOwner( walkships ) == (dword)owner ) )
 			continue;
 
+		// Skip ships that are still in the join burst — they are not yet in play.
+		{
+			int prt_ship_owner = GetObjectOwner( walkships );
+			if ( TheSimNetOutput->IsJoinBurstPending( prt_ship_owner ) )
+				continue;
+		}
+
 		// Helix particles arriving here are from bot ships (server-generated).
 		// Real-client helix uses RE_HelixParticle and gets no target rewind —
 		// the client-reported position already encodes correct aim geometry.
@@ -1582,6 +1617,13 @@ int G_CollDet::CheckLightningParticleShipCollision( Vertex3& particlepos, int ow
 		// prevent collision with owner of particle
 		if ( ( GetObjectOwner( walkships ) == (dword)owner ) )
 			continue;
+
+		// Skip ships that are still in the join burst — they are not yet in play.
+		{
+			int lt_ship_owner = GetObjectOwner( walkships );
+			if ( TheSimNetOutput->IsJoinBurstPending( lt_ship_owner ) )
+				continue;
+		}
 
 		// Per-shooter lag compensation for lightning particles
 		int hit;

@@ -779,13 +779,17 @@ void G_Main::MaintainSpecialsCounters(  ) {
            ShipObject *pShip = m_Players[nClientID].GetShipObject();
 
            // decrement the MegaShieldAbsorption counter
-           if(pShip->MegaShieldAbsorption > 0){
-        	  pShip->MegaShieldAbsorption -= TheSimulator->GetThisFrameRefFrames();
-        	  DBGTXT(MSGOUT("Client: %d, MegaShield: %d, RefFrameDec: %d",
-        			  nClientID,
-        			  pShip->MegaShieldAbsorption,
-        			  TheSimulator->GetThisFrameRefFrames()
-        			  ););
+           // Pause the countdown while the join burst is in progress so the
+           // shield does not expire before JOINDONE is received by the client.
+           if ( pShip->MegaShieldAbsorption > 0 ) {
+               if ( !TheSimNetOutput->IsJoinBurstPending( nClientID ) ) {
+                   pShip->MegaShieldAbsorption -= TheSimulator->GetThisFrameRefFrames();
+                   DBGTXT(MSGOUT("Client: %d, MegaShield: %d, RefFrameDec: %d",
+                           nClientID,
+                           pShip->MegaShieldAbsorption,
+                           TheSimulator->GetThisFrameRefFrames()
+                           ););
+               }
            }
         }
     }

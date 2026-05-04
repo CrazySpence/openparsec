@@ -253,6 +253,9 @@ public:
 	// mark that a join burst is in progress for this client
 	void SetJoinBurstPending() { m_bJoinBurstPending = TRUE; }
 
+	// query whether a join burst is still in progress for this client
+	bool_t IsJoinBurstPending() const { return m_bJoinBurstPending; }
+
 	// schedule a E_Distributable to be sent to the client
 	// Schedule pDist for delivery to this client.
 	// check_unique: skip if already queued (used by ReleaseDistributable).
@@ -360,6 +363,10 @@ public:
 
 	// recalculate the average packet sizes for all connected clients
 	void RecalcAveragePacketSizes();
+
+	// query whether a join burst is still in progress for a specific client
+	bool_t IsJoinBurstPending( int nClientID ) const
+	    { return m_SimClientNetOutput[ nClientID ].IsJoinBurstPending(); }
 
 	// create a new E_Distributable for all connected clients
 	E_Distributable* CreateDistributable( GenObject* object, int reliable = FALSE, int send_to_owner = FALSE );

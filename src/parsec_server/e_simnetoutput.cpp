@@ -72,6 +72,7 @@
 //#include "obj_creg.h"
 //#include "e_stats.h"
 #include "g_main_sv.h"
+#include "g_player.h"
 //#include "e_simplayerinfo.h"
 #include "e_simulator.h"
 //#include "e_simnetinput.h"
@@ -511,6 +512,16 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 		m_bJoinBurstPending = FALSE;
 		m_pReliableBuffer->RmEvStateSync( RMEVSTATE_JOINDONE, 1 );
 		MSGOUT( "join burst complete for client %d — sending JOINDONE", m_nDestClientID );
+
+		// End join-burst invulnerability: drop MegaShieldAbsorption to 1 so the
+		// existing countdown expires it within one tick.
+		G_Player* pJoinPlayer = TheGame->GetPlayer( m_nDestClientID );
+		if ( pJoinPlayer != NULL ) {
+		    ShipObject* pJoinShip = pJoinPlayer->GetShipObject();
+		    if ( pJoinShip != NULL && ( pJoinShip->Specials & SPMASK_INVULNERABILITY ) ) {
+		        pJoinShip->MegaShieldAbsorption = 1;
+		    }
+		}
 	}
 
 
@@ -1092,7 +1103,11 @@ void E_SimNetOutput::RescheduleAllDistributables( int nClientID )
 
 	// Mark that a join burst is now in progress for this client.
 	// JOINDONE will be sent once m_AllDistributables empties in _PrepareClientUpdateInfo.
-	m_SimClientNetOutput[ nClientID ].SetJoinBurstPending();
+	// Bots use BotPerformJoin and never drain m_AllDistributables, so they must not
+	// be flagged pending — they would remain invulnerable forever.
+	E_ClientInfo* pJoinInfo = TheConnManager->GetClientInfo( nClientID );
+	if ( pJoinInfo == NULL || !pJoinInfo->IsBot() )
+	    m_SimClientNetOutput[ nClientID ].SetJoinBurstPending();
 }
 
 // disconnect the player in a specific slot -----------------------------------
