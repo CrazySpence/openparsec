@@ -59,6 +59,7 @@
 
 // local module header
 #include "obj_cust.h"
+#include "od_class.h"
 
 // flags ----------------------------------------------------------------------
 //
@@ -155,8 +156,9 @@ void E_World::_FreeObjectMem( GenObject* objectpo )
 			break;
 
 		case EXTRA_LIST_NO:
-			// for extras maintain count
-			m_nCurrentNumExtras--;
+			// mirror the create-side exclusion: weapon mines were not counted, so don't decrement for them
+			if ( objectpo->ObjectClass != MINE_CLASS_1 )
+				m_nCurrentNumExtras--;
 			break;
 
 		case CUSTM_LIST_NO:
@@ -433,8 +435,9 @@ void E_World::FreeObjectMem( GenObject *objectpo )
 			break;
 
 		case EXTRA_LIST_NO:
-			// for extras maintain count
-			m_nCurrentNumExtras--;
+			// mirror the create-side exclusion: weapon mines were not counted, so don't decrement for them
+			if ( objectpo->ObjectClass != MINE_CLASS_1 )
+				m_nCurrentNumExtras--;
 			break;
 
 		case CUSTM_LIST_NO:
@@ -777,7 +780,10 @@ GenObject* E_World::CreateObject( int objclass, const Xmatrx startmatrx, dword d
 			SFX_CreateExtra( (ExtraObject *) newinstance );
 			// for extras maintain count
 #endif // PARSEC_CLIENT
-			m_nCurrentNumExtras++;
+			// weapon mines deployed by players (MINE_CLASS_1) are not pickup extras
+			// and must not consume the pickup cap; only MINE_PACK_CLASS pickups count.
+			if ( objclass != MINE_CLASS_1 )
+				m_nCurrentNumExtras++;
             break;
 
 		case CUSTM_LIST_NO:

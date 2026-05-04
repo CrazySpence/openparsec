@@ -1080,6 +1080,12 @@ void E_SimNetOutput::RescheduleAllDistributables( int nClientID )
 	for ( UTL_listentry_s<E_Distributable*>* entry = m_Distributables->GetHead();
 	      entry != NULL; entry = entry->m_pNext ) {
 		E_Distributable* pDist = entry->m_data;
+		// Skip distributables already being removed: the joining client never
+		// received the corresponding ADD, so they don't need the REMOVE either.
+		// This also prevents accumulated zombie distributables from bloating the
+		// join burst after long server sessions.
+		if ( pDist->IsInRemoving() )
+			continue;
 		pDist->MarkForUpdate( nClientID );
 		m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist );
 	}
@@ -1438,7 +1444,12 @@ void E_SimNetOutput::CleanupZombieDistributables()
 	int* connected = new int[ MAX_NUM_CLIENTS ];
 	memset( connected, 0, MAX_NUM_CLIENTS * sizeof( int ) );
 	for( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
-		connected[ nClientID ] = ( TheSimulator->IsPlayerDisconnected( nClientID ) == FALSE );
+		// Bots are never sent updates (DoClientUpdates skips them), so their zombie
+		// state is never set.  Exclude bots here so they don't block distributable
+		// cleanup, mirroring the logic in DoClientUpdates.
+		E_ClientInfo* pInfo = TheConnManager->GetClientInfo( nClientID );
+		connected[ nClientID ] = ( TheSimulator->IsPlayerDisconnected( nClientID ) == FALSE )
+		                       && !( pInfo != NULL && pInfo->IsBot() );
 	}
 
 	// check all distributables, that are in REMOVE mode, whether the mode for all
