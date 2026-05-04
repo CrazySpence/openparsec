@@ -14,6 +14,7 @@ void	SFX_CreateEnergyField( Vertex3& origin );
 void	SFX_ParticleExplosion( ShipObject *shippo );
 void	SFX_FlashProtectiveShield( ShipObject *shippo );
 int		SFX_EnableInvulnerabilityShield( ShipObject *shippo );
+void	SFX_DisableInvulnerabilityShield( ShipObject *shippo );
 void	SFX_HullImpact( ShipObject *shippo, Vertex3 *impact, Plane3 *plane );
 
 struct basesphere_pcluster_s;

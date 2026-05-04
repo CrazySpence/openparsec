@@ -428,18 +428,17 @@ void OBJ_CheckExplosions()
 				shippo->ObjPosition[ 2 ][ 3 ] += dirvec.Z;
 			}
 
-			// create shockwave on the first frame of explosion;
-			// done here in the game loop so it fires regardless of visibility
-			if ( shippo->ExplosionCount == MAX_EXPLOSION_COUNT ) {
-				if ( AUX_EXPLOSION_DRAW_SHOCKWAVE ) {
-					ExplosionShockWave( shippo );
-				}
-			}
-
-			// fire particle sphere explosion at the correct animation frame;
+			// fire shockwave and particle sphere at the correct animation frame;
+			// deferred to this frame so the ship model has already vanished
+			// (ship disappears at BM_EXPLVANISHFRAME=5, this fires at BM_EXPLPARTCLFRAME=3);
 			// done here in the game loop so it fires regardless of visibility
 			if ( ( shippo->ExplosionCount / EXPL_REF_SPEED == BM_EXPLPARTCLFRAME ) &&
 			     ( shippo->DelayExplosion == 0 ) ) {
+
+				// shockwave expands from the ship's final visible position
+				if ( AUX_EXPLOSION_DRAW_SHOCKWAVE ) {
+					ExplosionShockWave( shippo );
+				}
 
 				// suppress the particle sphere when the shockwave is active —
 				// the shockwave is the expansion visual; the sphere is a legacy effect

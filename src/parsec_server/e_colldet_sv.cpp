@@ -859,6 +859,8 @@ void G_CollDet::_CollisionResponse_EmpShip( Emp *curemp )
 		ps.player_status	= PLAYER_CONNECTED;
 		ps.senderid         = nClientID_Downed;
 		ps.params[ 0 ]		= SHIP_DOWNED;
+		ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+		ps.params[ 3 ]		= KILL_WEAPON_EMP;
 		pSimPlayerInfo->PerformUnjoin( &ps );
 
 		// ignore joins from client, until he himself sent an unjoin
@@ -918,6 +920,8 @@ void G_CollDet::_CollisionResponse_MissileShip( MissileObject *curmissile )
 		ps.player_status	= PLAYER_CONNECTED;
 		ps.senderid         = nClientID_Downed;
 		ps.params[ 0 ]		= SHIP_DOWNED;
+		ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+		ps.params[ 3 ]		= KILL_WEAPON_MISSILE;
 		pSimPlayerInfo->PerformUnjoin( &ps );
 
 		// ignore joins from client, until he himself sent an unjoin
@@ -990,6 +994,8 @@ void G_CollDet::_CollisionResponse_LaserShip( LaserObject *curlaser )
 		ps.player_status	= PLAYER_CONNECTED;
 		ps.senderid         = nClientID_Downed;
 		ps.params[ 0 ]		= SHIP_DOWNED;
+		ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+		ps.params[ 3 ]		= KILL_WEAPON_LASER;
 		pSimPlayerInfo->PerformUnjoin( &ps );
 
 		// ignore joins from client, until he himself sent an unjoin
@@ -1088,6 +1094,8 @@ void G_CollDet::_CollisionResponse_MineShip( Mine1Obj *curmine )
 		     ps.player_status	= PLAYER_CONNECTED;
 		     ps.senderid         = nClientID_Downed;
 		     ps.params[ 0 ]		= SHIP_DOWNED;
+		     ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+		     ps.params[ 3 ]		= KILL_WEAPON_MINE;
 		     pSimPlayerInfo->PerformUnjoin( &ps );
 
 		     // ignore joins from client, until he himself sent an unjoin
@@ -1155,12 +1163,14 @@ void G_CollDet::OBJ_ShipHelixDamage( ShipObject *shippo, int owner )
             ps.player_status	= PLAYER_CONNECTED;
             ps.senderid         = nClientID_Downed;
             ps.params[ 0 ]		= SHIP_DOWNED;
+            ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+            ps.params[ 3 ]		= KILL_WEAPON_HELIX;
             pSimPlayerInfo->PerformUnjoin( &ps );
-            
+
             // ignore joins from client, until he himself sent an unjoin
             //FIXME: redesign this !!
             pSimPlayerInfo->IgnoreJoinUntilUnjoinFromClient();
-            
+
             // force a client resync of the downed client
             TheSimulator->GetSimClientState( nClientID_Downed )->SetClientResync();
             MSGOUT( "%s was shot down by %s's Helix Cannon", TheConnManager->GetClientName( nClientID_Downed ),TheConnManager->GetClientName( nClientID_Attacker ) );
@@ -1213,12 +1223,14 @@ void G_CollDet::OBJ_ShipSwarmDamage( ShipObject *shippo, int owner )
             ps.player_status	= PLAYER_CONNECTED;
             ps.senderid         = nClientID_Downed;
             ps.params[ 0 ]		= SHIP_DOWNED;
+            ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+            ps.params[ 3 ]		= KILL_WEAPON_SWARM;
             pSimPlayerInfo->PerformUnjoin( &ps );
-            
+
             // ignore joins from client, until he himself sent an unjoin
             //FIXME: redesign this !!
             pSimPlayerInfo->IgnoreJoinUntilUnjoinFromClient();
-            
+
             // force a client resync of the downed client
             TheSimulator->GetSimClientState( nClientID_Downed )->SetClientResync();
             MSGOUT( "%s was destroyed by %s's Swarm missiles", TheConnManager->GetClientName( nClientID_Downed ), TheConnManager->GetClientName( nClientID_Attacker ) );
@@ -1270,12 +1282,14 @@ void G_CollDet::OBJ_ShipLightningDamage( ShipObject *shippo, int owner )
             ps.player_status	= PLAYER_CONNECTED;
             ps.senderid         = nClientID_Downed;
             ps.params[ 0 ]		= SHIP_DOWNED;
+            ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+            ps.params[ 3 ]		= KILL_WEAPON_LIGHTNING;
             pSimPlayerInfo->PerformUnjoin( &ps );
-            
+
             // ignore joins from client, until he himself sent an unjoin
             //FIXME: redesign this !!
             pSimPlayerInfo->IgnoreJoinUntilUnjoinFromClient();
-            
+
             // force a client resync of the downed client
             TheSimulator->GetSimClientState( nClientID_Downed )->SetClientResync();
             MSGOUT( "%s was cooked %s's Lightning Cannon", TheConnManager->GetClientName( nClientID_Downed ),TheConnManager->GetClientName( nClientID_Attacker ) );
@@ -1566,12 +1580,14 @@ void G_CollDet::OBJ_ShipPhotonDamage( ShipObject *shippo, int owner )
             ps.player_status	= PLAYER_CONNECTED;
             ps.senderid         = nClientID_Downed;
             ps.params[ 0 ]		= SHIP_DOWNED;
+            ps.params[ 2 ]		= (signed char)(nClientID_Attacker + KILLERID_BIAS);
+            ps.params[ 3 ]		= KILL_WEAPON_PHOTON;
             pSimPlayerInfo->PerformUnjoin( &ps );
-            
+
             // ignore joins from client, until he himself sent an unjoin
             //FIXME: redesign this !!
             pSimPlayerInfo->IgnoreJoinUntilUnjoinFromClient();
-            
+
             // force a client resync of the downed client
             TheSimulator->GetSimClientState( nClientID_Downed )->SetClientResync();
             MSGOUT( "%s was mowed down by %s's Photon Cannon", TheConnManager->GetClientName( nClientID_Downed ),TheConnManager->GetClientName( nClientID_Attacker ) );

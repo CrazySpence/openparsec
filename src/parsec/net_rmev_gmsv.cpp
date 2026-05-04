@@ -659,13 +659,19 @@ void NET_ExecRmEvGeneric( RE_Generic* pRE_Generic)
 	// check for invulnerability
 	if(pRE_Generic->RE_ActionFlags &  (1 << INVUNERABLE)){
 
-		dword ownerid = GetOwnerFromHostOjbNumber(pRE_Generic->HostObjId);			
+		dword ownerid = GetOwnerFromHostOjbNumber(pRE_Generic->HostObjId);
 		// fetch pointer to remote player's ship
 		ShipObject *invul_ship = NET_FetchOwnersShip( ownerid );
 		((G_ShipObject*)invul_ship)->CollectSpecial( SPMASK_INVULNERABILITY);
 	}
 
-
+	// check for invulnerability cancel (join burst complete)
+	if ( pRE_Generic->RE_ActionFlags & ( 1 << INVUNERABLE_END ) ) {
+	    dword ownerid = GetOwnerFromHostOjbNumber( pRE_Generic->HostObjId );
+	    ShipObject *invul_ship = NET_FetchOwnersShip( ownerid );
+	    if ( invul_ship != NULL )
+	        SFX_DisableInvulnerabilityShield( invul_ship );
+	}
 
 	// check for teleporter collision
 	if(pRE_Generic->RE_ActionFlags &  (1 << TELEP_COLLIDE)){

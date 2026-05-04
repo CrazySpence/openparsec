@@ -96,6 +96,23 @@ public:
 		return true;
 	}
 	
+	// map kill weapon enum to display string ---------------------------------
+	//
+	static const char* KillWeaponStr( int wtype )
+	{
+		switch ( wtype ) {
+			case KILL_WEAPON_LASER:     return "laser";
+			case KILL_WEAPON_MISSILE:   return "missile";
+			case KILL_WEAPON_EMP:       return "EMP";
+			case KILL_WEAPON_MINE:      return "mine";
+			case KILL_WEAPON_HELIX:     return "Helix Cannon";
+			case KILL_WEAPON_SWARM:     return "Swarm missiles";
+			case KILL_WEAPON_LIGHTNING: return "Lightning Cannon";
+			case KILL_WEAPON_PHOTON:    return "Photon Cannon";
+			default:                    return "unknown weapon";
+		}
+	}
+
 	// UI feedback when player has unjoined -----------------------------------
 	//
 	bool_t UI_PlayerUnjoinedFeedback( RE_PlayerStatus* playerstatus )
@@ -115,9 +132,18 @@ public:
 				strcat( paste_str, " has left" );
 				
 			} else if ( playerstatus->params[ 0 ] == SHIP_DOWNED ) {
-				
-				strcat( paste_str, " was killed by " );
-				strcat( paste_str, Player_Name[ playerstatus->params[ 2 ] - KILLERID_BIAS ] );
+
+				int killer_id  = (int)(signed char)playerstatus->params[ 2 ] - KILLERID_BIAS;
+				int weapon_type = (int)(signed char)playerstatus->params[ 3 ];
+				if ( killer_id >= 0 && killer_id < MAX_NET_PROTO_PLAYERS ) {
+					strcat( paste_str, " was shot down by " );
+					strcat( paste_str, Player_Name[ killer_id ] );
+					strcat( paste_str, "'s " );
+					strcat( paste_str, KillWeaponStr( weapon_type ) );
+				} else {
+					strcat( paste_str, " was destroyed by a " );
+					strcat( paste_str, KillWeaponStr( weapon_type ) );
+				}
 			}
 			ShowMessage( paste_str );
 		}
@@ -174,13 +200,14 @@ public:
 		KillDurationWeapons( MyShip );
 		OBJ_CreateShipExtras( MyShip );
 
-		//FIXME: different texts for different ways the local player can get killed
-		switch ( weapon ) {
-			case 0:
-			default:
-				strcpy( paste_str, "killed by " );
-				strcat( paste_str, NET_FetchPlayerName( nClientID_Killer ) );
-				break;
+		if ( nClientID_Killer >= 0 && nClientID_Killer < MAX_NET_PROTO_PLAYERS ) {
+			strcpy( paste_str, "shot down by " );
+			strcat( paste_str, NET_FetchPlayerName( nClientID_Killer ) );
+			strcat( paste_str, "'s " );
+			strcat( paste_str, KillWeaponStr( weapon ) );
+		} else {
+			strcpy( paste_str, "destroyed by a " );
+			strcat( paste_str, KillWeaponStr( weapon ) );
 		}
 		ShowMessage( paste_str );
 

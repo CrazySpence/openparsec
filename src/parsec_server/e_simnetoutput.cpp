@@ -513,13 +513,24 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 		m_pReliableBuffer->RmEvStateSync( RMEVSTATE_JOINDONE, 1 );
 		MSGOUT( "join burst complete for client %d — sending JOINDONE", m_nDestClientID );
 
-		// End join-burst invulnerability: drop MegaShieldAbsorption to 1 so the
-		// existing countdown expires it within one tick.
+		// Broadcast INVUNERABLE_END to all clients so the shield glow stops.
+		// Also drop MegaShieldAbsorption to 1 so the server-side countdown
+		// expires within one tick.
 		G_Player* pJoinPlayer = TheGame->GetPlayer( m_nDestClientID );
 		if ( pJoinPlayer != NULL ) {
 		    ShipObject* pJoinShip = pJoinPlayer->GetShipObject();
 		    if ( pJoinShip != NULL && ( pJoinShip->Specials & SPMASK_INVULNERABILITY ) ) {
 		        pJoinShip->MegaShieldAbsorption = 1;
+
+		        RE_Generic *re_end = new RE_Generic;
+		        re_end->RE_ActionFlags = 1 << INVUNERABLE_END;
+		        re_end->HostObjId      = pJoinShip->HostObjNumber;
+		        re_end->TargetId       = 0;
+		        re_end->Padding        = 0;
+		        re_end->RE_BlockSize   = sizeof( RE_Generic );
+		        re_end->RE_Type        = RE_GENERIC;
+		        TheSimNetOutput->BufferForMulticastRE( re_end, PLAYERID_SERVER, true );
+		        delete re_end;
 		    }
 		}
 	}

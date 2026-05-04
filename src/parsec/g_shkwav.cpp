@@ -677,27 +677,24 @@ int Cmd_SHOCKWAVE( char *paramstr )
 }
 
 
-// create shockwave objects on first frame of explosion -----------------------
+// create shockwave objects at the ship's final visible position ---------------
 //
 void ExplosionShockWave( const ShipObject *shippo )
 {
 	ASSERT( shippo != NULL );
 	ASSERT( AUX_EXPLOSION_DRAW_SHOCKWAVE > 0 );
 
-	if ( shippo->ExplosionCount == MAX_EXPLOSION_COUNT ) {
+	CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY );
 
-		CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY );
+	if ( AUX_EXPLOSION_DRAW_SHOCKWAVE > 1 ) {
+		if ( RAND() % 100  < 50 ) {
 
-		if ( AUX_EXPLOSION_DRAW_SHOCKWAVE > 1 ) {
-			if ( RAND() % 100  < 50 ) {
+			CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY + ( RAND() % 600 ) );
 
-				CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY + ( RAND() % 600 ) );
+			if ( AUX_EXPLOSION_DRAW_SHOCKWAVE > 2 ) {
+				if ( RAND() % 100  < 10 ) {
 
-				if ( AUX_EXPLOSION_DRAW_SHOCKWAVE > 2 ) {
-					if ( RAND() % 100  < 10 ) {
-
-						CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY + 600 + ( RAND() % 600 ) );
-					}
+					CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY + 600 + ( RAND() % 600 ) );
 				}
 			}
 		}

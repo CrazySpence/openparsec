@@ -375,6 +375,22 @@ int SFX_EnableInvulnerabilityShield( ShipObject *shippo )
 }
 
 
+// cancel invulnerability shield immediately ---------------------------------
+//
+void SFX_DisableInvulnerabilityShield( ShipObject *shippo )
+{
+	ASSERT( shippo != NULL );
+	basesphere_pcluster_s *attached = (basesphere_pcluster_s *)
+	    PRT_ObjectHasAttachedClustersOfType( shippo, SAT_MEGASHIELD_SPHERE );
+	if ( attached != NULL )
+	    attached->lifetime = 0;   // SAT_RESET_MEGASHIELD_FLAG callback fires next frame
+
+	// Clear flags immediately so vulnerability resumes on the same tick
+	shippo->Specials          &= ~SPMASK_INVULNERABILITY;
+	shippo->MegaShieldAbsorption = 0;
+}
+
+
 // fetch invulnerability shield and info --------------------------------------
 //
 basesphere_pcluster_s *SFX_FetchInvulnerabilityShield( ShipObject *shippo, float *strength )

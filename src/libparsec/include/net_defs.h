@@ -610,6 +610,20 @@ enum re_generic_flags {
 	AFTB_INACTIVE,
 	INVUNERABLE,
 	TELEP_COLLIDE,
+	INVUNERABLE_END,        // server → all clients: cancel join-burst invulnerability
+};
+
+// weapon types carried in RE_PlayerStatus.params[1] on SHIP_DOWNED kills
+enum RE_KillWeapon {
+	KILL_WEAPON_UNKNOWN   = 0,
+	KILL_WEAPON_LASER     = 1,
+	KILL_WEAPON_MISSILE   = 2,
+	KILL_WEAPON_EMP       = 3,
+	KILL_WEAPON_MINE      = 4,
+	KILL_WEAPON_HELIX     = 5,
+	KILL_WEAPON_SWARM     = 6,
+	KILL_WEAPON_LIGHTNING = 7,
+	KILL_WEAPON_PHOTON    = 8,
 };
 
 
