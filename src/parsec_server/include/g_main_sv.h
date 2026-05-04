@@ -174,7 +174,7 @@ public:
 	void RecordKill( int nClientID );
 
 	// record a death of the client
-	void RecordDeath( int nClientID, int nClientID_Killer, int nWeapon = KILL_WEAPON_UNKNOWN );
+	void RecordDeath( int nClientID, int nClientID_Killer, int nWeapon = 0 );	// 0 == KILL_WEAPON_UNKNOWN
 
 	// reset the death info of the client
 	void ResetDeathInfo( int nClientID );
