@@ -684,17 +684,19 @@ void ExplosionShockWave( const ShipObject *shippo )
 	ASSERT( shippo != NULL );
 	ASSERT( AUX_EXPLOSION_DRAW_SHOCKWAVE > 0 );
 
-	CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY );
+	// delay=0: shockwave is triggered after the ship model has already vanished,
+	// so expand immediately; secondary/tertiary waves keep relative stagger
+	CreateShockWave( (GenObject *) shippo, 0 );
 
 	if ( AUX_EXPLOSION_DRAW_SHOCKWAVE > 1 ) {
 		if ( RAND() % 100  < 50 ) {
 
-			CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY + ( RAND() % 600 ) );
+			CreateShockWave( (GenObject *) shippo, RAND() % 600 );
 
 			if ( AUX_EXPLOSION_DRAW_SHOCKWAVE > 2 ) {
 				if ( RAND() % 100  < 10 ) {
 
-					CreateShockWave( (GenObject *) shippo, SHOCKWAVE_DELAY + 600 + ( RAND() % 600 ) );
+					CreateShockWave( (GenObject *) shippo, 600 + ( RAND() % 600 ) );
 				}
 			}
 		}
