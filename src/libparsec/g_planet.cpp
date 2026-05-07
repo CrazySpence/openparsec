@@ -498,9 +498,10 @@ int PlanetAnimate( CustomObject *base )
 	}
 #endif
 
-#ifdef PARSEC_SERVER
-	// Orbital translation — server-authoritative only.
-	// Clients receive the correct position via pos[] in RE_Planet every frame.
+	// Orbital translation — runs on both client and server.
+	// Orbit params (OrbitSpeed, OrbitRadius, OrbitShape, CurOrbitPos) are synced
+	// once on creation/join via RE_Planet. Both sides advance CurOrbitPos locally
+	// at the same rate so they stay in sync without per-frame position packets.
 	if ( planet->OrbitSpeed != 0 ) {
 		// Lazy OrbitParent resolution from OrbitParentId (one-shot; NULL until found)
 		if ( planet->OrbitParentId != 0 && planet->OrbitParent == NULL ) {
@@ -518,7 +519,11 @@ int PlanetAnimate( CustomObject *base )
 			cy = planet->OrbitParent->ObjPosition[ 1 ][ 3 ];
 			cz = planet->OrbitParent->ObjPosition[ 2 ][ 3 ];
 		}
+#ifdef PARSEC_SERVER
 		planet->CurOrbitPos += planet->OrbitSpeed * TheSimulator->GetThisFrameRefFrames();
+#else
+		planet->CurOrbitPos += planet->OrbitSpeed * CurScreenRefFrames;
+#endif
 		sincosval_s sc;
 		GetSinCos( planet->CurOrbitPos, &sc );
 		float eccFactor = 1.0f - ( planet->OrbitShape / 100.0f ) * 0.90f;
@@ -528,7 +533,6 @@ int PlanetAnimate( CustomObject *base )
 		planet->ObjPosition[ 1 ][ 3 ] = cy;
 		planet->ObjPosition[ 2 ][ 3 ] = cz + GEOMV_MUL( sc.cosval, semiminor );
 	}
-#endif // PARSEC_SERVER
 
 	return TRUE;
 }
