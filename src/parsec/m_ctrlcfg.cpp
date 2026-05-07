@@ -16,15 +16,15 @@
 #include <string.h>
 #include <math.h>
 
+// compilation flags/debug support — must come before SDL so SYSTEM_TARGET_LINUX is defined
+#include "config.h"
+
 // SDL — for per-frame keyboard state scan during remap-wait
 #ifdef SYSTEM_TARGET_LINUX
 	#include <SDL2/SDL.h>
 #else
 	#include <SDL.h>
 #endif
-
-// compilation flags/debug support
-#include "config.h"
 #include "debug.h"
 
 // general definitions
