@@ -976,7 +976,12 @@ struct RE_Planet : RE_Header {
 	bams_t	ringtiltz;				// 4 — ring tilt around Z axis
 	char	ringtexname[ 64 ];		// 64 — ring texture name (MAX_RING_TEXNAME+1)
 	char	surtexname[ 64 ];		// 64 — surface texture name (MAX_SURF_TEXNAME+1)
-	// sizeof( RE_Planet ) = 2 + 4 + 12 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 64 + 64 = 174
+	bams_t	orbitspeed;				// 4 — orbit angular speed
+	float	orbitradius;			// 4 — orbit semi-major radius
+	bams_t	curorbitpos;			// 4 — current orbit angle
+	dword	orbitparentid;			// 4 — HostObjNumber of orbit centre (0 = world origin)
+	int		orbitshape;				// 4 — eccentricity: 0=circle, 100=sharp ellipse
+	// sizeof( RE_Planet ) = 174 + 20 = 194
 };
 
 

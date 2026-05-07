@@ -73,6 +73,7 @@
 #include "con_info_sv.h"
 #include "e_simnetoutput.h"
 #include "e_simulator.h"
+#include "e_world_trans.h"
 #include "net_game_sv.h"
 #endif
 
@@ -104,6 +105,8 @@ PUBLIC dword planet_type_id = TYPE_ID_INVALID;
 #define OFS_ROTSPEED		offsetof( Planet, RotSpeed )
 #define OFS_ORBITSPEED		offsetof( Planet, OrbitSpeed )
 #define OFS_ORBITRADIUS		offsetof( Planet, OrbitRadius )
+#define OFS_ORBITSHAPE		offsetof( Planet, OrbitShape )
+#define OFS_ORBITPARENTID	offsetof( Planet, OrbitParentId )
 #define OFS_NAME			offsetof( Planet, Name )
 #define OFS_HASRING			offsetof( Planet, HasRing )
 #define OFS_RINGOUTERRADIUS	offsetof( Planet, RingOuterRadius )
@@ -124,6 +127,8 @@ proplist_s Planet_PropList[] = {
 	{ "ringouterradius", OFS_RINGOUTERRADIUS, 	0x10000,	0x4000000,	 	  PROPTYPE_FLOAT,  NULL	},
 	{ "ringinnerradius", OFS_RINGINNERRADIUS, 	0x10000,	0x4000000,	 	  PROPTYPE_FLOAT,  NULL	},
 	{ "ringtexname",	 OFS_RINGTEXNAME, 		0,			MAX_RING_TEXNAME, PROPTYPE_STRING, NULL	},
+	{ "orbitshape",		 OFS_ORBITSHAPE,		0,			100,			  PROPTYPE_INT,    NULL	},
+	{ "orbitparentid",	 OFS_ORBITPARENTID,		0,			0xffffffff,		  PROPTYPE_INT,    NULL	},
 
 	{ NULL,				0,					0,			0,				  0,			   NULL	},
 };
@@ -140,9 +145,11 @@ void PlanetInitType( CustomObject *base )
 
 	planet->RotSpeed		= 0x0001;
 	planet->CurOrbitPos		= 0;
-	planet->OrbitSpeed		= 0x0001;
+	planet->OrbitSpeed		= 0;
 	planet->OrbitRadius		= 3000000;
 	planet->OrbitParent 	= NULL;
+	planet->OrbitShape		= 0;
+	planet->OrbitParentId	= 0;
 	planet->HasRing		 	= FALSE;
 	planet->RingOuterRadius = FLOAT_TO_GEOMV( 600.0f );
 	planet->RingInnerRadius = FLOAT_TO_GEOMV( 300.0f );
@@ -491,6 +498,37 @@ int PlanetAnimate( CustomObject *base )
 	}
 #endif
 
+#ifdef PARSEC_SERVER
+	// Orbital translation — server-authoritative only.
+	// Clients receive the correct position via pos[] in RE_Planet every frame.
+	if ( planet->OrbitSpeed != 0 ) {
+		// Lazy OrbitParent resolution from OrbitParentId (one-shot; NULL until found)
+		if ( planet->OrbitParentId != 0 && planet->OrbitParent == NULL ) {
+			GenObject *walk = (GenObject*)FetchFirstCustom();
+			for ( ; walk != NULL; walk = walk->NextObj ) {
+				if ( walk->HostObjNumber == planet->OrbitParentId ) {
+					planet->OrbitParent = walk;
+					break;
+				}
+			}
+		}
+		geomv_t cx = GEOMV_0, cy = GEOMV_0, cz = GEOMV_0;
+		if ( planet->OrbitParent != NULL ) {
+			cx = planet->OrbitParent->ObjPosition[ 0 ][ 3 ];
+			cy = planet->OrbitParent->ObjPosition[ 1 ][ 3 ];
+			cz = planet->OrbitParent->ObjPosition[ 2 ][ 3 ];
+		}
+		planet->CurOrbitPos += planet->OrbitSpeed * TheSimulator->GetThisFrameRefFrames();
+		sincosval_s sc;
+		GetSinCos( planet->CurOrbitPos, &sc );
+		float eccFactor = 1.0f - ( planet->OrbitShape / 100.0f ) * 0.90f;
+		geomv_t semiminor = (geomv_t)( GEOMV_TO_FLOAT( planet->OrbitRadius ) * eccFactor );
+		planet->ObjPosition[ 0 ][ 3 ] = cx + GEOMV_MUL( sc.sinval, planet->OrbitRadius );
+		planet->ObjPosition[ 1 ][ 3 ] = cy + GEOMV_MUL( sc.cosval, semiminor );
+		planet->ObjPosition[ 2 ][ 3 ] = cz;
+	}
+#endif // PARSEC_SERVER
+
 	return TRUE;
 }
 
@@ -602,6 +640,11 @@ int PlanetPersistToStream( CustomObject *base, int tostream, void *rl )
 		re_planet->ringtexname[ sizeof( re_planet->ringtexname ) - 1 ] = '\0';
 		strncpy( re_planet->surtexname, planet->SurfTexName, sizeof( re_planet->surtexname ) - 1 );
 		re_planet->surtexname[ sizeof( re_planet->surtexname ) - 1 ] = '\0';
+		re_planet->orbitspeed    = planet->OrbitSpeed;
+		re_planet->orbitradius   = GEOMV_TO_FLOAT( planet->OrbitRadius );
+		re_planet->curorbitpos   = planet->CurOrbitPos;
+		re_planet->orbitparentid = planet->OrbitParentId;
+		re_planet->orbitshape    = planet->OrbitShape;
 	}
 
 	return (int)size;

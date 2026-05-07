@@ -583,6 +583,15 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 
 	// store server's host obj id for future find operations
 	planet->HostObjNumber = pRE_Planet->hostid;
+
+	// sync orbit parameters (stored for completeness; orbit translation is server-only)
+	planet->OrbitSpeed    = pRE_Planet->orbitspeed;
+	planet->OrbitRadius   = FLOAT_TO_GEOMV( pRE_Planet->orbitradius );
+	planet->CurOrbitPos   = pRE_Planet->curorbitpos;
+	planet->OrbitParentId = pRE_Planet->orbitparentid;
+	planet->OrbitShape    = pRE_Planet->orbitshape;
+	// NOTE: OrbitParent pointer is NOT resolved on the client — orbit translation
+	// runs server-side only; clients receive the authoritative pos[] each frame.
 }
 
 // exectue RE containing a stargate -------------------------------------------

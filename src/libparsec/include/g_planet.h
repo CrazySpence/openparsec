@@ -28,6 +28,8 @@ struct Planet : PlanetObject {
 	bams_t		OrbitSpeed;
 	geomv_t		OrbitRadius;
 	GenObject*	OrbitParent;
+	int			OrbitShape;		// eccentricity: 0=circle, 100=sharp ellipse
+	dword		OrbitParentId;	// HostObjNumber of orbit centre (0 = world origin)
 	int			HasRing;
 	geomv_t		RingInnerRadius;
 	geomv_t		RingOuterRadius;
