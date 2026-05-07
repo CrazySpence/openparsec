@@ -17,7 +17,11 @@
 #include <math.h>
 
 // SDL — for per-frame keyboard state scan during remap-wait
-#include <SDL.h>
+#ifdef SYSTEM_TARGET_LINUX
+	#include <SDL2/SDL.h>
+#else
+	#include <SDL.h>
+#endif
 
 // compilation flags/debug support
 #include "config.h"
