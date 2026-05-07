@@ -1079,11 +1079,15 @@ key_value_s sv_planet_key_value[] = {
 	{ "ringtex",	NULL,	KEYVALFLAG_NONE				},
 	{ "ringinner",	NULL,	KEYVALFLAG_NONE				},
 	{ "ringouter",	NULL,	KEYVALFLAG_NONE				},
-	{ "ringtiltx",	NULL,	KEYVALFLAG_NONE				},
-	{ "ringtiltz",	NULL,	KEYVALFLAG_NONE				},
-	{ "hostid",		NULL,	KEYVALFLAG_NONE				},
+	{ "ringtiltx",		NULL,	KEYVALFLAG_NONE				},
+	{ "ringtiltz",		NULL,	KEYVALFLAG_NONE				},
+	{ "hostid",			NULL,	KEYVALFLAG_NONE				},
+	{ "orbitspeed",		NULL,	KEYVALFLAG_NONE				},
+	{ "orbitradius",	NULL,	KEYVALFLAG_NONE				},
+	{ "orbitshape",		NULL,	KEYVALFLAG_NONE				},
+	{ "orbitparentid",	NULL,	KEYVALFLAG_NONE				},
 
-	{ NULL,			NULL,	KEYVALFLAG_NONE				},
+	{ NULL,				NULL,	KEYVALFLAG_NONE				},
 };
 
 enum {
@@ -1098,7 +1102,11 @@ enum {
 	KEY_PLANET_RINGOUTER,
 	KEY_PLANET_RINGTILTX,
 	KEY_PLANET_RINGTILTZ,
-	KEY_PLANET_HOSTID
+	KEY_PLANET_HOSTID,
+	KEY_PLANET_ORBITSPEED,
+	KEY_PLANET_ORBITRADIUS,
+	KEY_PLANET_ORBITSHAPE,
+	KEY_PLANET_ORBITPARENTID
 };
 
 
@@ -1276,7 +1284,34 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 				planet->HostObjNumber = (dword)hostid_int;
 		}
 
-		// always print the assigned HostObjNumber so it can be used in orbitparentid
+		// apply orbit parameters if supplied
+		if ( sv_planet_key_value[ KEY_PLANET_ORBITSPEED ].value != NULL ) {
+			int orbitspeed_int = 0;
+			ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_ORBITSPEED ], &orbitspeed_int );
+			planet->OrbitSpeed = (bams_t)orbitspeed_int;
+		}
+		if ( sv_planet_key_value[ KEY_PLANET_ORBITRADIUS ].value != NULL ) {
+			float orbitradius_f = 0.0f;
+			ScanKeyValueFloat( &sv_planet_key_value[ KEY_PLANET_ORBITRADIUS ], &orbitradius_f );
+			planet->OrbitRadius = FLOAT_TO_GEOMV( orbitradius_f );
+		}
+		if ( sv_planet_key_value[ KEY_PLANET_ORBITSHAPE ].value != NULL ) {
+			int orbitshape_int = 0;
+			ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_ORBITSHAPE ], &orbitshape_int );
+			if ( orbitshape_int < 0 ) orbitshape_int = 0;
+			if ( orbitshape_int > 100 ) orbitshape_int = 100;
+			planet->OrbitShape = orbitshape_int;
+		}
+		if ( sv_planet_key_value[ KEY_PLANET_ORBITPARENTID ].value != NULL ) {
+			int orbitparentid_int = 0;
+			ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_ORBITPARENTID ], &orbitparentid_int );
+			planet->OrbitParentId = (dword)orbitparentid_int;
+		}
+
+		// update last-summoned id so "propo 0.xxx" works after this command
+		TheWorld->SetLastSummonedObjectID( planet->ObjectNumber );
+
+		// always print assigned IDs so they can be referenced in scripts
 		MSGOUT( "sv.planet created: ObjectNumber %u, HostObjNumber %u",
 			(unsigned int)planet->ObjectNumber,
 			(unsigned int)planet->HostObjNumber );

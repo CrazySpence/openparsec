@@ -211,8 +211,9 @@ public:
 	int GetNumExtraObjects()		{ return _CountGenObjects( m_ExtraObjects ); }
 	int GetNumCustmObjects()		{ return _CountGenObjects( m_CustmObjects ); }
 
-	// return the object id of the last object that was summoned
-	int	GetLastSummonedObjectID()   { return m_last_summoned_objectid; }
+	// return/set the object id of the last object that was summoned
+	int	GetLastSummonedObjectID()             { return m_last_summoned_objectid; }
+	void SetLastSummonedObjectID( int objid ) { m_last_summoned_objectid = objid; }
 
 	// return pointer to first "real" ship in ship-objects list
 	ShipObject* FetchFirstShip();
