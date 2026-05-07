@@ -812,6 +812,22 @@ void RO_PlanetGenerateSphere( PlanetObject *planet )
 	// calc viewpoint in object space
 	CalcObjSpaceCamera( planet, &sphere_oscam );
 
+	// Debug: throttled diagnostic for planet rendering
+	{
+		static dword dbg_frame = 0;
+		if ( CurVisibleFrame - dbg_frame >= 120 ) {
+			dbg_frame = CurVisibleFrame;
+			MSGOUT( "Planet diag: BndSph=%.1f oscam=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f)",
+				GEOMV_TO_FLOAT( planet->BoundingSphere ),
+				GEOMV_TO_FLOAT( sphere_oscam.X ),
+				GEOMV_TO_FLOAT( sphere_oscam.Y ),
+				GEOMV_TO_FLOAT( sphere_oscam.Z ),
+				GEOMV_TO_FLOAT( planet->ObjPosition[0][3] ),
+				GEOMV_TO_FLOAT( planet->ObjPosition[1][3] ),
+				GEOMV_TO_FLOAT( planet->ObjPosition[2][3] ) );
+		}
+	}
+
 	// store icosahedron triangles
 	int dstindx = 0;
 	int dsttri  = 0;
@@ -1084,6 +1100,20 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 	}
 
 	FREEMEM( seam_dup );
+
+	// Debug: warn when all triangles are backfaced (planet invisible)
+	if ( dstvindx == 0 ) {
+		static dword dbg_zero_frame = 0;
+		if ( CurVisibleFrame - dbg_zero_frame >= 120 ) {
+			dbg_zero_frame = CurVisibleFrame;
+			MSGOUT( "Planet INVISIBLE: all %d triangles backfaced. oscam=(%.1f,%.1f,%.1f) BndSph=%.1f",
+				sphere_numtris,
+				GEOMV_TO_FLOAT( sphere_oscam.X ),
+				GEOMV_TO_FLOAT( sphere_oscam.Y ),
+				GEOMV_TO_FLOAT( sphere_oscam.Z ),
+				GEOMV_TO_FLOAT( planet->BoundingSphere ) );
+		}
+	}
 
 	// update NumVerts to include seam duplicates
 	itarray->NumVerts = numseamverts;
