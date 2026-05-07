@@ -588,6 +588,25 @@ char *GetMKCDescription( int num )
 }
 
 
+// get text name for an MKC_ key code (reverse lookup) -----------------------
+//
+const char *GetMKCNameForCode( dword code )
+{
+	if ( code == MKC_NIL )
+		return "unbound";
+
+	for ( unsigned int i = 0; i < NUM_MKC_CODES; i++ ) {
+		if ( (dword)make_codes[ i ].code == code )
+			return make_codes[ i ].text;
+	}
+
+	// fall back to hex representation for unknown codes
+	static char hex_buf[ 10 ];
+	sprintf( hex_buf, "0x%04x", code );
+	return hex_buf;
+}
+
+
 // get standard key for gray key (or vice versa) ------------------------------
 //
 PRIVATE

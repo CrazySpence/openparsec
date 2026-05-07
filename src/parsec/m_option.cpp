@@ -116,6 +116,7 @@ static const char *option_lines[ NUM_OPTIONS ] = {
 	"  apply network settings  ",
 	"  audio settings: ",
 	"  controller: ",
+	"  configure controls...  ",
 	"  invert mouse y axis: ",
 	"  mouse sensitivity: ",
 	"  mouse centering speed: ",
@@ -148,6 +149,7 @@ static int option_spacing[ NUM_OPTIONS ] = {
 	OPT_SPACING_DIVIDER,	// APPLY_NET_OPT,
 	OPT_SPACING_NONE,		// SOUND_OPT,
 	OPT_SPACING_NONE,		// CTRL_OPT,
+	OPT_SPACING_NONE,		// CONTROLS_OPT,
 	OPT_SPACING_NONE,		// INVERT_OPT,
 	OPT_SPACING_NONE,		// SENSITIVITY_OPT,
 	OPT_SPACING_DIVIDER,	// CENTER_OPT,
@@ -172,7 +174,8 @@ static int option_apply_blinking[ NUM_OPTIONS ] = {
 	FALSE,
 	FALSE,	// APPLY_NET_OPT,
 	FALSE,
-	FALSE,
+	FALSE,		// CTRL_OPT,
+	FALSE,		// CONTROLS_OPT,
 	FALSE,
 	FALSE,
 	FALSE,
@@ -197,11 +200,12 @@ static int option_dynamic[ NUM_OPTIONS ] = {
 	FALSE,
 	FALSE,	// APPLY_NET_OPT,
 	FALSE,
-	FALSE,
-	TRUE,
-	TRUE,
-	TRUE,
-	FALSE,
+	FALSE,		// CTRL_OPT,
+	FALSE,		// CONTROLS_OPT,
+	TRUE,		// INVERT_OPT,
+	TRUE,		// SENSITIVITY_OPT,
+	TRUE,		// CENTER_OPT,
+	FALSE,		// NAME_OPT,
 };
 
 
@@ -987,6 +991,10 @@ void ExecOptionSelection( int optno )
 
 		case CTRL_OPT:
 			ExecOptionSelectControllerEnabling();
+			break;
+
+		case CONTROLS_OPT:
+			EnterCtrlConfig();
 			break;
 
 		case INVERT_OPT:

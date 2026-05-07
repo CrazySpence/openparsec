@@ -61,8 +61,16 @@ float joy_acc_corr_refframe		= JOY_ACC_CORR_REFFRAME;
 
 // mouse config flags ---------------------------------------------------------
 //
-int inp_mouse_invert_yaxis 			= FALSE;
-int inp_mouse_sensitivity  			= 100;
-int inp_mouse_drift        			= 10;
+int inp_mouse_invert_yaxis          = FALSE;
+int inp_mouse_sensitivity           = 100;
+int inp_mouse_drift                 = 10;
+int inp_mouse_gun_button            = MOUSE_BUTTON_LEFT;
+int inp_mouse_missile_button        = MOUSE_BUTTON_RIGHT;
+int inp_mouse_target_button         = -1;
+int inp_mouse_nextgun_button        = -1;
+int inp_mouse_nextmissile_button    = -1;
+int inp_mouse_accel_button          = -1;
+int inp_mouse_decel_button          = -1;
+int inp_mouse_scroll_y              = 0;
 
 

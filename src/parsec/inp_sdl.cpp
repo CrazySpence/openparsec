@@ -62,6 +62,7 @@
 #include "con_aux.h"
 #include "isdl_joy.h"
 #include "isdl_supp.h"
+#include "inp_glob.h"
 
 #include "m_option.h"
 
@@ -564,7 +565,7 @@ void ISDLm_MouseEventHandler(const SDL_Event &event)
 
 	if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
 		int button = NUM_MOUSE_BUTTONS;
-		
+
 		switch (event.button.button) {
 			case SDL_BUTTON_LEFT:
 				button = MOUSE_BUTTON_LEFT;
@@ -575,15 +576,34 @@ void ISDLm_MouseEventHandler(const SDL_Event &event)
 			case SDL_BUTTON_RIGHT:
 				button = MOUSE_BUTTON_RIGHT;
 				break;
+			case SDL_BUTTON_X1:
+				button = MOUSE_BUTTON_X1;
+				break;
+			case SDL_BUTTON_X2:
+				button = MOUSE_BUTTON_X2;
+				break;
 		}
 
 		if (button == NUM_MOUSE_BUTTONS)
 			return; // we don't care about any other buttons
-		
+
 		if (event.button.state == SDL_PRESSED)
 			cur_mouse_state.buttons[button] = MOUSE_BUTTON_PRESSED;
 		else
 			cur_mouse_state.buttons[button] = MOUSE_BUTTON_RELEASED;
+	}
+
+	if (event.type == SDL_MOUSEWHEEL) {
+		// Synthesize virtual scroll buttons for exactly this frame.
+		// INPs_Collect() clears them at the start of the next frame.
+		if (event.wheel.y > 0) {
+			cur_mouse_state.buttons[ MOUSE_BUTTON_SCROLL_UP ]   = MOUSE_BUTTON_PRESSED;
+			cur_mouse_state.buttons[ MOUSE_BUTTON_SCROLL_DOWN ] = MOUSE_BUTTON_RELEASED;
+		} else if (event.wheel.y < 0) {
+			cur_mouse_state.buttons[ MOUSE_BUTTON_SCROLL_UP ]   = MOUSE_BUTTON_RELEASED;
+			cur_mouse_state.buttons[ MOUSE_BUTTON_SCROLL_DOWN ] = MOUSE_BUTTON_PRESSED;
+		}
+		inp_mouse_scroll_y += event.wheel.y;
 	}
 }
 
@@ -716,6 +736,7 @@ void ISDLm_ProcessEvents()
 			case SDL_MOUSEMOTION:
 			case SDL_MOUSEBUTTONDOWN:
 			case SDL_MOUSEBUTTONUP:
+			case SDL_MOUSEWHEEL:
 				ISDLm_MouseEventHandler(event);
 				break;
 			case SDL_TEXTINPUT:
@@ -734,6 +755,12 @@ void ISDLm_ProcessEvents()
 //
 void INPs_Collect()
 {
+	// Clear virtual scroll-button states left over from the previous frame.
+	// New wheel events processed below will re-set them if scrolling occurred.
+	cur_mouse_state.buttons[ MOUSE_BUTTON_SCROLL_UP ]   = MOUSE_BUTTON_RELEASED;
+	cur_mouse_state.buttons[ MOUSE_BUTTON_SCROLL_DOWN ] = MOUSE_BUTTON_RELEASED;
+	inp_mouse_scroll_y = 0;
+
 	// process events
 	ISDLm_ProcessEvents();
 

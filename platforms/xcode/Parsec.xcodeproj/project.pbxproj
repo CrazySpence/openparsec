@@ -238,6 +238,7 @@
 		FAFEFDD1163BE1D00056CECD /* m_option.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB08163BE1D00056CECD /* m_option.cpp */; };
 		FAFEFDD2163BE1D00056CECD /* m_status.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB09163BE1D00056CECD /* m_status.cpp */; };
 		FAFEFDD3163BE1D00056CECD /* m_viewer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB0A163BE1D00056CECD /* m_viewer.cpp */; };
+		FAFEFDD4163BE1D00056CECD /* m_ctrlcfg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB0B163BE1D00056CECD /* m_ctrlcfg.cpp */; };
 		FAFEFDD5163BE1D00056CECD /* net_conn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB0C163BE1D00056CECD /* net_conn.cpp */; };
 		FAFEFDD6163BE1D00056CECD /* net_game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB0D163BE1D00056CECD /* net_game.cpp */; };
 		FAFEFDD7163BE1D00056CECD /* net_game_gmsv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAFEFB0E163BE1D00056CECD /* net_game_gmsv.cpp */; };
@@ -763,6 +764,7 @@
 		FAFEFA7D163BE1CF0056CECD /* m_option.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m_option.h; sourceTree = "<group>"; };
 		FAFEFA7E163BE1CF0056CECD /* m_status.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m_status.h; sourceTree = "<group>"; };
 		FAFEFA7F163BE1CF0056CECD /* m_viewer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m_viewer.h; sourceTree = "<group>"; };
+		AA001001163BE1CF0056CECD /* m_ctrlcfg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = m_ctrlcfg.h; sourceTree = "<group>"; };
 		FAFEFA80163BE1CF0056CECD /* net_conn.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = net_conn.h; sourceTree = "<group>"; };
 		FAFEFA81163BE1CF0056CECD /* net_game.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = net_game.h; sourceTree = "<group>"; };
 		FAFEFA82163BE1CF0056CECD /* net_game_gmsv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = net_game_gmsv.h; sourceTree = "<group>"; };
@@ -851,6 +853,7 @@
 		FAFEFB08163BE1D00056CECD /* m_option.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = m_option.cpp; sourceTree = "<group>"; };
 		FAFEFB09163BE1D00056CECD /* m_status.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = m_status.cpp; sourceTree = "<group>"; };
 		FAFEFB0A163BE1D00056CECD /* m_viewer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = m_viewer.cpp; sourceTree = "<group>"; };
+		FAFEFB0B163BE1D00056CECD /* m_ctrlcfg.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = m_ctrlcfg.cpp; sourceTree = "<group>"; };
 		FAFEFB0C163BE1D00056CECD /* net_conn.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = net_conn.cpp; sourceTree = "<group>"; };
 		FAFEFB0D163BE1D00056CECD /* net_game.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = net_game.cpp; sourceTree = "<group>"; };
 		FAFEFB0E163BE1D00056CECD /* net_game_gmsv.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = net_game_gmsv.cpp; sourceTree = "<group>"; };
@@ -1389,6 +1392,7 @@
 				FAFEFB08163BE1D00056CECD /* m_option.cpp */,
 				FAFEFB09163BE1D00056CECD /* m_status.cpp */,
 				FAFEFB0A163BE1D00056CECD /* m_viewer.cpp */,
+				FAFEFB0B163BE1D00056CECD /* m_ctrlcfg.cpp */,
 				FAFEFB0C163BE1D00056CECD /* net_conn.cpp */,
 				FAFEFB0D163BE1D00056CECD /* net_game.cpp */,
 				FAFEFB0E163BE1D00056CECD /* net_game_gmsv.cpp */,
@@ -1566,6 +1570,7 @@
 				FAFEFA7D163BE1CF0056CECD /* m_option.h */,
 				FAFEFA7E163BE1CF0056CECD /* m_status.h */,
 				FAFEFA7F163BE1CF0056CECD /* m_viewer.h */,
+				AA001001163BE1CF0056CECD /* m_ctrlcfg.h */,
 				FAFEFA80163BE1CF0056CECD /* net_conn.h */,
 				FAFEFA81163BE1CF0056CECD /* net_game.h */,
 				FAFEFA82163BE1CF0056CECD /* net_game_gmsv.h */,
@@ -1936,6 +1941,7 @@
 				FAFEFDD1163BE1D00056CECD /* m_option.cpp in Sources */,
 				FAFEFDD2163BE1D00056CECD /* m_status.cpp in Sources */,
 				FAFEFDD3163BE1D00056CECD /* m_viewer.cpp in Sources */,
+				FAFEFDD4163BE1D00056CECD /* m_ctrlcfg.cpp in Sources */,
 				FAFEFDD5163BE1D00056CECD /* net_conn.cpp in Sources */,
 				FAFEFDD6163BE1D00056CECD /* net_game.cpp in Sources */,
 				FAFEFDD7163BE1D00056CECD /* net_game_gmsv.cpp in Sources */,

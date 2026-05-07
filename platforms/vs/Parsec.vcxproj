@@ -149,6 +149,7 @@
     <ClCompile Include="..\..\src\parsec\m_main.cpp" />
     <ClCompile Include="..\..\src\parsec\m_option.cpp" />
     <ClCompile Include="..\..\src\parsec\m_status.cpp" />
+    <ClCompile Include="..\..\src\parsec\m_ctrlcfg.cpp" />
     <ClCompile Include="..\..\src\parsec\m_viewer.cpp" />
     <ClCompile Include="..\..\src\parsec\net_conn.cpp" />
     <ClCompile Include="..\..\src\parsec\net_game.cpp" />
@@ -415,6 +416,7 @@
     <ClInclude Include="..\..\src\parsec\include\m_main.h" />
     <ClInclude Include="..\..\src\parsec\include\m_option.h" />
     <ClInclude Include="..\..\src\parsec\include\m_status.h" />
+    <ClInclude Include="..\..\src\parsec\include\m_ctrlcfg.h" />
     <ClInclude Include="..\..\src\parsec\include\m_viewer.h" />
     <ClInclude Include="..\..\src\parsec\include\net_conn.h" />
     <ClInclude Include="..\..\src\parsec\include\net_game.h" />

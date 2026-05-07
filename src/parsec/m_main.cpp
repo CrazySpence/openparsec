@@ -66,6 +66,7 @@
 #include "m_list.h"
 #include "m_logo.h"
 #include "m_status.h"
+#include "m_ctrlcfg.h"
 #include "m_option.h"
 #include "m_viewer.h"
 #include "net_conn.h"
@@ -97,6 +98,7 @@ static int itemvis_buttons		= TRUE;
 static int itemvis_logo 		= TRUE;
 static int itemvis_listwindow 	= TRUE;
 static int itemvis_optionsmenu	= FALSE;
+static int itemvis_ctrlcfg		= FALSE;
 
 static int itemvis_viewer		= FALSE;
 static int itemvis_gamestatus	= FALSE;
@@ -124,8 +126,11 @@ enum {
 	MENUTRANS_OPTIONS_TO_LIST	= 7,
 	MENUTRANS_LIST_TO_OPTIONS	= 8,
 
-	MENUTRANS_SHIP_TO_OBJECTS	= 9,
-	MENUTRANS_OBJECTS_TO_SHIP	= 10
+	MENUTRANS_SHIP_TO_OBJECTS		= 9,
+	MENUTRANS_OBJECTS_TO_SHIP		= 10,
+
+	MENUTRANS_OPTIONS_TO_CTRLCFG	= 11,
+	MENUTRANS_CTRLCFG_TO_OPTIONS	= 12
 };
 
 static int menu_state_transition	= MENUTRANS_NONE;
@@ -168,6 +173,23 @@ void ExitOptionsMenu()
 	// disable options menu
 	menu_state_transition = MENUTRANS_OPTIONS_TO_LIST;
 	FadeInButtons();
+}
+
+
+// enter the controls configuration screen from the options menu --------------
+//
+void EnterCtrlConfig()
+{
+	InitCtrlConfig();
+	menu_state_transition = MENUTRANS_OPTIONS_TO_CTRLCFG;
+}
+
+
+// return to the options menu from the controls configuration screen ----------
+//
+void ExitCtrlConfig()
+{
+	menu_state_transition = MENUTRANS_CTRLCFG_TO_OPTIONS;
 }
 
 
@@ -659,6 +681,8 @@ void EnsureStateConsistency()
 		return;
 	if ( itemvis_optionsmenu )
 		return;
+	if ( itemvis_ctrlcfg )
+		return;
 	if ( itemvis_viewer )
 		return;
 	if ( itemvis_gamestatus )
@@ -673,6 +697,43 @@ void EnsureStateConsistency()
 
 	MoveInButtons();
 	MoveInListWindow();
+}
+
+
+// called during transition from options menu to controls config screen -------
+//
+PRIVATE
+void MaintainTransitionOptionsToCtrlCfg()
+{
+	SlideOutOptions();
+	if ( SlideFinishedOptions() ) {
+
+		itemvis_optionsmenu = FALSE;
+		itemvis_ctrlcfg     = TRUE;
+
+		MoveOutCtrlConfig();
+		SlideInCtrlConfig();
+
+		menu_state_transition = MENUTRANS_NONE;
+	}
+}
+
+
+// called during transition from controls config screen to options menu -------
+//
+PRIVATE
+void MaintainTransitionCtrlCfgToOptions()
+{
+	SlideOutCtrlConfig();
+	if ( SlideFinishedCtrlConfig() ) {
+
+		itemvis_ctrlcfg     = FALSE;
+		itemvis_optionsmenu = TRUE;
+
+		SlideInOptions();
+
+		menu_state_transition = MENUTRANS_NONE;
+	}
 }
 
 
@@ -736,6 +797,16 @@ void MaintainMenuStateTransitions()
 		// objects -> ships in spacecraft viewer
 		case MENUTRANS_OBJECTS_TO_SHIP:
 			MaintainTransitionObjectsToShip();
+			break;
+
+		// options menu -> controls config screen
+		case MENUTRANS_OPTIONS_TO_CTRLCFG:
+			MaintainTransitionOptionsToCtrlCfg();
+			break;
+
+		// controls config screen -> options menu
+		case MENUTRANS_CTRLCFG_TO_OPTIONS:
+			MaintainTransitionCtrlCfgToOptions();
 			break;
 	}
 }
@@ -808,6 +879,11 @@ void DrawMenuItems()
 	// draw the options menu
 	if ( itemvis_optionsmenu ) {
 		DrawOptionsMenuWindow();
+	}
+
+	// draw the controls configuration screen
+	if ( itemvis_ctrlcfg ) {
+		DrawCtrlConfigScreen();
 	}
 
 	// draw the blinking connect indicator
@@ -1538,7 +1614,12 @@ void SpacecraftViewerKeyCursorRight()
 PRIVATE
 void FloatingMenuKeyEnter()
 {
-	if ( itemvis_optionsmenu ) {
+	if ( itemvis_ctrlcfg ) {
+
+		if ( !CtrlCfgWaitingForInput() )
+			CtrlCfgSelect();
+
+	} else if ( itemvis_optionsmenu ) {
 
 		ExecOptionSelection( OptionsListSelection() );
 
@@ -1570,7 +1651,17 @@ void FloatingMenuKeyEscape()
 	if ( menu_state_transition != MENUTRANS_NONE )
 		return;
 
-	if ( itemvis_gamestatus ) {
+	if ( itemvis_ctrlcfg ) {
+
+		if ( CtrlCfgWaitingForInput() ) {
+			// Cancel the active remap wait without clearing any binding
+			CtrlCfgClearBinding();
+		} else {
+			// Exit ctrl cfg screen back to options
+			CtrlCfgExit();
+		}
+
+	} else if ( itemvis_gamestatus ) {
 
 		GameStatusKeyEscape();
 
@@ -1600,7 +1691,11 @@ void FloatingMenuKeyEscape()
 PRIVATE
 void FloatingMenuKeyCursorUp()
 {
-	if ( itemvis_optionsmenu ) {
+	if ( itemvis_ctrlcfg ) {
+
+		CtrlCfgCursorUp();
+
+	} else if ( itemvis_optionsmenu ) {
 
 		OptionsListCursorUp();
 
@@ -1624,7 +1719,11 @@ void FloatingMenuKeyCursorUp()
 PRIVATE
 void FloatingMenuKeyCursorDown()
 {
-	if ( itemvis_optionsmenu ) {
+	if ( itemvis_ctrlcfg ) {
+
+		CtrlCfgCursorDown();
+
+	} else if ( itemvis_optionsmenu ) {
 
 		OptionsListCursorDown();
 
@@ -1648,7 +1747,11 @@ void FloatingMenuKeyCursorDown()
 PRIVATE
 void FloatingMenuKeyCursorLeft()
 {
-	if ( itemvis_viewer ) {
+	if ( itemvis_ctrlcfg ) {
+
+		CtrlCfgLeft();
+
+	} else if ( itemvis_viewer ) {
 
 		SpacecraftViewerKeyCursorLeft();
 	}
@@ -1660,7 +1763,11 @@ void FloatingMenuKeyCursorLeft()
 PRIVATE
 void FloatingMenuKeyCursorRight()
 {
-	if ( itemvis_viewer ) {
+	if ( itemvis_ctrlcfg ) {
+
+		CtrlCfgRight();
+
+	} else if ( itemvis_viewer ) {
 
 		SpacecraftViewerKeyCursorRight();
 	}
@@ -1719,7 +1826,15 @@ void FloatingMenuMouseGetState()
 		return;
 
 	// check if mouse is over any clickable area
-	if ( itemvis_optionsmenu ) {
+	if ( itemvis_ctrlcfg ) {
+		// Direct click handling for ctrl cfg (diagram hotspots + list rows)
+		if ( ( cur_mouse_button_state != old_mouse_button_state ) &&
+			 ( cur_mouse_button_state == MOUSE_BUTTON_PRESSED ) ) {
+			CtrlCfgMouseClick( cur_mouse_x, cur_mouse_y );
+		}
+		if ( MouseOverCtrlCfg( cur_mouse_x, cur_mouse_y ) >= 0 )
+			mouse_position_state = MOUSE_OVER_OPTION;
+	} else if ( itemvis_optionsmenu ) {
 		mouse_position_state = MouseOverOption( cur_mouse_x, cur_mouse_y );
 	} else if ( itemvis_viewer ) {
 		mouse_position_state = MouseOverViewerItem( cur_mouse_x, cur_mouse_y );
@@ -1910,36 +2025,35 @@ int FloatingMenuKeyPressedCursorRight()
 	return ( keypressed || FloatingMenuMousePressedCursorRight() );
 }
 
+// JoyState.Y/X are SDL raw axis (-32767..32767) divided by JOY_Y_DIV (1024),
+// giving a range of roughly -32..+32.  Require at least 62% deflection (~20)
+// so minor stick drift or resting offsets don't trigger menu navigation.
+// The deadzone (default ±3000 raw) handles most drift before it reaches here;
+// this threshold is the second line of defence for larger resting offsets.
+#define JOY_MENU_THRESHOLD  20
+
 INLINE
 int FloatingMenuJoyUp()
 {
-	if(JoyState.Y < 0)
-		return 1;
-	return 0;
+	return ( JoyState.Y < -JOY_MENU_THRESHOLD ) ? 1 : 0;
 }
 
 INLINE
 int FloatingMenuJoyDown()
 {
-	if(JoyState.Y > 0)
-		return 1;
-	return 0;
+	return ( JoyState.Y > JOY_MENU_THRESHOLD ) ? 1 : 0;
 }
 
 INLINE
 int FloatingMenuJoyLeft()
 {
-	if(JoyState.X < 0)
-		return 1;
-	return 0;
+	return ( JoyState.X < -JOY_MENU_THRESHOLD ) ? 1 : 0;
 }
 
 INLINE
 int FloatingMenuJoyRight()
 {
-	if(JoyState.X > 0)
-		return 1;
-	return 0;
+	return ( JoyState.X > JOY_MENU_THRESHOLD ) ? 1 : 0;
 }
 
 INLINE
@@ -2036,6 +2150,24 @@ void FloatingMenuKeyHandler()
 
 	// allow mouse for keyboard simulation
 	FloatingMenuMouseBegin();
+
+	// poll for key/button capture while ctrl cfg remap is active
+	if ( itemvis_ctrlcfg ) {
+		CtrlCfgPollInput();
+		// While waiting for a key/button, suppress all standard navigation.
+		// Still handle ExitGameLoop here so an ESC press cancels the remap
+		// rather than leaking into the game loop and closing the application.
+		if ( CtrlCfgWaitingForInput() ) {
+			if ( ExitGameLoop && ExitGameLoop != 3 ) {
+				ExitGameLoop = 0;
+				CtrlCfgClearBinding(); // cancel the remap wait
+			}
+			FloatingMenuMouseEnd();
+			return;
+		}
+		// R / Del / Shift+Enter — not part of the standard navigation set
+		CtrlCfgHandleSpecialKeys();
+	}
 
 	if ( ExitGameLoop && ExitGameLoop != 3 ) {
 

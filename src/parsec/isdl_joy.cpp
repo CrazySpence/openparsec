@@ -126,63 +126,60 @@ int					isdl_AxisRudder;
 int					isdl_nJoystickFound;	// number of joysticks found
 
 // Joystick deadzones, in terms of SDL joystick range (-32768..32768)
-static int          isdl_joyDeadZone_Min[4] = { -5, -5, -5, -5 };
-static int          isdl_joyDeadZone_Max[4] = {  5,  5,  5,  5 };
+// Default ±3000 covers typical analog-stick resting drift without cutting into
+// legitimate input (full range is ±32767; 3000 ≈ 9%).
+static int          isdl_joyDeadZone_Min[4] = { -3000, -3000, -3000, -3000 };
+static int          isdl_joyDeadZone_Max[4] = {  3000,  3000,  3000,  3000 };
+
+// forward declaration — defined after the binding table below
+static void ISDL_ApplySDLDefaults();
 
 
 // initialize joystick device -------------------------------------------------
 //
 void ISDL_JoyInitHandler()
 {
-	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+	SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK);
 	isdl_nJoystickFound = SDL_NumJoysticks();
     MSGOUT("isdl_joy: Found %d joysticks.\n", isdl_nJoystickFound);
     if(isdl_nJoystickFound > 0)
 	{
-		//TODO: Implement support for more than one stick when we have more flexible input layer stuff
-		MSGOUT("isdl_joy: ... but we don't care, because Parsec only has one JoyState\n");
-		isdl_joyHandle = SDL_JoystickOpen(0);
-		isdl_NumAxes = SDL_JoystickNumAxes(isdl_joyHandle);
-		isdl_NumButtons = SDL_JoystickNumButtons(isdl_joyHandle);
-		isdl_NumButtons = isdl_NumButtons > 32 ? 32 : isdl_NumButtons;
-		MSGOUT("isdl_joy: Joystick%d has %d axes and %d buttons\n", 0, isdl_NumAxes, isdl_NumButtons);
-		QueryJoystick = TRUE;
-		JoystickDisabled = FALSE;
-		if(!SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt")) MSGOUT("FAILED TO LOAD CONTROLLER DATABASE"); //Load game controller mapping database
-		else {
+		// Try loading game controller database (optional — fall back to sequential if absent)
+		if(!SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt"))
+			MSGOUT("FAILED TO LOAD CONTROLLER DATABASE — will use sequential fallback");
+		else
 			MSGOUT("LOADED CONTROLLER DATABASE");
-			isdl_controllerHandle = SDL_GameControllerOpen(0); //Open Game controller object
-			isdl_controllerGUID = SDL_JoystickGetDeviceGUID(0);
-			MSGOUT("Device mapping in system: %s", SDL_GameControllerMapping(isdl_controllerHandle)); //Log mapping for debugging
-			if(SDL_GameControllerMapping(isdl_controllerHandle)) { //If a mapping exists proceed to map controller
-				SDL_GameControllerAddMapping(SDL_GameControllerMappingForGUID(isdl_controllerGUID));
-				//Default mappings for fire, missle, accel, decel, next gun, next missle and dpad based on controller mapping
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_A))
-				    isdl_FireGun     = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_A).value.button; //A for shoot
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_B))
-				    isdl_FireMissile = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_B).value.button; //B for missile
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_X))
-				    isdl_Accelerate  = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_X).value.button; //X for accelerate
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_Y))
-				    isdl_Deccelerate = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_Y).value.button; //Y for Deccelerate
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_LEFTSHOULDER))
-				    isdl_NextGun     = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_LEFTSHOULDER).value.button; //Select gun
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))
-				    isdl_NextMissile = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER).value.button; //Select Missile
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_BACK))
-					isdl_Target = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_BACK).value.button; //Target somethng
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_START))
-					isdl_Emp = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_START).value.button; //Activate EMP
-			/*	if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_UP))
-				    isdl_Dup         = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_UP).value.button;
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_DOWN))
-			        isdl_Ddown       = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_DOWN).value.button;
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_LEFT))
-			        isdl_Dleft       = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_LEFT).value.button;
-				if(SDL_GameControllerHasButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
-			        isdl_Dright      = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_DPAD_RIGHT).value.button;
-			 */
+
+		// If the device at index 0 is a recognised game controller, open it as one
+		// and borrow its underlying joystick pointer so both handles are guaranteed
+		// to refer to the same physical device (avoids axis/button index mismatches
+		// that occur when SDL_INIT_GAMECONTROLLER inserts virtual joystick entries).
+		if ( SDL_IsGameController(0) ) {
+			isdl_controllerHandle = SDL_GameControllerOpen(0);
+			if ( isdl_controllerHandle ) {
+				isdl_joyHandle = SDL_GameControllerGetJoystick( isdl_controllerHandle );
+				MSGOUT("isdl_joy: Opened as GameController. Mapping: %s\n",
+				       SDL_GameControllerMapping(isdl_controllerHandle));
 			}
+		}
+
+		// Fall back to raw Joystick if GameController open failed or not applicable
+		if ( !isdl_joyHandle ) {
+			isdl_joyHandle = SDL_JoystickOpen(0);
+		}
+
+		if ( !isdl_joyHandle ) {
+			MSGOUT("isdl_joy: Failed to open joystick 0.\n");
+		} else {
+			isdl_controllerGUID = SDL_JoystickGetGUID( isdl_joyHandle );
+			isdl_NumAxes        = SDL_JoystickNumAxes(   isdl_joyHandle );
+			isdl_NumButtons     = SDL_JoystickNumButtons( isdl_joyHandle );
+			isdl_NumButtons     = isdl_NumButtons > 32 ? 32 : isdl_NumButtons;
+			MSGOUT("isdl_joy: Joystick0 has %d axes and %d buttons\n", isdl_NumAxes, isdl_NumButtons);
+			QueryJoystick    = TRUE;
+			JoystickDisabled = FALSE;
+			// Apply button defaults — GameController mapping if available, sequential otherwise
+			ISDL_ApplySDLDefaults();
 		}
 	}
 }
@@ -192,8 +189,16 @@ void ISDL_JoyInitHandler()
 //
 void ISDL_JoyKillHandler()
 {
-	SDL_GameControllerClose(isdl_controllerHandle);
-	SDL_JoystickClose(isdl_joyHandle);
+	if ( isdl_controllerHandle ) {
+		// isdl_joyHandle is owned by the controller — closing the controller
+		// also releases the underlying joystick; don't call SDL_JoystickClose.
+		SDL_GameControllerClose( isdl_controllerHandle );
+		isdl_controllerHandle = NULL;
+		isdl_joyHandle        = NULL;
+	} else if ( isdl_joyHandle ) {
+		SDL_JoystickClose( isdl_joyHandle );
+		isdl_joyHandle = NULL;
+	}
 	return;
 	/*
 	for (int i = 0; i < isdl_nJoystickFound; i++)
@@ -314,7 +319,7 @@ void ISDL_JoyCollect()
 		}
 		
 	}
-	// Read buttons
+	// Read real buttons
 	keyaddition_s *kap = KeyAdditional->table;
 	ASSERT( KeyAdditional->size >= 0 );
 	ASSERT( KeyAdditional->size <= KEY_ADDITIONS_MAX );
@@ -324,9 +329,9 @@ void ISDL_JoyCollect()
 			MSGOUT("Joy button %d pressed",button);
 			gcDebug = SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_X);
 			MSGOUT("Game Controller bind %d",SDL_GameControllerGetBindForButton(isdl_controllerHandle,SDL_CONTROLLER_BUTTON_X).value.button);
-		    
+
 		}
-		
+
 #ifdef JOY_AKC_SUPPORT
         if ( _OldJoyState.Buttons[button] != JoyState.Buttons[button]) {
             for (int aid = 1; aid < KeyAdditional->size; aid++) {
@@ -337,6 +342,17 @@ void ISDL_JoyCollect()
         }
 #endif // JOY_AKC_SUPPORT
 	}
+
+	// Synthesize virtual axis-buttons at slots JOYBTN_AXIS_OFFSET..JOYBTN_AXIS_OFFSET+7
+	// This allows analog triggers (L2/R2) and other axes to be used as buttons.
+	{
+		int numAxesToSynth = (int)isdl_NumAxes < 8 ? (int)isdl_NumAxes : 8;
+		for ( int ax = 0; ax < numAxesToSynth; ax++ ) {
+			Sint16 axval = SDL_JoystickGetAxis( isdl_joyHandle, ax );
+			JoyState.Buttons[ JOYBTN_AXIS_OFFSET + ax ] = ( axval > JOY_TRIGGER_THRESHOLD ) ? 1 : 0;
+		}
+	}
+
 /*
 	// Fake AKC_ keys for joystick buttons that fit in it
 
@@ -360,6 +376,211 @@ void ISDL_JoyCollect()
 	// Confused yet? Me too...
 }
     
+// public binding table -------------------------------------------------------
+// Maps display name → variable pointer for use by the controls config UI.
+//
+static joybinding_s joy_binding_table[] = {
+	{ "Fire Gun",      &isdl_FireGun,      SDL_CONTROLLER_BUTTON_A,            false },
+	{ "Fire Missile",  &isdl_FireMissile,  SDL_CONTROLLER_BUTTON_B,            false },
+	{ "Accelerate",    &isdl_Accelerate,   SDL_CONTROLLER_BUTTON_X,            false },
+	{ "Decelerate",    &isdl_Deccelerate,  SDL_CONTROLLER_BUTTON_Y,            false },
+	{ "Next Gun",      &isdl_NextGun,      SDL_CONTROLLER_BUTTON_LEFTSHOULDER, false },
+	{ "Next Missile",  &isdl_NextMissile,  SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,false },
+	{ "Target",        &isdl_Target,       SDL_CONTROLLER_BUTTON_BACK,         false },
+	{ "EMP",           &isdl_Emp,          SDL_CONTROLLER_BUTTON_START,        false },
+	{ "Roll Left",     &isdl_Rollleft,     -1,                                 false },
+	{ "Roll Right",    &isdl_RollRight,    -1,                                 false },
+	{ "Afterburner",   &isdl_Aburn,        -1,                                 false },
+	{ "Strafe Left",   &isdl_StraffeLeft,  -1,                                 false },
+	{ "Strafe Right",  &isdl_StraffeRight, -1,                                 false },
+	{ "Strafe Up",     &isdl_StraffeUp,    -1,                                 false },
+	{ "Strafe Down",   &isdl_StraffeDown,  -1,                                 false },
+	{ "Full Stop",     &isdl_Stop,         -1,                                 false },
+	{ "Target Front",  &isdl_TargetFront,  -1,                                 false },
+	{ "Exit/Menu",     &isdl_Exit,         -1,                                 false },
+	{ "Axis: Pitch",   &isdl_AxisX,         0,                                 true  },
+	{ "Axis: Roll",    &isdl_AxisY,         1,                                 true  },
+	{ "Axis: Throttle",&isdl_AxisThrottle,  2,                                 true  },
+	{ "Axis: Rudder",  &isdl_AxisRudder,    3,                                 true  },
+};
+
+#define NUM_JOY_BINDINGS  CALC_NUM_ARRAY_ENTRIES( joy_binding_table )
+
+
+joybinding_s* ISDL_GetBindingTable()
+{
+	return joy_binding_table;
+}
+
+// Returns non-zero if a joystick handle is open, regardless of QueryJoystick.
+int ISDL_JoyAvailable()
+{
+	return ( isdl_joyHandle != NULL ) ? 1 : 0;
+}
+
+// Scans all buttons (real + virtual axis-buttons) directly via SDL.
+// Bypasses QueryJoystick and Op_Joystick so the remap UI always works.
+// Returns the index of the first pressed input, or -1 if none are pressed.
+// Virtual axis-button indices start at JOYBTN_AXIS_OFFSET (32).
+int ISDL_JoyScanButtons()
+{
+	if ( !isdl_joyHandle )
+		return -1;
+	SDL_JoystickUpdate();
+
+	// Scan real buttons first
+	int maxb = (int)isdl_NumButtons;
+	if ( maxb > 32 ) maxb = 32;
+	for ( int b = 0; b < maxb; b++ ) {
+		if ( SDL_JoystickGetButton( isdl_joyHandle, b ) )
+			return b;
+	}
+
+	// Scan virtual axis-buttons (analog triggers etc.)
+	int numAxesToSynth = (int)isdl_NumAxes < 8 ? (int)isdl_NumAxes : 8;
+	for ( int ax = 0; ax < numAxesToSynth; ax++ ) {
+		Sint16 axval = SDL_JoystickGetAxis( isdl_joyHandle, ax );
+		if ( axval > JOY_TRIGGER_THRESHOLD )
+			return JOYBTN_AXIS_OFFSET + ax;
+	}
+
+	return -1;
+}
+
+int ISDL_GetBindingCount()
+{
+	return (int) NUM_JOY_BINDINGS;
+}
+
+void ISDL_SetBinding( int index, int value )
+{
+	ASSERT( index >= 0 && index < (int)NUM_JOY_BINDINGS );
+	*joy_binding_table[ index ].var = value;
+}
+
+int ISDL_FindButtonOwner( int button )
+{
+	for ( int i = 0; i < (int)NUM_JOY_BINDINGS; i++ ) {
+		if ( !joy_binding_table[ i ].is_axis && *joy_binding_table[ i ].var == button )
+			return i;
+	}
+	return -1;
+}
+
+// apply SDL GameController default button mappings ---------------------------
+// If a GameController handle with a valid mapping is available, use it.
+// Otherwise fall back to sequential button indices so that any generic HID
+// gamepad is immediately usable out of the box.
+//
+PRIVATE
+void ISDL_ApplySDLDefaults()
+{
+	if ( isdl_controllerHandle && SDL_GameControllerMapping( isdl_controllerHandle ) ) {
+		// Use the SDL GameController abstraction
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_A ) )
+			isdl_FireGun     = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_A ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_B ) )
+			isdl_FireMissile = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_B ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_X ) )
+			isdl_Accelerate  = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_X ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_Y ) )
+			isdl_Deccelerate = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_Y ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_LEFTSHOULDER ) )
+			isdl_NextGun     = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_LEFTSHOULDER ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ) )
+			isdl_NextMissile = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_BACK ) )
+			isdl_Target      = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_BACK ).value.button;
+		if ( SDL_GameControllerHasButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_START ) )
+			isdl_Emp         = SDL_GameControllerGetBindForButton( isdl_controllerHandle, SDL_CONTROLLER_BUTTON_START ).value.button;
+		MSGOUT("isdl_joy: Applied GameController default mappings.\n");
+	} else {
+		// Sequential fallback for generic / unrecognised HID controllers:
+		// btn 0=Fire Gun, 1=Fire Missile, 2=Accel, 3=Decel,
+		// 4=Next Gun,  5=Next Missile,  6=Target, 7=EMP
+		isdl_FireGun     = 0;
+		isdl_FireMissile = 1;
+		isdl_Accelerate  = 2;
+		isdl_Deccelerate = 3;
+		isdl_NextGun     = 4;
+		isdl_NextMissile = 5;
+		isdl_Target      = 6;
+		isdl_Emp         = 7;
+		MSGOUT("isdl_joy: Applied sequential fallback button mappings.\n");
+	}
+}
+
+void ISDL_ResetBindings()
+{
+	// Clear all button bindings first
+	for ( int i = 0; i < (int)NUM_JOY_BINDINGS; i++ ) {
+		if ( !joy_binding_table[ i ].is_axis )
+			*joy_binding_table[ i ].var = -1;
+	}
+	// Restore axis defaults
+	isdl_AxisX        = 0;
+	isdl_AxisY        = 1;
+	isdl_AxisThrottle = 2;
+	isdl_AxisRudder   = 3;
+	// Re-apply SDL GameController defaults if available
+	ISDL_ApplySDLDefaults();
+}
+
+
+// fill snap[] with current pressed state for all buttons + virtual axis-buttons
+// size must be >= 40 to capture all virtual slots; entries are 0 or 1.
+void ISDL_SnapshotButtons( byte* snap, int size )
+{
+	if ( !snap || size <= 0 ) return;
+	memset( snap, 0, (size_t)size );
+	if ( !isdl_joyHandle ) return;
+
+	SDL_JoystickUpdate();
+
+	// Real buttons
+	int maxb = (int)isdl_NumButtons < 32 ? (int)isdl_NumButtons : 32;
+	for ( int b = 0; b < maxb && b < size; b++ )
+		snap[ b ] = (byte)SDL_JoystickGetButton( isdl_joyHandle, b );
+
+	// Virtual axis-buttons
+	int numAxesToSynth = (int)isdl_NumAxes < 8 ? (int)isdl_NumAxes : 8;
+	for ( int ax = 0; ax < numAxesToSynth; ax++ ) {
+		int slot = JOYBTN_AXIS_OFFSET + ax;
+		if ( slot < size ) {
+			Sint16 axval = SDL_JoystickGetAxis( isdl_joyHandle, ax );
+			snap[ slot ] = ( axval > JOY_TRIGGER_THRESHOLD ) ? 1 : 0;
+		}
+	}
+}
+
+
+// per-axis deadzone accessors ------------------------------------------------
+//
+int ISDL_GetDeadzone( int axis )
+{
+	if ( axis < 0 || axis >= 4 ) return 0;
+	return isdl_joyDeadZone_Max[ axis ];
+}
+
+// Returns the raw (unfiltered) SDL axis value for axis N, or 0 if unavailable.
+// Used by the controls-config UI to show live readings next to the deadzone slider.
+int ISDL_GetRawAxis( int axis )
+{
+	if ( !isdl_joyHandle || axis < 0 || axis >= (int)isdl_NumAxes )
+		return 0;
+	return (int)SDL_JoystickGetAxis( isdl_joyHandle, axis );
+}
+
+void ISDL_SetDeadzone( int axis, int value )
+{
+	if ( axis < 0 || axis >= 4 ) return;
+	if ( value < 0 ) value = 0;
+	if ( value > 30000 ) value = 30000;  // cap at ~91% of SDL full range (±32767)
+	isdl_joyDeadZone_Min[ axis ] = -value;
+	isdl_joyDeadZone_Max[ axis ] =  value;
+}
+
+
 // registration table for joystick config flags -------------------------------
 //
 int_command_s il_joy_int_commands[] = {

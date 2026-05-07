@@ -48,6 +48,9 @@
 // local module header
 #include "isdl_supp.h"
 
+// mouse button binding vars
+#include "inp_glob.h"
+
 // proprietary headers
 #include "con_int.h"
 #include "inp_user.h"
@@ -110,7 +113,7 @@ int ISDL_ActivateGun()
 		mousestate_s mousestate;
 		int mouseavailable = INPs_MouseGetState( &mousestate );
 		if ( mouseavailable ) {
-			return ( mousestate.buttons[ MOUSE_BUTTON_LEFT ] == MOUSE_BUTTON_PRESSED );
+			return ( mousestate.buttons[ inp_mouse_gun_button ] == MOUSE_BUTTON_PRESSED );
 		}
 	}
 
@@ -159,7 +162,7 @@ int ISDL_ActivateMissile()
 		mousestate_s mousestate;
 		int mouseavailable = INPs_MouseGetState( &mousestate );
 		if ( mouseavailable ) {
-			return ( mousestate.buttons[ MOUSE_BUTTON_RIGHT ] == MOUSE_BUTTON_PRESSED );
+			return ( mousestate.buttons[ inp_mouse_missile_button ] == MOUSE_BUTTON_PRESSED );
 		}
 	}
 
@@ -383,6 +386,69 @@ void ISDLm_ProcessJoystickBinds() {
 		ExitGameLoop = 2;
 	}
 }
+// process mouse-button action bindings (target, next gun, etc.) --------------
+//
+PRIVATE
+void ISDLm_ProcessMouseButtonBinds()
+{
+	if ( !Op_Mouse ) return;
+
+	mousestate_s mousestate;
+	int mouseavailable = INPs_MouseGetState( &mousestate );
+	if ( !mouseavailable ) return;
+
+	static int target_mouse_cd      = 0;
+	static int nextgun_mouse_cd     = 0;
+	static int nextmissile_mouse_cd = 0;
+
+	// Cycle target
+	if ( inp_mouse_target_button >= 0 && inp_mouse_target_button < NUM_MOUSE_BUTTONS ) {
+		if ( mousestate.buttons[ inp_mouse_target_button ] == MOUSE_BUTTON_PRESSED ) {
+			if ( (time(NULL) - target_mouse_cd) >= UI_DELAY ) {
+				INP_UserCycleTargets();
+				target_mouse_cd = time(NULL);
+			}
+		}
+	}
+
+	// Cycle guns
+	if ( inp_mouse_nextgun_button >= 0 && inp_mouse_nextgun_button < NUM_MOUSE_BUTTONS ) {
+		if ( mousestate.buttons[ inp_mouse_nextgun_button ] == MOUSE_BUTTON_PRESSED ) {
+			if ( (time(NULL) - nextgun_mouse_cd) >= UI_DELAY ) {
+				INP_UserCycleGuns();
+				nextgun_mouse_cd = time(NULL);
+			}
+		}
+	}
+
+	// Cycle missiles
+	if ( inp_mouse_nextmissile_button >= 0 && inp_mouse_nextmissile_button < NUM_MOUSE_BUTTONS ) {
+		if ( mousestate.buttons[ inp_mouse_nextmissile_button ] == MOUSE_BUTTON_PRESSED ) {
+			if ( (time(NULL) - nextmissile_mouse_cd) >= UI_DELAY ) {
+				INP_UserCycleMissiles();
+				nextmissile_mouse_cd = time(NULL);
+			}
+		}
+	}
+
+	// Accelerate (held)
+	if ( inp_mouse_accel_button >= 0 && inp_mouse_accel_button < NUM_MOUSE_BUTTONS ) {
+		if ( mousestate.buttons[ inp_mouse_accel_button ] == MOUSE_BUTTON_PRESSED ) {
+			int c_speed = MyShip->SpeedIncPerRefFrame * CurScreenRefFrames;
+			INP_UserAcceleration( c_speed );
+		}
+	}
+
+	// Decelerate (held)
+	if ( inp_mouse_decel_button >= 0 && inp_mouse_decel_button < NUM_MOUSE_BUTTONS ) {
+		if ( mousestate.buttons[ inp_mouse_decel_button ] == MOUSE_BUTTON_PRESSED ) {
+			int c_speed = MyShip->SpeedDecPerRefFrame * CurScreenRefFrames;
+			INP_UserAcceleration( -c_speed );
+		}
+	}
+}
+
+
 #define MOUSE_EDGE_EPS  0.1f
 
 // process mouse input for spacecraft motion ----------------------------------
@@ -553,6 +619,7 @@ void ISDL_UserProcessAuxInput()
 	ISDLm_ProcessJoystickBinds();
 #endif
 	ISDLm_ProcessMotionMouse();
+	ISDLm_ProcessMouseButtonBinds();
 }
 
 

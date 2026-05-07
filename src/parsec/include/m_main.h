@@ -64,6 +64,8 @@ void	MoveOutFloatingMenu();
 void 	HideFloatingMenu();
 
 void	ExitOptionsMenu();
+void	EnterCtrlConfig();
+void	ExitCtrlConfig();
 
 // externally callable functions for automation -------------------------------
 //

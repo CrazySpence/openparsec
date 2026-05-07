@@ -26,6 +26,7 @@ enum {
 	APPLY_NET_OPT,
 	SOUND_OPT,
 	CTRL_OPT,
+	CONTROLS_OPT,       // "  configure controls...  " — opens ctrl config screen
 	INVERT_OPT,
 	SENSITIVITY_OPT,
 	CENTER_OPT,

@@ -34,9 +34,10 @@ extern const char *const	functional_keys[];
 
 // external functions
 
-char *	GetAKCDescription( int num );
-char *	GetMKCDescription( int num );
-char *	GetGameFuncDescription( int num );
+char *		GetAKCDescription( int num );
+char *		GetMKCDescription( int num );
+char *		GetGameFuncDescription( int num );
+const char *GetMKCNameForCode( dword code );
 
 int		CheckKeyMappingEcho( char *scan );
 int		CheckKeyMappingSilent( char *scan );

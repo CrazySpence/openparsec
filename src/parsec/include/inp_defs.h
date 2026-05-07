@@ -113,8 +113,14 @@ struct joystate_s {
     int32   Rz;						// z-axis rotation
     int32	Slider[ 2 ];			// extra axes positions
     int32	POV[ 4 ];				// POV directions
-    byte	Buttons[ 32 ];			// 32 buttons
+    byte	Buttons[ 40 ];			// 32 real + 8 virtual axis-buttons (slots 32-39)
 };
+
+
+// virtual axis-button constants (slots 32-39 in JoyState.Buttons[]) ----------
+//
+#define JOYBTN_AXIS_OFFSET    32    // Buttons[32+n] mirrors axis n threshold
+#define JOY_TRIGGER_THRESHOLD 8192  // ~25% of SDL axis range ±32767
 
 
 // button query masks ---------------------------------------------------------
@@ -172,6 +178,10 @@ enum {
 	MOUSE_BUTTON_LEFT,
 	MOUSE_BUTTON_MIDDLE,
 	MOUSE_BUTTON_RIGHT,
+	MOUSE_BUTTON_X1,          // extra button 1 (side button)
+	MOUSE_BUTTON_X2,          // extra button 2 (side button)
+	MOUSE_BUTTON_SCROLL_UP,   // virtual: scroll wheel up   (set for one tick per scroll notch)
+	MOUSE_BUTTON_SCROLL_DOWN, // virtual: scroll wheel down
 
 	NUM_MOUSE_BUTTONS		// must be last!
 };
