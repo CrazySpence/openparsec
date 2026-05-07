@@ -254,6 +254,7 @@ OBJECTS := \
 	$(OBJDIR)/m_button.o \
 	$(OBJDIR)/m_list.o \
 	$(OBJDIR)/m_logo.o \
+	$(OBJDIR)/m_ctrlcfg.o \
 	$(OBJDIR)/m_main.o \
 	$(OBJDIR)/m_option.o \
 	$(OBJDIR)/m_status.o \
@@ -754,6 +755,9 @@ $(OBJDIR)/m_list.o: ../../../../src/parsec/m_list.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/m_logo.o: ../../../../src/parsec/m_logo.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/m_ctrlcfg.o: ../../../../src/parsec/m_ctrlcfg.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/m_main.o: ../../../../src/parsec/m_main.cpp
