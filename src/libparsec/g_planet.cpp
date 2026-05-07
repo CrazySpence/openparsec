@@ -121,7 +121,7 @@ proplist_s Planet_PropList[] = {
 
 	{ "rotspeed",		 OFS_ROTSPEED,	 		0,			0xffff,			  PROPTYPE_INT,	   NULL	},
 	{ "orbitspeed",		 OFS_ORBITSPEED,		0,			0xffff,			  PROPTYPE_INT,	   NULL	},
-	{ "orbitradius",	 OFS_ORBITRADIUS, 		0,			0x4000000,		  PROPTYPE_FLOAT,  NULL	},
+	{ "orbitradius",	 OFS_ORBITRADIUS, 		0,			0x7FFF0000,		  PROPTYPE_FLOAT,  NULL	},
 	{ "name",			 OFS_NAME,		 		0,			MAX_PLANET_NAME,  PROPTYPE_STRING, NULL	},
 	{ "hasring",		 OFS_HASRING, 	 		0x0,		0x1,		 	  PROPTYPE_INT,    NULL	},
 	{ "ringouterradius", OFS_RINGOUTERRADIUS, 	0x10000,	0x4000000,	 	  PROPTYPE_FLOAT,  NULL	},
