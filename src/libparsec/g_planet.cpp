@@ -523,9 +523,10 @@ int PlanetAnimate( CustomObject *base )
 		GetSinCos( planet->CurOrbitPos, &sc );
 		float eccFactor = 1.0f - ( planet->OrbitShape / 100.0f ) * 0.90f;
 		geomv_t semiminor = (geomv_t)( GEOMV_TO_FLOAT( planet->OrbitRadius ) * eccFactor );
+		// Orbit in the horizontal XZ plane (Y is up in Parsec's coordinate system)
 		planet->ObjPosition[ 0 ][ 3 ] = cx + GEOMV_MUL( sc.sinval, planet->OrbitRadius );
-		planet->ObjPosition[ 1 ][ 3 ] = cy + GEOMV_MUL( sc.cosval, semiminor );
-		planet->ObjPosition[ 2 ][ 3 ] = cz;
+		planet->ObjPosition[ 1 ][ 3 ] = cy;
+		planet->ObjPosition[ 2 ][ 3 ] = cz + GEOMV_MUL( sc.cosval, semiminor );
 	}
 #endif // PARSEC_SERVER
 
