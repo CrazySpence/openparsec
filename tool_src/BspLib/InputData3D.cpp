@@ -10,6 +10,7 @@
 #include "AodInput.h"
 #include "BspInput.h"
 #include "VrmlFile.h"
+#include "ObjFile.h"
 //ADD_FORMAT:
 
 
@@ -41,6 +42,12 @@ InputData3D::InputData3D( BspObjectList objectlist, const char *filename, int fo
 		case _3DX_FORMAT_1_0:
 			//m_data = new ThreeDXInput( objectlist, filename );
 			//TODO: add 3dx support
+			break;
+
+		case OBJ_FORMAT_1_0:
+			// Use m_filename rather than the raw filename parameter: ReadFileSignature
+			// may have appended ".obj" to a bare name and stored the result in m_filename.
+			m_data = new ObjFile( objectlist, (char*)m_filename );
 			break;
 
 		//ADD_FORMAT:
@@ -78,6 +85,39 @@ int InputData3D::ParseObjectData()
 //
 int InputData3D::ReadFileSignature()
 {
+	// OBJ detection: check extension before opening the file (OBJ has no magic).
+	// If the filename has no recognised extension but fname+".obj" exists on
+	// disk, update m_filename so that subsequent open calls use the .obj path.
+	{
+		const char *fname = (char*)m_filename;
+		size_t len = strlen( fname );
+		bool hasObjExt = ( len > 4 ) && ( stricmp( fname + len - 4, ".obj" ) == 0 );
+		if ( hasObjExt ) {
+			// Already has .obj extension — detected below after sig read.
+		} else {
+			// No .obj extension: probe whether fname+".obj" exists.
+			// Also probe whether the bare fname exists; if not, try .obj first
+			// so FileAccess doesn't abort on a missing file.
+			FILE *bare = fopen( fname, "r" );
+			if ( bare ) {
+				fclose( bare );
+				// Bare file exists — let signature matching decide format below.
+			} else {
+				// Bare file not found; try appending .obj
+				char tryname[ 4096 ];
+				snprintf( tryname, sizeof( tryname ) - 1, "%s.obj", fname );
+				tryname[ sizeof( tryname ) - 1 ] = '\0';
+				FILE *probe = fopen( tryname, "r" );
+				if ( probe ) {
+					fclose( probe );
+					m_filename = String( tryname );
+					return OBJ_FORMAT_1_0;
+				}
+				// Neither exists — fall through and let FileAccess report the error.
+			}
+		}
+	}
+
 	FileAccess sig( m_filename, "r" );
 	sig.ReadLine( line, TEXTLINE_MAX, CHECK_ERRORS );
 
@@ -92,6 +132,14 @@ int InputData3D::ReadFileSignature()
 	else if ( strncmp( line, _3DX_SIGNATURE_1_0, strlen( _3DX_SIGNATURE_1_0 ) ) == 0 )
 		filetype = _3DX_FORMAT_1_0;
 	//ADD_FORMAT:
+
+	// OBJ has no fixed magic — detect by .obj / .OBJ file extension
+	if ( filetype == UNKNOWN_FORMAT ) {
+		const char *fname = (char*)m_filename;
+		size_t len = strlen( fname );
+		if ( len > 4 && stricmp( fname + len - 4, ".obj" ) == 0 )
+			filetype = OBJ_FORMAT_1_0;
+	}
 
 	return filetype;
 }

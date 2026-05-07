@@ -17,25 +17,21 @@
 
 #define VERTEX_SCALE_FAC ( 1.0 / 20.0 )
 
-// default to defining.
-#ifndef BIG_ENDIAN
-//#define BIG_ENDIAN
-#endif
-
-#ifdef BIG_ENDIAN
-
-#define SWAP_16(s)         ( ((word)(s) >> 8) | ((word)(s) << 8) )
-#define SWAP_32(l)         ( ( ((dword)(l) ) << 24 ) | \
-                             ( ((dword)(l) ) >> 24 ) | \
-                             ( ((dword)(l) & 0x0000ff00) << 8 )  | \
-                             ( ((dword)(l) & 0x00ff0000) >> 8 ) )
-
+// Use compiler-provided byte-order macros to detect true host endianness.
+// NOTE: Do NOT use the POSIX BIG_ENDIAN/LITTLE_ENDIAN constants — on macOS
+// those are numeric values (4321 / 1234) defined even on little-endian hosts,
+// so #ifdef BIG_ENDIAN is always true on macOS regardless of architecture.
+// The OD2 files must be written in host byte order so the engine (which uses
+// SWAP_32 = identity on little-endian) can read them without swapping.
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  // True big-endian host (e.g. PowerPC): write big-endian, no swap needed.
+  #define SWAP_16(s)   ( s )
+  #define SWAP_32(l)   ( l )
 #else
-
-#define SWAP_16(s)         ( s )
-#define SWAP_32(l)         ( l )
-
-#endif // BIG_ENDIAN
+  // Little-endian host (x86, ARM, etc.): write little-endian, no swap needed.
+  #define SWAP_16(s)   ( s )
+  #define SWAP_32(l)   ( l )
+#endif
 
 
 void OD2_Geomv_out( float *value )
@@ -416,7 +412,11 @@ void ObjectBinFormat::OD2_CalcAffineMapping( Face& face, dword *dmatrx )
 	// invert uv1
 	Transform2 uv1i;
 	if ( !uv1.Inverse( uv1i ) ) {
-		ErrorMessage( "ObjectBinFormat::OD2_CalcAffineMapping(): Collinear mapping coordinates encountered!" );
+		// UV triangle is degenerate (collinear UV coordinates).
+		// This should be caught upstream by ObjFile's triplet search, but handle
+		// it here too as a safety net: leave the matrix as zeroes and return.
+		// The engine will use an identity-like mapping for this face.
+		return;
 	}
 
 	// calculate affine mapping
@@ -440,7 +440,13 @@ void ObjectBinFormat::OD2_CalcAffineMapping( Face& face, dword *dmatrx )
 }
 
 
-// create object recognizeable by engine (ODT format) -------------------------
+// create object recognizeable by engine (OD2 format) -------------------------
+//
+// NOTE: All three on-disk structs (OD2_Root32, OD2_Poly32, OD2_Face32) use
+// 32-bit dword fields for every pointer/offset.  The native OD2_Root/OD2_Poly/
+// OD2_Face structs contain real C pointers which are 8 bytes on 64-bit hosts,
+// making their sizeof() values larger than what the loader expects.  We always
+// write the "32" variants so the file format is host-independent.
 //
 byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 {
@@ -456,7 +462,6 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 	int numallvtxs	= numvertices + numnormals;
 	int numpolygons	= BSPTreeAvailable() ? getBspPolygons() : getNumPolygons();
 	int numfaces	= getNumFaces();
-	int numbspnodes	= getBspPolygons();
 
 	// count number of vertices of all polygons
 	int numvertexindices = 0;
@@ -465,38 +470,50 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 	else
 		numvertexindices = polylist.FetchHead()->SumVertexNumsEntireList();
 
-	// calculate size of entire object structure
-	size_t objectmemsize = sizeof( OD2_Root ) +										// generic object header
-						sizeof( ODT_Vertex3 ) * numallvtxs +						// object space vertices
-						sizeof( ODT_Poly ) * numpolygons +							// polygon control data
-						sizeof( dword ) * numvertexindices +						// polygon vertindx lists
-						sizeof( OD2_Face ) * numfaces;								// face control data
+	// Calculate size using the fixed-width 32-bit on-disk structs
+	size_t objectmemsize = sizeof( OD2_Root32 ) +					// generic object header
+						sizeof( OD2_Vertex3 ) * numallvtxs +		// object space vertices
+						sizeof( OD2_Poly32 )  * numpolygons +		// polygon control data
+						sizeof( dword )       * numvertexindices +	// polygon vertindx lists
+						sizeof( OD2_Face32 )  * numfaces;			// face control data
 
 	// allocate memory for all object data (only excluding texturemaps)
-	OD2_Root *binobj = (OD2_Root *) new char[ objectmemsize ];
+	OD2_Root32 *binobj = (OD2_Root32 *) new char[ objectmemsize ];
 	memset( binobj, 0x00, objectmemsize );
 
-	// fill in objectheader
+	// Pre-compute byte offsets of each data section (relative to binobj start)
+	dword vtxOffset      = (dword) sizeof( OD2_Root32 );
+	dword polyOffset     = vtxOffset      + (dword)( sizeof( OD2_Vertex3 ) * numallvtxs );
+	dword vertIndxOffset = polyOffset     + (dword)( sizeof( OD2_Poly32 )  * numpolygons );
+	dword faceOffset     = vertIndxOffset + (dword)( sizeof( dword ) * numvertexindices );
+
+	// fill in objectheader (using OD2_Root32 field names — all pointer fields are dword)
 	strcpy( binobj->odt2, "ODT2\0" );
-	binobj->major			= 1;
-	binobj->minor			= 0;
-	binobj->rootflags		= 0x0000;
-	binobj->rootflags2		= 0x0000;
-	binobj->NodeList		= NULL;
-	binobj->Children[ 0 ]	= NULL;
-	binobj->Children[ 1 ]	= NULL;
-	binobj->InstanceSize	= SWAP_32( sizeof( OD2_Root ) );
-	binobj->NumVerts		= SWAP_32( numallvtxs );
+	binobj->major		= 1;
+	binobj->minor		= 0;
+	binobj->rootflags	= 0x0000;
+	binobj->rootflags2	= 0x0000;
+	binobj->pNodeList	= 0;
+	binobj->pChildren[ 0 ]	= 0;
+	binobj->pChildren[ 1 ]	= 0;
+	binobj->InstanceSize	= SWAP_32( sizeof( OD2_Root32 ) );
+	binobj->NumVerts	= SWAP_32( numallvtxs );
 	binobj->NumPolyVerts	= SWAP_32( numvertices );
-	binobj->NumNormals		= SWAP_32( numnormals );
-	binobj->VertexList		= (OD2_Vertex3 *) ( binobj + 1 );
-	binobj->NumPolys		= numpolygons;
-	binobj->PolyList		= (OD2_Poly *)
-		( (char *) binobj->VertexList + sizeof( OD2_Vertex3 ) * numallvtxs );
-	binobj->NumFaces		= numfaces;
-	binobj->FaceList		= (OD2_Face *)
-		( (char *) binobj->PolyList + sizeof( OD2_Poly ) * numpolygons + sizeof( dword ) * numvertexindices );
-	binobj->NumTextures		= 0; // must be set later on
+	binobj->NumNormals	= SWAP_32( numnormals );
+	// pVertexList / pPolyList / pFaceList hold block-relative byte offsets.
+	// They are NOT yet SWAP_32'd here — OD2_CreateFileObject will do that.
+	binobj->pVertexList	= vtxOffset;
+	binobj->NumPolys	= numpolygons;		// NOT yet SWAP_32 (used natively in CreateFileObject)
+	binobj->pPolyList	= polyOffset;
+	binobj->NumFaces	= numfaces;		// NOT yet SWAP_32
+	binobj->pFaceList	= faceOffset;
+	binobj->NumTextures	= 0;			// set later in OD2_CreateFileObject
+
+	// Working pointers into the allocated block
+	OD2_Vertex3 *vfillp = (OD2_Vertex3 *)( (char *)binobj + vtxOffset );
+	OD2_Poly32  *pfillp = (OD2_Poly32  *)( (char *)binobj + polyOffset );
+	char *vertbase      =                   (char *)binobj + vertIndxOffset;
+	OD2_Face32  *ffillp = (OD2_Face32  *)( (char *)binobj + faceOffset );
 
 	// calculate bounding sphere for object
 	double maxx = -100000; double minx = 100000;
@@ -523,7 +540,6 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 	OD2_Geomv_out( &binobj->BoundingSphere );
 
 	// fill vertex list -----------------------------------
-	OD2_Vertex3 *vfillp = binobj->VertexList;
 	// store face normals first
 	for ( i = 0; i < numnormals; i++, vfillp++ ) {
 		Vector3 normal( facelist[ i ].getPlaneNormal() );
@@ -544,32 +560,31 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 	    vfillp->X = DOUBLE_TO_OD2FLOAT(  vtxlist[ i ].getX() * VERTEX_SCALE_FAC );
 	    vfillp->Y = DOUBLE_TO_OD2FLOAT( -vtxlist[ i ].getY() * VERTEX_SCALE_FAC );
 	    vfillp->Z = DOUBLE_TO_OD2FLOAT( -vtxlist[ i ].getZ() * VERTEX_SCALE_FAC );
-		
+
 		OD2_Geomv_out( &vfillp->X );
 		OD2_Geomv_out( &vfillp->Y );
 		OD2_Geomv_out( &vfillp->Z );
- 
+
 		vfillp->Flags = SWAP_32( 0x00000000L );
 	}
 
-	// fill polygon array and vertex index arrays----------
-	OD2_Poly *pfillp = binobj->PolyList;
-	char *vertbase = (char *) pfillp + sizeof( OD2_Poly ) * numpolygons;
-	int  countofs  = 0;
+	// fill polygon array and vertex index arrays (using OD2_Poly32) ----------
+	int countofs = 0;
 	// scan entire polygon list
 	Polygon *polyscan = polylist.FetchHead();
 	for ( i = 0; i < polylist.getNumElements(); i++, polyscan = polyscan->getNext(), pfillp++ ) {
-		pfillp->NumVerts = polyscan->getNumVertices();
-		pfillp->FaceIndx = SWAP_32( polyscan->getFaceId() );
-		pfillp->VertIndxs = (dword *) ( vertbase + countofs );
+		pfillp->NumVerts  = polyscan->getNumVertices();
+		pfillp->FaceIndx  = SWAP_32( polyscan->getFaceId() );
+		// Store block-relative byte offset to this polygon's vertex index array.
+		// Not yet SWAP_32'd — OD2_CreateFileObject will do that.
+		pfillp->pVertIndxs = vertIndxOffset + (dword)countofs;
 		// fill in array of vertex indexes
-		polyscan->FillVertexIndexArray( pfillp->VertIndxs );
+		polyscan->FillVertexIndexArray( (dword *)( vertbase + countofs ) );
 
 		countofs += sizeof( dword ) * pfillp->NumVerts;
 
 		pfillp->NumVerts = SWAP_32( pfillp->NumVerts );
 	}
-
 
 	// correct vertex indexes to take face normals into account
 	dword *dfillp = (dword *) vertbase;
@@ -585,14 +600,17 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 	// the vertex index lists for all the polygons of the object follow
 	// contiguously after all the polygon structures.
 
-	// fill face list (defines surface properties) --------
-	OD2_Face *ffillp = binobj->FaceList;
+	// fill face list (defines surface properties) using OD2_Face32 ------------
 	for ( i = 0; i < numfaces; i++, ffillp++ ) {
-		ffillp->TexMap			= NULL;
-		ffillp->ColorRGB		= 0;
-		ffillp->ColorIndx		= 0;
+		// pTexMap: 0 = no texture.  If textured, we store a 1-based index into
+		// the TextureChunk as a placeholder; OD2_CreateFileObject replaces it
+		// with the SWAP_32'd block-relative offset to the texture name string.
+		// A raw 64-bit pointer cannot be stored in a 4-byte dword field.
+		ffillp->pTexMap		= 0;
+		ffillp->ColorRGB	= 0;
+		ffillp->ColorIndx	= 0;
 		ffillp->FaceNormalIndx	= SWAP_32( i );
-		ffillp->Shading 		= SWAP_32( facelist[ i ].getShadingType() & Face::base_mask );
+		ffillp->Shading 	= SWAP_32( facelist[ i ].getShadingType() & Face::base_mask );
 
 		// write color if any attached and valid
 		if ( facelist[ i ].getShadingType() & Face::color_mask ) {
@@ -609,11 +627,15 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 			}
 		}
 
-		// attach texture
+		// attach texture: find 0-based index in TextureChunk, store (index+1)
 		if ( facelist[ i ].getShadingType() & Face::texmap_mask ) {
 			const char *texname = facelist[ i ].getTextureName();
-			// simply store name and calc mapping
-			ffillp->TexMap = (char *) texname;
+			for ( int k = 0; k < texlist.getNumElements(); k++ ) {
+				if ( strcmp( texlist[ k ].getName(), texname ) == 0 ) {
+					ffillp->pTexMap = (dword)( k + 1 );	// 1-based placeholder
+					break;
+				}
+			}
 			OD2_CalcAffineMapping( facelist[ i ], (dword *) ffillp->TexXmatrx );
 		}
 	}
@@ -627,7 +649,8 @@ byte *ObjectBinFormat::OD2_CreateEngineObject( int& memblocksize )
 //
 byte *ObjectBinFormat::OD2_CreateFileObject( int& memblocksize, byte *engineobj )
 {
-	OD2_Root *binobj = (OD2_Root *) engineobj;
+	// engineobj was built by OD2_CreateEngineObject using OD2_Root32 layout
+	OD2_Root32 *binobj = (OD2_Root32 *) engineobj;
 	TextureChunk& texlist = getTextureList();
 
 	// create table of texture names
@@ -652,35 +675,42 @@ byte *ObjectBinFormat::OD2_CreateFileObject( int& memblocksize, byte *engineobj 
 	// store number of textures
 	binobj->NumTextures = SWAP_32( numtextures );
 
-	// correct texture pointers to point to texture names in block
-	OD2_Face *facescan = binobj->FaceList;
+	// Resolve texture placeholders in the face array.
+	// pTexMap contains a 1-based TextureChunk index set by OD2_CreateEngineObject.
+	// Replace each with the SWAP_32'd block-relative offset to the texture name.
+	// binobj->NumFaces and pFaceList are still in native (non-swapped) form here.
+	OD2_Face32 *facescan = (OD2_Face32 *)( (char *)binobj + binobj->pFaceList );
 	dword j = 0;
-	for (  j = 0; j < binobj->NumFaces; j++, facescan++ )
-		if ( facescan->TexMap != NULL )
-			for ( int k = 0; k < numtextures; k++ )
-				if ( strcmp( texnameaddxs[ k ], facescan->TexMap ) == 0 ) {
-//					delete facescan->TexMap;	// legacy
-					facescan->TexMap = (char *) SWAP_32( ( (ptrdiff_t) texnameaddxs[ k ] - (ptrdiff_t) texturenames + memblocksize ) );
-					break;
-				}
+	for ( j = 0; j < (dword)binobj->NumFaces; j++, facescan++ ) {
+		if ( facescan->pTexMap != 0 ) {
+			int k = (int)facescan->pTexMap - 1;		// back to 0-based index
+			if ( k >= 0 && k < numtextures ) {
+				dword strOffset = (dword)( (ptrdiff_t)texnameaddxs[ k ] -
+				                           (ptrdiff_t)texturenames ) +
+				                  (dword)memblocksize;
+				facescan->pTexMap = SWAP_32( strOffset );
+			} else {
+				facescan->pTexMap = 0;	// safety: clear invalid index
+			}
+		}
+	}
 
 	binobj->NumFaces = SWAP_32( binobj->NumFaces );
 
-	// make absolute pointers to vertex index lists header relative
-	OD2_Poly *polylist = binobj->PolyList;
-	for ( j = 0; j < binobj->NumPolys; j++, polylist++ ) {
-		polylist->VertIndxs = (dword *) SWAP_32( ( (ptrdiff_t) polylist->VertIndxs - (ptrdiff_t) binobj ) );
+	// SWAP_32 the block-relative vertex index offsets stored in each OD2_Poly32.
+	// binobj->NumPolys and pPolyList are still native here.
+	OD2_Poly32 *polylist = (OD2_Poly32 *)( (char *)binobj + binobj->pPolyList );
+	for ( j = 0; j < (dword)binobj->NumPolys; j++, polylist++ ) {
+		polylist->pVertIndxs = SWAP_32( polylist->pVertIndxs );
 	}
 
 	binobj->NumPolys = SWAP_32( binobj->NumPolys );
 
-	// correct absolute pointers in object header to header-relative pointers
-//	binobj->NodeList	 = (OD2_Node *)			SWAP_32( (ptrdiff_t) binobj->NodeList		- (ptrdiff_t) binobj );
-//	binobj->Children[0]	 = (OD2_Child *)		SWAP_32( (ptrdiff_t) binobj->Children[0]	- (ptrdiff_t) binobj );
-//	binobj->Children[1]	 = (OD2_Child *)		SWAP_32( (ptrdiff_t) binobj->Children[1]	- (ptrdiff_t) binobj );
-	binobj->VertexList	 = (OD2_Vertex3 *)		SWAP_32( (ptrdiff_t) binobj->VertexList		- (ptrdiff_t) binobj );
-	binobj->PolyList	 = (OD2_Poly *)			SWAP_32( (ptrdiff_t) binobj->PolyList		- (ptrdiff_t) binobj );
-	binobj->FaceList	 = (OD2_Face *)			SWAP_32( (ptrdiff_t) binobj->FaceList		- (ptrdiff_t) binobj );
+	// SWAP_32 the block-relative pointer fields in the header
+	// (pNodeList and pChildren are 0/NULL — SWAP_32(0)==0, no-op)
+	binobj->pVertexList = SWAP_32( binobj->pVertexList );
+	binobj->pPolyList   = SWAP_32( binobj->pPolyList );
+	binobj->pFaceList   = SWAP_32( binobj->pFaceList );
 
 	// create block
 	byte *block = new byte[ memblocksize + texnamesize ];

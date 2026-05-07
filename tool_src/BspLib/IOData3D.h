@@ -31,6 +31,7 @@ public:
 		VRML_FORMAT_1_0		= 0x0003,	// vrml v1.0
 		BSP_FORMAT_1_1		= 0x0004,	// bsp  v1.1
 		_3DX_FORMAT_1_0		= 0x0005,	// 3dx  v1.0
+		OBJ_FORMAT_1_0		= 0x0006,	// obj  v1.0 (Wavefront)
 		//ADD_FORMAT:
 	};
 
@@ -61,6 +62,7 @@ protected:
 	static const char VRML_SIGNATURE_1_0[];
 	static const char  BSP_SIGNATURE_1_1[];
 	static const char _3DX_SIGNATURE_1_0[];
+	static const char  OBJ_SIGNATURE_1_0[];
 	//ADD_FORMAT:
 
 	// storage for a single line of text

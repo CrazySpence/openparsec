@@ -19,6 +19,7 @@ IOData3D.cpp\
 InputData3D.cpp\
 LineSeg.cpp\
 Mapping.cpp\
+ObjFile.cpp\
 ObjectAodFormat.cpp\
 ObjectBSPNode.cpp\
 ObjectBinFormat.cpp\
@@ -39,7 +40,7 @@ VertexChunk.cpp\
 VrmlFile.cpp
 
 
-CFLAGS = -g -O2 -I../QvLib -I. -fno-for-scope\
+CFLAGS = -g -O2 -I../QvLib -I. -fpermissive\
          -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
 
 # use this for JPEG support

@@ -408,8 +408,11 @@ int ReadDataFile( char *fullfname, char *fname )
 //		CheckRenderingMenuItems( GetMenu( hwndMain ) );
 //	}
 
-	// set current object file name
-	strcpy( current_object_file, fname );
+	// set current object file name; use the resolved filename from InputData3D
+	// in case ReadFileSignature auto-appended ".obj" to a bare name
+	strcpy( current_object_file,
+	        world->getInput() ? (char*)world->getInput()->getFileName()
+	                          : fname );
 
 	return TRUE;
 }

@@ -92,6 +92,7 @@ class BspObject : public BspObjectInfo, public virtual SystemIO {
 	friend class Polygon;
 
 	friend class VrmlFile;
+	friend class ObjFile;
 
 public:
 	BspObject();

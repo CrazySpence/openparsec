@@ -70,7 +70,7 @@ QvWWWAnchor.cpp\
 QvWWWInline.cpp
 
 
-CFLAGS = -g -O2 -I. -I../BspLib -fno-for-scope\
+CFLAGS = -g -O2 -I. -I../BspLib -fpermissive\
          -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
 
 all: libqv.a
