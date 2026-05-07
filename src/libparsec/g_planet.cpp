@@ -128,7 +128,7 @@ proplist_s Planet_PropList[] = {
 	{ "ringinnerradius", OFS_RINGINNERRADIUS, 	0x10000,	0x4000000,	 	  PROPTYPE_FLOAT,  NULL	},
 	{ "ringtexname",	 OFS_RINGTEXNAME, 		0,			MAX_RING_TEXNAME, PROPTYPE_STRING, NULL	},
 	{ "orbitshape",		 OFS_ORBITSHAPE,		0,			100,			  PROPTYPE_INT,    NULL	},
-	{ "orbitparentid",	 OFS_ORBITPARENTID,		0,			0xffffffff,		  PROPTYPE_INT,    NULL	},
+	{ "orbitparentid",	 OFS_ORBITPARENTID,		0,			0x7fffffff,		  PROPTYPE_INT,    NULL	},
 
 	{ NULL,				0,					0,			0,				  0,			   NULL	},
 };
