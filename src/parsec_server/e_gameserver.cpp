@@ -1081,6 +1081,7 @@ key_value_s sv_planet_key_value[] = {
 	{ "ringouter",	NULL,	KEYVALFLAG_NONE				},
 	{ "ringtiltx",	NULL,	KEYVALFLAG_NONE				},
 	{ "ringtiltz",	NULL,	KEYVALFLAG_NONE				},
+	{ "hostid",		NULL,	KEYVALFLAG_NONE				},
 
 	{ NULL,			NULL,	KEYVALFLAG_NONE				},
 };
@@ -1096,7 +1097,8 @@ enum {
 	KEY_PLANET_RINGINNER,
 	KEY_PLANET_RINGOUTER,
 	KEY_PLANET_RINGTILTX,
-	KEY_PLANET_RINGTILTZ
+	KEY_PLANET_RINGTILTZ,
+	KEY_PLANET_HOSTID
 };
 
 
@@ -1265,6 +1267,19 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 			planet->RingOuterRadius = FLOAT_TO_GEOMV( ringouter );
 		planet->RingTiltX = DEG_TO_BAMS( ringtiltx_deg );
 		planet->RingTiltZ = DEG_TO_BAMS( ringtiltz_deg );
+
+		// override HostObjNumber if hostid key was supplied
+		if ( sv_planet_key_value[ KEY_PLANET_HOSTID ].value != NULL ) {
+			int hostid_int = 0;
+			ScanKeyValueInt( &sv_planet_key_value[ KEY_PLANET_HOSTID ], &hostid_int );
+			if ( hostid_int > 0 )
+				planet->HostObjNumber = (dword)hostid_int;
+		}
+
+		// always print the assigned HostObjNumber so it can be used in orbitparentid
+		MSGOUT( "sv.planet created: ObjectNumber %u, HostObjNumber %u",
+			(unsigned int)planet->ObjectNumber,
+			(unsigned int)planet->HostObjNumber );
 	}
 
 	return TRUE;
