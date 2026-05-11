@@ -1321,6 +1321,194 @@ int Cmd_SV_PLANET( char* sv_planet_command )
 }
 
 
+// key table for "SV.ASTEROID" command ----------------------------------------
+//
+key_value_s sv_asteroid_key_value[] = {
+
+	{ "pos",			NULL,	KEYVALFLAG_PARENTHESIZE	},
+	{ "count",			NULL,	KEYVALFLAG_NONE			},
+	{ "density",		NULL,	KEYVALFLAG_NONE			},
+	{ "size",			NULL,	KEYVALFLAG_NONE			},
+	{ "tex",			NULL,	KEYVALFLAG_NONE			},
+	{ "rotspdx",		NULL,	KEYVALFLAG_NONE			},
+	{ "rotspdy",		NULL,	KEYVALFLAG_NONE			},
+	{ "rotspdz",		NULL,	KEYVALFLAG_NONE			},
+	{ "orbitspeed",		NULL,	KEYVALFLAG_NONE			},
+	{ "orbitradius",	NULL,	KEYVALFLAG_NONE			},
+	{ "orbitshape",		NULL,	KEYVALFLAG_NONE			},
+	{ "orbitparentid",	NULL,	KEYVALFLAG_NONE			},
+
+	{ NULL,				NULL,	KEYVALFLAG_NONE			},
+};
+
+enum {
+
+	KEY_ASTEROID_POS,
+	KEY_ASTEROID_COUNT,
+	KEY_ASTEROID_DENSITY,
+	KEY_ASTEROID_SIZE,
+	KEY_ASTEROID_TEX,
+	KEY_ASTEROID_ROTSPDX,
+	KEY_ASTEROID_ROTSPDY,
+	KEY_ASTEROID_ROTSPDZ,
+	KEY_ASTEROID_ORBITSPEED,
+	KEY_ASTEROID_ORBITRADIUS,
+	KEY_ASTEROID_ORBITSHAPE,
+	KEY_ASTEROID_ORBITPARENTID,
+};
+
+
+// console command for spawning an asteroid field ------------------------------
+//
+PRIVATE
+int Cmd_SV_ASTEROID( char* sv_asteroid_command )
+{
+	//NOTE:
+	//CONCOM:
+	// sv_asteroid_command ::= 'sv.asteroid' [<pos_spec>] [<count_spec>] [<density_spec>]
+	//                          [<size_spec>] [<tex_spec>] [<rotspd_specs>] [<orbit_specs>]
+	// pos_spec         ::= 'pos' '(' <float> <float> <float> ')'
+	// count_spec       ::= 'count' <int>       (number of asteroids; default 1)
+	// density_spec     ::= 'density' <float>   (scatter radius around pos; default 0=exact pos)
+	// size_spec        ::= 'size' <float>       (visual radius; 0 = use class default)
+	// tex_spec         ::= 'tex' <texname>
+	// rotspdx_spec     ::= 'rotspdx' <int>     (BAMS rotation speed around X axis)
+	// rotspdy_spec     ::= 'rotspdy' <int>      (BAMS rotation speed around Y axis)
+	// rotspdz_spec     ::= 'rotspdz' <int>      (BAMS rotation speed around Z axis)
+	// orbitspeed_spec  ::= 'orbitspeed' <int>
+	// orbitradius_spec ::= 'orbitradius' <float>
+	// orbitshape_spec  ::= 'orbitshape' <int>  (0=circle, 100=sharp ellipse)
+	// orbitparentid    ::= 'orbitparentid' <int>
+
+	ASSERT( sv_asteroid_command != NULL );
+	HANDLE_COMMAND_DOMAIN( sv_asteroid_command );
+
+	// scan out all values to keys
+	if ( !ScanKeyValuePairs( sv_asteroid_key_value, sv_asteroid_command ) )
+		return TRUE;
+
+	// parse centre position
+	Vector3 pos_spec;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_POS ].value != NULL ) {
+		if ( !ScanKeyValueFloatList( &sv_asteroid_key_value[ KEY_ASTEROID_POS ], (float*)&pos_spec.X, 3, 3 ) ) {
+			CON_AddLine( "position invalid" );
+			return TRUE;
+		}
+	} else {
+		pos_spec.X = 0.0f;
+		pos_spec.Y = 0.0f;
+		pos_spec.Z = 0.0f;
+		pos_spec.VisibleFrame = 0;
+	}
+
+	// parse count (default 1)
+	int count = 1;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_COUNT ].value != NULL )
+		ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_COUNT ], &count );
+	if ( count < 1 ) count = 1;
+	if ( count > 500 ) count = 500;   // hard safety cap
+
+	// parse density (scatter radius; 0 = all at exact pos)
+	float density = 0.0f;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_DENSITY ].value != NULL )
+		ScanKeyValueFloat( &sv_asteroid_key_value[ KEY_ASTEROID_DENSITY ], &density );
+
+	// parse visual radius (0 = keep OD2 class default)
+	geomv_t size = GEOMV_0;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_SIZE ].value != NULL ) {
+		float size_f = 0.0f;
+		ScanKeyValueFloat( &sv_asteroid_key_value[ KEY_ASTEROID_SIZE ], &size_f );
+		size = FLOAT_TO_GEOMV( size_f );
+	}
+
+	// parse surface texture name
+	const char *surtexname = NULL;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_TEX ].value != NULL )
+		surtexname = sv_asteroid_key_value[ KEY_ASTEROID_TEX ].value;
+
+	// parse per-axis rotation speeds (optional; randomised if not given)
+	int rotspdx_given = 0, rotspdy_given = 0, rotspdz_given = 0;
+	bams_t rotspdx = 0, rotspdy = 0, rotspdz = 0;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ROTSPDX ].value != NULL ) {
+		int v = 0; ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_ROTSPDX ], &v );
+		rotspdx = (bams_t)v; rotspdx_given = 1;
+	}
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ROTSPDY ].value != NULL ) {
+		int v = 0; ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_ROTSPDY ], &v );
+		rotspdy = (bams_t)v; rotspdy_given = 1;
+	}
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ROTSPDZ ].value != NULL ) {
+		int v = 0; ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_ROTSPDZ ], &v );
+		rotspdz = (bams_t)v; rotspdz_given = 1;
+	}
+
+	// parse orbit params (applied to all asteroids in field)
+	bams_t  orbitspeed    = 0;
+	float   orbitradius_f = 0.0f;
+	int     orbitshape    = 0;
+	dword   orbitparentid = 0;
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ORBITSPEED ].value != NULL ) {
+		int v = 0; ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_ORBITSPEED ], &v );
+		orbitspeed = (bams_t)v;
+	}
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ORBITRADIUS ].value != NULL )
+		ScanKeyValueFloat( &sv_asteroid_key_value[ KEY_ASTEROID_ORBITRADIUS ], &orbitradius_f );
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ORBITSHAPE ].value != NULL ) {
+		ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_ORBITSHAPE ], &orbitshape );
+		if ( orbitshape < 0 ) orbitshape = 0;
+		if ( orbitshape > 100 ) orbitshape = 100;
+	}
+	if ( sv_asteroid_key_value[ KEY_ASTEROID_ORBITPARENTID ].value != NULL ) {
+		int v = 0; ScanKeyValueInt( &sv_asteroid_key_value[ KEY_ASTEROID_ORBITPARENTID ], &v );
+		orbitparentid = (dword)v;
+	}
+
+	// create the field
+	Asteroid *last_asteroid = NULL;
+	for ( int i = 0; i < count; i++ ) {
+
+		Vector3 apos = pos_spec;
+		if ( density > 0.0f ) {
+			// scatter within ±density around the centre
+			apos.X += ( (float)( RAND() % 2001 ) - 1000.0f ) * ( density / 1000.0f );
+			apos.Y += ( (float)( RAND() % 2001 ) - 1000.0f ) * ( density / 1000.0f );
+			apos.Z += ( (float)( RAND() % 2001 ) - 1000.0f ) * ( density / 1000.0f );
+		}
+
+		// unique noise seed per asteroid so each has a different shape
+		int noiseseed = (int)RAND();
+
+		Asteroid *asteroid = TheGame->CreateAsteroid( &apos, size, noiseseed, surtexname );
+		if ( asteroid == NULL )
+			break;
+
+		// apply rotation speeds (random small tumble if not specified)
+		asteroid->RotSpeedX = rotspdx_given ? rotspdx : (bams_t)( RAND() % 0x20 );
+		asteroid->RotSpeedY = rotspdy_given ? rotspdy : (bams_t)( RAND() % 0x20 );
+		asteroid->RotSpeedZ = rotspdz_given ? rotspdz : (bams_t)( RAND() % 0x20 );
+
+		// apply shared orbit params
+		asteroid->OrbitSpeed    = orbitspeed;
+		asteroid->OrbitRadius   = FLOAT_TO_GEOMV( orbitradius_f );
+		asteroid->OrbitShape    = orbitshape;
+		asteroid->OrbitParentId = orbitparentid;
+
+		last_asteroid = asteroid;
+	}
+
+	// update last-summoned id to the last created asteroid
+	if ( last_asteroid != NULL ) {
+		TheWorld->SetLastSummonedObjectID( last_asteroid->ObjectNumber );
+		MSGOUT( "sv.asteroid: created %d asteroid(s); last ObjectNumber %u, HostObjNumber %u",
+			count,
+			(unsigned int)last_asteroid->ObjectNumber,
+			(unsigned int)last_asteroid->HostObjNumber );
+	}
+
+	return TRUE;
+}
+
+
 REGISTER_MODULE( E_GAMESERVER )
 {
 	user_command_s regcom;
@@ -1351,6 +1539,13 @@ REGISTER_MODULE( E_GAMESERVER )
 	regcom.command	 = "sv.planet";
 	regcom.numparams = 0;
 	regcom.execute	 = Cmd_SV_PLANET;
+	regcom.statedump = NULL;
+	CON_RegisterUserCommand( &regcom );
+
+	// register "sv.asteroid" command
+	regcom.command	 = "sv.asteroid";
+	regcom.numparams = 0;
+	regcom.execute	 = Cmd_SV_ASTEROID;
 	regcom.statedump = NULL;
 	CON_RegisterUserCommand( &regcom );
 }

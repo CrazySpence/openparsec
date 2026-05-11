@@ -581,6 +581,31 @@ void NET_RmEvList_Swap( RE_Header* relist, int incoming )
 					}
 				}
 				break;
+				case RE_ASTEROID:
+				{
+					RE_Asteroid* re_ast = (RE_Asteroid*) relist;
+					re_ast->hostid        = NET_SWAP_32( re_ast->hostid );
+					re_ast->boundsphere   = NET_SWAP_32( re_ast->boundsphere );
+					re_ast->rotspdx       = NET_SWAP_32( re_ast->rotspdx );
+					re_ast->rotspdy       = NET_SWAP_32( re_ast->rotspdy );
+					re_ast->rotspdz       = NET_SWAP_32( re_ast->rotspdz );
+					re_ast->noiseseed     = NET_SWAP_32( re_ast->noiseseed );
+					re_ast->orbitspeed    = NET_SWAP_32( re_ast->orbitspeed );
+					re_ast->orbitradius   = NET_SWAP_32( re_ast->orbitradius );
+					re_ast->curorbitpos   = NET_SWAP_32( re_ast->curorbitpos );
+					re_ast->orbitparentid = NET_SWAP_32( re_ast->orbitparentid );
+					re_ast->orbitshape    = NET_SWAP_32( re_ast->orbitshape );
+					if ( incoming ) {
+						Geomv_in( (geomv_t*)&re_ast->pos[ 0 ] );
+						Geomv_in( (geomv_t*)&re_ast->pos[ 1 ] );
+						Geomv_in( (geomv_t*)&re_ast->pos[ 2 ] );
+					} else {
+						Geomv_out( (geomv_t*)&re_ast->pos[ 0 ] );
+						Geomv_out( (geomv_t*)&re_ast->pos[ 1 ] );
+						Geomv_out( (geomv_t*)&re_ast->pos[ 2 ] );
+					}
+				}
+				break;
 				case RE_HELIXPARTICLE:
 				{
 					RE_HelixParticle* re_hp = (RE_HelixParticle*) relist;

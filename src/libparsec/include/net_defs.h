@@ -663,7 +663,8 @@ enum re_events {
     RE_TELEPORTER,
     RE_GENERIC,
 	RE_PLANET,
-	RE_HELIXPARTICLE,   // 0x20 — client sends helix damage particle to server for collision
+	RE_ASTEROID,		// 0x20
+	RE_HELIXPARTICLE,   // 0x21 — client sends helix damage particle to server for collision
 	RE_NUMEVENTS
 };
 	
@@ -982,6 +983,26 @@ struct RE_Planet : RE_Header {
 	dword	orbitparentid;			// 4 — HostObjNumber of orbit centre (0 = world origin)
 	int		orbitshape;				// 4 — eccentricity: 0=circle, 100=sharp ellipse
 	// sizeof( RE_Planet ) = 174 + 20 = 194
+};
+
+
+// asteroid properties ---------------------------------------------------------
+//
+struct RE_Asteroid : RE_Header {
+	dword	hostid;					// 4 — unique object id (HostObjNumber)
+	float	pos[ 3 ];				// 12 — position
+	float	boundsphere;			// 4 — bounding sphere radius
+	bams_t	rotspdx;				// 4 — tumble speed around X axis
+	bams_t	rotspdy;				// 4 — tumble speed around Y axis
+	bams_t	rotspdz;				// 4 — tumble speed around Z axis
+	int		noiseseed;				// 4 — LCG seed for jagged shape generation
+	char	surtexname[ 64 ];		// 64 — surface texture name (MAX_ASTEROID_SURF_TEXNAME+1)
+	bams_t	orbitspeed;				// 4 — orbit angular speed
+	float	orbitradius;			// 4 — orbit semi-major radius
+	bams_t	curorbitpos;			// 4 — current orbit angle
+	dword	orbitparentid;			// 4 — HostObjNumber of orbit centre (0 = world origin)
+	int		orbitshape;				// 4 — eccentricity: 0=circle, 100=sharp ellipse
+	// sizeof( RE_Asteroid ) = 2 + 4+12+4+4+4+4+4+64+4+4+4+4+4 = 126 bytes
 };
 
 

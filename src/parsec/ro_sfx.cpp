@@ -62,6 +62,7 @@
 #include "con_aux.h"
 #include "e_color.h"
 #include "e_level.h"
+#include "g_asteroid.h"
 #include "g_camera.h"
 #include "obj_clas.h"
 #include "ro_api.h"
@@ -812,22 +813,6 @@ void RO_PlanetGenerateSphere( PlanetObject *planet )
 	// calc viewpoint in object space
 	CalcObjSpaceCamera( planet, &sphere_oscam );
 
-	// Debug: throttled diagnostic for planet rendering
-	{
-		static dword dbg_frame = 0;
-		if ( CurVisibleFrame - dbg_frame >= 120 ) {
-			dbg_frame = CurVisibleFrame;
-			MSGOUT( "Planet diag: BndSph=%.1f oscam=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f)",
-				GEOMV_TO_FLOAT( planet->BoundingSphere ),
-				GEOMV_TO_FLOAT( sphere_oscam.X ),
-				GEOMV_TO_FLOAT( sphere_oscam.Y ),
-				GEOMV_TO_FLOAT( sphere_oscam.Z ),
-				GEOMV_TO_FLOAT( planet->ObjPosition[0][3] ),
-				GEOMV_TO_FLOAT( planet->ObjPosition[1][3] ),
-				GEOMV_TO_FLOAT( planet->ObjPosition[2][3] ) );
-		}
-	}
-
 	// store icosahedron triangles
 	int dstindx = 0;
 	int dsttri  = 0;
@@ -1101,20 +1086,6 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 
 	FREEMEM( seam_dup );
 
-	// Debug: warn when all triangles are backfaced (planet invisible)
-	if ( dstvindx == 0 ) {
-		static dword dbg_zero_frame = 0;
-		if ( CurVisibleFrame - dbg_zero_frame >= 120 ) {
-			dbg_zero_frame = CurVisibleFrame;
-			MSGOUT( "Planet INVISIBLE: all %d triangles backfaced. oscam=(%.1f,%.1f,%.1f) BndSph=%.1f",
-				sphere_numtris,
-				GEOMV_TO_FLOAT( sphere_oscam.X ),
-				GEOMV_TO_FLOAT( sphere_oscam.Y ),
-				GEOMV_TO_FLOAT( sphere_oscam.Z ),
-				GEOMV_TO_FLOAT( planet->BoundingSphere ) );
-		}
-	}
-
 	// update NumVerts to include seam duplicates
 	itarray->NumVerts = numseamverts;
 
@@ -1151,6 +1122,142 @@ void R_DrawPlanet( PlanetObject *planet )
 	planet->NumVerts = 0;
 	planet->NumPolys = 0;
 	planet->NumFaces = 0;
+}
+
+
+// LCG noise seed for asteroid vertex perturbation ----------------------------
+//
+static int asteroid_noise_lcg = 0;
+
+PRIVATE
+float AsteroidNoiseSample()
+{
+	// Numerical Recipes LCG: produces repeatable pseudo-random floats
+	asteroid_noise_lcg = asteroid_noise_lcg * 1103515245 + 12345;
+	// Map to [1 - 0.256, 1 + 0.256] → ±25.6% displacement off sphere surface
+	return 1.0f + ( (float)( ( asteroid_noise_lcg >> 16 ) & 0x1FF ) - 256.0f ) * 0.001f;
+}
+
+
+// generate the asteroid sphere mesh (noise-perturbed icosahedron subdivision)
+// identical to RO_PlanetGenerateSphere except vertices are randomly displaced
+// from the sphere surface during the pull-to-unit-sphere normalisation step.
+//
+PRIVATE
+void RO_AsteroidGenerateSphere( Asteroid *asteroid )
+{
+	ASSERT( asteroid != NULL );
+
+	sphere_scale = GEOMV_TO_FLOAT( asteroid->BoundingSphere );
+
+	if ( sphere_vertices == NULL ) {
+		sphere_vertices   = (Point3h_f *) ALLOCMEM( 3 * MAX_NUM_ENTS * sizeof( Point3h_f ) );
+		sphere_faceplanes = (Plane3 *) &sphere_vertices[ MAX_NUM_ENTS ];
+		sphere_vtxnormals = &sphere_vertices[ MAX_NUM_ENTS * 2 ];
+	}
+	if ( sphere_indexes == NULL ) {
+		sphere_indexes     = (int *) ALLOCMEM( ( MAX_NUM_ENTS + MAX_NUM_ENTS * 3 ) * sizeof( int ) );
+		sphere_triinactive = &sphere_indexes[ MAX_NUM_ENTS * 3 ];
+	}
+
+	// Seed the LCG from the per-instance noise seed so each asteroid
+	// has a unique but reproducible jagged silhouette.
+	asteroid_noise_lcg = asteroid->NoiseSeed;
+
+	// start off with icosahedron
+	sphere_numverts = 12;
+	sphere_numtris  = 20;
+
+	// store icosahedron vertices (apply noise to base 12 verts too)
+	for ( int vid = 0; vid < sphere_numverts; vid++ ) {
+		float noise = AsteroidNoiseSample();
+		sphere_vertices[ vid ].X = icosahedron_vertices[ vid ].X * sphere_scale * noise;
+		sphere_vertices[ vid ].Y = icosahedron_vertices[ vid ].Y * sphere_scale * noise;
+		sphere_vertices[ vid ].Z = icosahedron_vertices[ vid ].Z * sphere_scale * noise;
+	}
+
+	// calculate object space to view space transformation
+	MtxMtxMUL( ViewCamera, asteroid->ObjPosition, asteroid->CurrentXmatrx );
+
+	// calc viewpoint in object space
+	CalcObjSpaceCamera( asteroid, &sphere_oscam );
+
+	// store icosahedron triangles
+	int dstindx = 0;
+	int dsttri  = 0;
+	int tri = 0;
+	for ( tri = 0; tri < sphere_numtris; tri++ ) {
+
+		sphere_indexes[ dstindx + 0 ] = icosahedron_indexes[ tri ][ 0 ];
+		sphere_indexes[ dstindx + 1 ] = icosahedron_indexes[ tri ][ 1 ];
+		sphere_indexes[ dstindx + 2 ] = icosahedron_indexes[ tri ][ 2 ];
+
+		sphere_triinactive[ dsttri ] = FALSE;
+
+		RO_PlanetCalcFacePlane( dsttri );
+
+		dstindx += 3;
+		dsttri++;
+	}
+	sphere_numtris = dsttri;
+
+	// Subdivide: at the pull-to-sphere step, apply per-vertex noise displacement
+	// so the icosahedron becomes a lumpy rock instead of a smooth sphere.
+	// The RO_PlanetSubdivideTriangle function pulls to the sphere using
+	// sphere_scale / sqrt(|v|^2) — we replicate that here and multiply by noise.
+	// Since subdivision calls back into RO_PlanetSubdivideTriangle which uses
+	// the vanilla (no-noise) pull, we use a different approach: seed noise before
+	// subdivision and post-process all new vertices after each subdivision level.
+	//
+	// Simpler approach: override the sphere_scale with a per-vertex value by
+	// letting subdivision do its thing, then walk all vertices and perturb radially.
+	// This runs once per frame but is identical in cost to the planet path.
+	int basenumtris = sphere_numtris;
+	for ( tri = 0; tri < basenumtris; tri++ ) {
+		RO_PlanetSubdivideTriangle( 0, tri );
+	}
+
+	// Post-subdivision radial noise: walk all NEW vertices (indices >= 12)
+	// and displace them radially so the sphere becomes jagged.
+	// Base icosahedron vertices were already perturbed above.
+	for ( int vid = 12; vid < sphere_numverts; vid++ ) {
+		float noise = AsteroidNoiseSample();
+		float len = sqrt(
+			sphere_vertices[ vid ].X * sphere_vertices[ vid ].X +
+			sphere_vertices[ vid ].Y * sphere_vertices[ vid ].Y +
+			sphere_vertices[ vid ].Z * sphere_vertices[ vid ].Z );
+		if ( len > 1e-6f ) {
+			float scale = ( sphere_scale * noise ) / len;
+			sphere_vertices[ vid ].X *= scale;
+			sphere_vertices[ vid ].Y *= scale;
+			sphere_vertices[ vid ].Z *= scale;
+		}
+	}
+
+	// Recompute face planes after noise perturbation (normals have moved)
+	for ( int t = 0; t < sphere_numtris; t++ ) {
+		RO_PlanetCalcFacePlane( t );
+		sphere_triinactive[ t ] = RO_PlanetFaceBackfacing( t );
+	}
+}
+
+
+// draw dynamically tessellated asteroid (noise-perturbed sphere) --------------
+//
+void R_DrawAsteroid( CustomObject *base )
+{
+	ASSERT( base != NULL );
+	Asteroid *asteroid = (Asteroid *) base;
+
+	RO_AsteroidGenerateSphere( asteroid );
+	// RO_PlanetDrawSphere only uses FaceList[0].TexMap and BoundingSphere,
+	// both of which are members of CustomObject — the reinterpret cast is safe.
+	RO_PlanetDrawSphere( reinterpret_cast<PlanetObject*>( asteroid ) );
+
+	// avoid standard geometry drawing
+	asteroid->NumVerts = 0;
+	asteroid->NumPolys = 0;
+	asteroid->NumFaces = 0;
 }
 
 

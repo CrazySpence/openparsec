@@ -4,6 +4,7 @@
 #ifndef _G_MAIN_H_
 #define _G_MAIN_H_
 
+#include "g_asteroid.h"
 #include "g_telep.h"
 #include "g_planet.h"
 
@@ -242,6 +243,10 @@ public:
 	// create a planet at a position; size=0 keeps class default; surtexname=NULL keeps default
 	Planet* CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring,
 						  geomv_t size = GEOMV_0, const char* surtexname = NULL );
+
+	// create an asteroid at a position; size=0 keeps class default; surtexname=NULL keeps default
+	Asteroid* CreateAsteroid( Vector3* pos_spec, geomv_t size = GEOMV_0,
+							  int noiseseed = 0, const char* surtexname = NULL );
 
 	//void ModTeleporter( Teleporter *teleporter);
 

@@ -41,6 +41,8 @@
 		DAB31AD12F8EF5C200C9E2B0 /* g_laser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31ACF2F8EF5C200C9E2B0 /* g_laser.cpp */; };
 		DAB31AD32F8EF5C200C9E2B0 /* g_planet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */; };
 		DAB31AD42F8EF5C200C9E2B0 /* g_planet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */; };
+		DAB31AE62F8EF5C200C9E2B0 /* g_asteroid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AE42F8EF5C200C9E2B0 /* g_asteroid.cpp */; };
+		DAB31AE72F8EF5C200C9E2B0 /* g_asteroid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DAB31AE42F8EF5C200C9E2B0 /* g_asteroid.cpp */; };
 		DAE465061C73F56F004D4351 /* libncurses.5.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DAE465051C73F56F004D4351 /* libncurses.5.4.dylib */; };
 		EC9C3F9D737748BD3690731E /* con_load.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E6D27CAD0AE6E367EFFA29A /* con_load.cpp */; };
 		F43289732422664441F444E8 /* g_wfx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 013F926FB2DD36193377C045 /* g_wfx.cpp */; };
@@ -375,6 +377,8 @@
 		DAB31ACF2F8EF5C200C9E2B0 /* g_laser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_laser.cpp; sourceTree = "<group>"; };
 		DAB31AD22F8EF5D100C9E2B0 /* g_laser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_laser.h; sourceTree = "<group>"; };
 		DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_planet.cpp; sourceTree = "<group>"; };
+		DAB31AE42F8EF5C200C9E2B0 /* g_asteroid.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = g_asteroid.cpp; sourceTree = "<group>"; };
+		DAB31AE52F8EF5C200C9E2B0 /* g_asteroid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = g_asteroid.h; sourceTree = "<group>"; };
 		DAE465051C73F56F004D4351 /* libncurses.5.4.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libncurses.5.4.dylib; path = ../../../../../../usr/lib/libncurses.5.4.dylib; sourceTree = "<group>"; };
 		FA0681F51B2A7987002EFDF3 /* stb_image_write.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image_write.h; sourceTree = "<group>"; };
 		FA0681F61B2A7987002EFDF3 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
@@ -1170,6 +1174,7 @@
 				DAB31AE02F8EF5C200C9E2B0 /* g_bot_common.cpp */,
 				FA17FD5116BB0C1D0003E370 /* g_emp.cpp */,
 				FAFEF883163BE1CF0056CECD /* g_extra.cpp */,
+				DAB31AE42F8EF5C200C9E2B0 /* g_asteroid.cpp */,
 				DAB31AD62F8EF5C200C9E2B0 /* g_planet.cpp */,
 				FA25B87818A1D1D700DC2E29 /* g_telep.cpp */,
 				FAFEF884163BE1CF0056CECD /* include */,
@@ -1525,6 +1530,7 @@
 				FAFEFA3F163BE1CF0056CECD /* g_global.h */,
 				FAFEFA40163BE1CF0056CECD /* g_laser.h */,
 				FAFEFA41163BE1CF0056CECD /* g_main_cl.h */,
+				DAB31AE52F8EF5C200C9E2B0 /* g_asteroid.h */,
 				FAFEFA42163BE1CF0056CECD /* g_planet.h */,
 				FAFEFA43163BE1CF0056CECD /* g_sfx.h */,
 				FAFEFA44163BE1CF0056CECD /* g_shkwav.h */,
@@ -1809,6 +1815,7 @@
 				DAB31AE22F8EF5C200C9E2B0 /* g_bot_common.cpp in Sources */,
 				FA17FD5316BB0C530003E370 /* g_emp.cpp in Sources */,
 				DAB31AD42F8EF5C200C9E2B0 /* g_planet.cpp in Sources */,
+				DAB31AE62F8EF5C200C9E2B0 /* g_asteroid.cpp in Sources */,
 				01BEE07E91EB14B134037CCC /* g_wfx.cpp in Sources */,
 				20A08DF2E4ACB16E979AEF57 /* g_stgate.cpp in Sources */,
 				910EFD4E17A3A4403231B7DE /* con_std.cpp in Sources */,
@@ -1905,6 +1912,7 @@
 				FAFEFD9D163BE1D00056CECD /* g_gameloop.cpp in Sources */,
 				FAFEFD9E163BE1D00056CECD /* g_global.cpp in Sources */,
 				DAB31AD32F8EF5C200C9E2B0 /* g_planet.cpp in Sources */,
+				DAB31AE72F8EF5C200C9E2B0 /* g_asteroid.cpp in Sources */,
 				FAFEFDA1163BE1D00056CECD /* g_sfx.cpp in Sources */,
 				FAFEFDA2163BE1D00056CECD /* g_shkwav.cpp in Sources */,
 				FAFEFDA3163BE1D00056CECD /* g_stars.cpp in Sources */,

@@ -551,6 +551,114 @@ def gen_ring_dust(seed: int = 12) -> list:
     return pixels
 
 
+def gen_asteroid_rock(seed: int = 20) -> list:
+    """Grey-brown stony asteroid — S/C-type rocky surface."""
+    void_c   = ( 20,  18,  15)
+    dark_c   = ( 45,  38,  30)
+    mid_c    = ( 90,  78,  65)
+    light_c  = (140, 125, 108)
+    pale_c   = (170, 155, 135)
+
+    pixels = []
+    for row in range(HEIGHT):
+        lat_norm = row / HEIGHT
+        for col in range(WIDTH):
+            u = col / WIDTH
+
+            # High-frequency base rock detail
+            base = fbm_tiled(u * 8, lat_norm * 8, octaves=7, seed=seed, base_tile_x=8)
+
+            # Dark turbulence patches — crater shadows and impact areas
+            turb = turbulence_tiled(u * 12, lat_norm * 12, octaves=6, seed=seed + 3,
+                                    base_tile_x=12)
+
+            # Low turb values → dark impact craters
+            crater_mask = max(0.0, 0.35 - turb) / 0.35
+
+            h = base * 0.7 + turb * 0.3
+
+            stops   = [0.0, 0.20, 0.45, 0.70, 0.88, 1.0]
+            colours = [void_c, dark_c, mid_c, light_c, pale_c, pale_c]
+            c = mix_colour(colours, stops, h)
+
+            # crater darkening
+            if crater_mask > 0.0:
+                c = lerp_colour(c, void_c, crater_mask * 0.7)
+
+            pixels.append(c)
+    return pixels
+
+
+def gen_asteroid_metal(seed: int = 21) -> list:
+    """Nickel-iron metallic M-type asteroid with rust streaks."""
+    dark_metal = ( 40,  42,  48)
+    steel      = (110, 115, 125)
+    silver     = (165, 170, 180)
+    rust       = (100,  55,  30)
+    highlight  = (200, 205, 215)
+
+    pixels = []
+    for row in range(HEIGHT):
+        lat_norm = row / HEIGHT
+        for col in range(WIDTH):
+            u = col / WIDTH
+
+            # Metallic base sheen
+            base = fbm_tiled(u * 6, lat_norm * 6, octaves=6, seed=seed, base_tile_x=6)
+
+            # Rust-streak veins
+            turb = turbulence_tiled(u * 10, lat_norm * 10, octaves=5, seed=seed + 2,
+                                    base_tile_x=10)
+
+            # Where turbulence is low → rust cracks
+            rust_mask = max(0.0, 0.30 - turb) / 0.30
+
+            stops   = [0.0, 0.25, 0.55, 0.78, 1.0]
+            colours = [dark_metal, steel, silver, highlight, silver]
+            c = mix_colour(colours, stops, base)
+
+            # blend rust into cracks
+            if rust_mask > 0.0:
+                c = lerp_colour(c, rust, rust_mask * 0.75)
+
+            pixels.append(c)
+    return pixels
+
+
+def gen_asteroid_carbon(seed: int = 22) -> list:
+    """Dark carbonaceous C-type — very low albedo (~5%)."""
+    black      = (  6,   5,   5)
+    charcoal   = ( 22,  20,  18)
+    dark_grey  = ( 50,  45,  40)
+    grey_patch = ( 80,  72,  65)
+    bright     = (100,  92,  85)
+
+    pixels = []
+    for row in range(HEIGHT):
+        lat_norm = row / HEIGHT
+        for col in range(WIDTH):
+            u = col / WIDTH
+
+            # Very dark base with subtle patches
+            base = fbm_tiled(u * 5, lat_norm * 5, octaves=7, seed=seed, base_tile_x=5)
+
+            # Faint streak patterns
+            turb = turbulence_tiled(u * 8, lat_norm * 8, octaves=5, seed=seed + 1,
+                                    base_tile_x=8)
+
+            h = base * 0.75 + turb * 0.25
+
+            # Scale down dramatically — C-types have ~3-9% albedo
+            h = h * 0.4
+
+            stops   = [0.0, 0.10, 0.22, 0.32, 0.40]
+            colours = [black, charcoal, dark_grey, grey_patch, bright]
+            c = mix_colour(colours, stops, h)
+
+            pixels.append(c)
+    return pixels
+
+
 def gen_ring_dense(seed: int = 13) -> list:
     """Thick opaque ring, deep orange — like a young protoplanetary disc."""
     bands = [
@@ -594,6 +702,10 @@ TEXTURES = [
     ("ring_ice.tga",     gen_ring_ice,    11, RWIDTH, RHEIGHT),
     ("ring_dust.tga",    gen_ring_dust,   12, RWIDTH, RHEIGHT),
     ("ring_dense.tga",   gen_ring_dense,  13, RWIDTH, RHEIGHT),
+    # asteroid surface textures — 512×256
+    ("asteroid_rock.tga",   gen_asteroid_rock,   20, WIDTH, HEIGHT),
+    ("asteroid_metal.tga",  gen_asteroid_metal,  21, WIDTH, HEIGHT),
+    ("asteroid_carbon.tga", gen_asteroid_carbon, 22, WIDTH, HEIGHT),
 ]
 
 
@@ -616,6 +728,7 @@ def main():
     print("\nPlanet surface:  sv.planet ... tex planet_terra")
     print("Planet with ring: sv.planet ... ring 1 ringtex ring_saturn ringinner 80 ringouter 300")
     print("(omit the .tga extension — the engine appends it)")
+    print("Asteroid field:  sv.asteroid pos (0 0 0) count 20 density 600 tex asteroid_rock")
 
 
 if __name__ == "__main__":

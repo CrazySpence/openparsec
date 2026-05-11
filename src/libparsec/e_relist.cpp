@@ -105,6 +105,7 @@ static size_t re_sizes[] = {
 	sizeof( RE_Teleporter),
 	sizeof( RE_Generic),
 	sizeof( RE_Planet),
+	sizeof( RE_Asteroid ),
 	sizeof( RE_HelixParticle ),
 
 };
@@ -144,6 +145,7 @@ static const char* re_names[] = { //Used by server
     "RE_TELEPORTER",
     "RE_GENERIC",
     "RE_PLANET",
+    "RE_ASTEROID",
     "RE_HELIXPARTICLE"
 	//FIXME: use NET_UTIL::PrInf_* functions and E_REList::Dump
 };

@@ -53,6 +53,7 @@
 #include "net_csdf.h"
 #include "obj_cust.h"
 #include "obj_ctrl.h"
+#include "g_asteroid.h"
 #include "g_planet.h"
 #include "g_stgate.h"
 #include "g_telep.h"
@@ -173,6 +174,26 @@ Planet* NET_FindPlanet( dword hostid )
 
 		if ( walkobjs->HostObjNumber == hostid ) {
 			return (Planet*) walkobjs;
+		}
+	}
+
+	return NULL;
+}
+
+
+// try to find an asteroid object by its host object number -------------------
+//
+Asteroid* NET_FindAsteroid( dword hostid )
+{
+	GenObject* walkobjs = FetchFirstCustom();
+	for ( ; walkobjs; walkobjs = walkobjs->NextObj ) {
+
+		if ( walkobjs->ObjectType != asteroid_type_id ) {
+			continue;
+		}
+
+		if ( walkobjs->HostObjNumber == hostid ) {
+			return (Asteroid*) walkobjs;
 		}
 	}
 

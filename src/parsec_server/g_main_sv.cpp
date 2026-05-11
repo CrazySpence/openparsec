@@ -73,6 +73,7 @@
 #include "sys_refframe_sv.h"
 #include "g_emp.h"
 #include "g_wfx.h"
+#include "g_asteroid.h"
 #include "g_planet.h"
 
 #include "e_simplayerinfo.h"
@@ -420,6 +421,49 @@ Planet* G_Main::CreatePlanet( Vector3* pos_spec, bams_t rotspeed, int hasring,
 		return NULL;
 	}
 }
+
+// create an asteroid at a position -------------------------------------------
+//
+Asteroid* G_Main::CreateAsteroid( Vector3* pos_spec, geomv_t size, int noiseseed,
+								   const char* surtexname )
+{
+	ASSERT( pos_spec != NULL );
+
+	dword objclass = OBJ_FetchObjectClassId( "asteroid" );
+	if ( objclass != CLASS_ID_INVALID ) {
+
+		Xmatrx startm;
+		MakeIdMatrx( startm );
+		startm[ 0 ][ 3 ] = pos_spec->X;
+		startm[ 1 ][ 3 ] = pos_spec->Y;
+		startm[ 2 ][ 3 ] = pos_spec->Z;
+
+		// create the object
+		Asteroid* asteroid = (Asteroid*)TheWorld->CreateObject( objclass, startm, PLAYERID_SERVER );
+
+		asteroid->NoiseSeed = noiseseed;
+
+		// override bounding sphere (visual radius) if requested
+		if ( size > GEOMV_0 )
+			asteroid->BoundingSphere = size;
+
+		// set surface texture name if provided
+		if ( surtexname != NULL && surtexname[ 0 ] != '\0' ) {
+			strncpy( asteroid->SurfTexName, surtexname, MAX_ASTEROID_SURF_TEXNAME );
+			asteroid->SurfTexName[ MAX_ASTEROID_SURF_TEXNAME ] = '\0';
+		}
+
+		// attach the created E_Distributable for the engine object
+		// asteroids are delivered reliably (same as planets)
+		asteroid->pDist = TheSimNetOutput->CreateDistributable( asteroid, TRUE );
+
+		return asteroid;
+	} else {
+		MSGOUT( "object class asteroid could not be found.\n" );
+		return NULL;
+	}
+}
+
 
 // init all game vars ---------------------------------------------------------
 //

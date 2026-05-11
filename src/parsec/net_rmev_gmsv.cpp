@@ -81,6 +81,7 @@
 //#include "g_emp.h"
 //#include "g_swarm.h"
 #include "e_supp.h"
+#include "g_asteroid.h"
 #include "g_planet.h"
 #include "g_stgate.h"
 #include "g_telep.h"
@@ -296,6 +297,9 @@ void NET_ProcessRmEvList_GMSV( NetPacket_GMSV* gamepacket )
 				break;
 			case RE_PLANET:
 				NET_ExecRmEvPlanet( (RE_Planet*) pREList );
+				break;
+			case RE_ASTEROID:
+				NET_ExecRmEvAsteroid( (RE_Asteroid*) pREList );
 				break;
 			default:
 				MSGOUT( "ProcessRmEvList_GMSV(): unknown remote event (%d).", pREList->RE_Type );
@@ -593,6 +597,71 @@ void NET_ExecRmEvPlanet( RE_Planet* pRE_Planet )
 	// NOTE: OrbitParent pointer is NOT resolved on the client — orbit translation
 	// runs server-side only; clients receive the authoritative pos[] each frame.
 }
+
+// execute RE containing an asteroid -------------------------------------------
+//
+void NET_ExecRmEvAsteroid( RE_Asteroid* pRE_Asteroid )
+{
+	ASSERT( pRE_Asteroid != NULL );
+	ASSERT( NetConnected );
+
+	// find existing asteroid by host object number
+	Asteroid* asteroid = NET_FindAsteroid( pRE_Asteroid->hostid );
+
+	if ( asteroid == NULL ) {
+
+		MSGOUT( "adding asteroid at (%g %g %g)",
+			pRE_Asteroid->pos[ 0 ],
+			pRE_Asteroid->pos[ 1 ],
+			pRE_Asteroid->pos[ 2 ] );
+
+		dword objclass = OBJ_FetchObjectClassId( "asteroid" );
+		if ( objclass != CLASS_ID_INVALID ) {
+
+			Xmatrx startm;
+			MakeIdMatrx( startm );
+			startm[ 0 ][ 3 ] = pRE_Asteroid->pos[ 0 ];
+			startm[ 1 ][ 3 ] = pRE_Asteroid->pos[ 1 ];
+			startm[ 2 ][ 3 ] = pRE_Asteroid->pos[ 2 ];
+
+			asteroid = (Asteroid *) SummonObject( objclass, startm );
+		} else {
+			MSGOUT( "object class asteroid not found." );
+			return;
+		}
+	}
+
+	// update asteroid properties from RE
+	asteroid->ObjPosition[ 0 ][ 3 ] = pRE_Asteroid->pos[ 0 ];
+	asteroid->ObjPosition[ 1 ][ 3 ] = pRE_Asteroid->pos[ 1 ];
+	asteroid->ObjPosition[ 2 ][ 3 ] = pRE_Asteroid->pos[ 2 ];
+	asteroid->BoundingSphere = FLOAT_TO_GEOMV( pRE_Asteroid->boundsphere );
+	asteroid->RotSpeedX      = pRE_Asteroid->rotspdx;
+	asteroid->RotSpeedY      = pRE_Asteroid->rotspdy;
+	asteroid->RotSpeedZ      = pRE_Asteroid->rotspdz;
+	asteroid->NoiseSeed      = pRE_Asteroid->noiseseed;
+
+	// apply surface texture if specified
+	strncpy( asteroid->SurfTexName, pRE_Asteroid->surtexname, MAX_ASTEROID_SURF_TEXNAME );
+	asteroid->SurfTexName[ MAX_ASTEROID_SURF_TEXNAME ] = '\0';
+	if ( asteroid->SurfTexName[ 0 ] != '\0' ) {
+		asteroid->SurfTexture = FetchTextureMap( asteroid->SurfTexName );
+		if ( asteroid->SurfTexture == NULL )
+			MSGOUT( "asteroid surface texture '%s' not found.", asteroid->SurfTexName );
+	}
+
+	// store host id
+	asteroid->HostObjNumber = pRE_Asteroid->hostid;
+
+	// sync orbit parameters (stored on client; orbit translation is server-only)
+	asteroid->OrbitSpeed    = pRE_Asteroid->orbitspeed;
+	asteroid->OrbitRadius   = FLOAT_TO_GEOMV( pRE_Asteroid->orbitradius );
+	asteroid->CurOrbitPos   = pRE_Asteroid->curorbitpos;
+	asteroid->OrbitParentId = pRE_Asteroid->orbitparentid;
+	asteroid->OrbitShape    = pRE_Asteroid->orbitshape;
+	// NOTE: OrbitParent pointer is NOT resolved on the client.
+}
+
 
 // exectue RE containing a stargate -------------------------------------------
 //
