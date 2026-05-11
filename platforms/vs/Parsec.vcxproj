@@ -113,6 +113,7 @@
     <ClCompile Include="..\..\src\parsec\g_gameloop.cpp" />
     <ClCompile Include="..\..\src\parsec\g_global.cpp" />
     <ClCompile Include="..\..\src\libparsec\g_laser.cpp" />
+    <ClCompile Include="..\..\src\libparsec\g_asteroid.cpp" />
     <ClCompile Include="..\..\src\libparsec\g_planet.cpp" />
     <ClCompile Include="..\..\src\parsec\g_sfx.cpp" />
     <ClCompile Include="..\..\src\parsec\g_shkwav.cpp" />
@@ -371,6 +372,8 @@
     <ClInclude Include="..\..\src\parsec\include\g_global.h" />
     <ClInclude Include="..\..\src\parsec\include\g_laser.h" />
     <ClInclude Include="..\..\src\parsec\include\g_main_cl.h" />
+    <ClInclude Include="..\..\src\libparsec\include\g_asteroid.h" />
+    <ClInclude Include="..\..\src\parsec\include\g_asteroid.h" />
     <ClInclude Include="..\..\src\libparsec\include\g_planet.h" />
     <ClInclude Include="..\..\src\parsec\include\g_sfx.h" />
     <ClInclude Include="..\..\src\parsec\include\g_shkwav.h" />

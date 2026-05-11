@@ -218,6 +218,7 @@ OBJECTS := \
 	$(OBJDIR)/g_explod.o \
 	$(OBJDIR)/g_gameloop.o \
 	$(OBJDIR)/g_global.o \
+	$(OBJDIR)/g_asteroid.o \
 	$(OBJDIR)/g_laser.o \
 	$(OBJDIR)/g_planet.o \
 	$(OBJDIR)/g_sfx.o \
@@ -650,6 +651,9 @@ $(OBJDIR)/g_global.o: ../../../../src/parsec/g_global.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_laser.o: ../../../../src/libparsec/g_laser.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/g_asteroid.o: ../../../../src/libparsec/g_asteroid.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/g_planet.o: ../../../../src/libparsec/g_planet.cpp
