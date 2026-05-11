@@ -628,7 +628,10 @@ int PlanetPersistToStream( CustomObject *base, int tostream, void *rl )
 		E_REList *pREList = (E_REList *)rl;
 
 		RE_Planet *re_planet = (RE_Planet *)pREList->NET_Allocate( RE_PLANET );
-		ASSERT( re_planet != NULL );
+		if ( re_planet == NULL ) {
+			MSGOUT( "PlanetPersistToStream: RE_PLANET allocation failed (buffer full)" );
+			return (int)size;
+		}
 
 		re_planet->hostid         = planet->HostObjNumber;
 		re_planet->pos[ 0 ]       = planet->ObjPosition[ 0 ][ 3 ];

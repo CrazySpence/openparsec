@@ -688,7 +688,7 @@ int E_SimClientNetOutput::_FillAndSend_Distributables( E_REList* pReliable, E_RE
 		E_Distributable* pDist = m_DistsForNextPacket[ nEntry ];
 		ASSERT( pDist->HasUpdate( m_nDestClientID ) );
 
-		if(curr_dist_size + pDist->DetermineSizeInPacket() > NET_MAX_DATA_LENGTH){
+		if(curr_dist_size + (int)pDist->DetermineSizeInPacket() > (int)RE_LIST_MAXAVAIL){
 			// by adding this distributable, we would over flow the packet size.  Send the current packet and reset
 			ThePacketHandler->Send_STREAM( m_nDestClientID, m_pReliableBuffer, m_pUnreliableBuffer );
 			m_pReliableBuffer->Clear();

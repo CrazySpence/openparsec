@@ -289,7 +289,10 @@ int AsteroidPersistToStream( CustomObject *base, int tostream, void *rl )
 		E_REList *pREList = (E_REList *)rl;
 
 		RE_Asteroid *re_ast = (RE_Asteroid *)pREList->NET_Allocate( RE_ASTEROID );
-		ASSERT( re_ast != NULL );
+		if ( re_ast == NULL ) {
+			MSGOUT( "AsteroidPersistToStream: RE_ASTEROID allocation failed (buffer full)" );
+			return (int)size;
+		}
 
 		re_ast->hostid       = asteroid->HostObjNumber;
 		re_ast->pos[ 0 ]     = asteroid->ObjPosition[ 0 ][ 3 ];
