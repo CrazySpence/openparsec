@@ -1076,11 +1076,20 @@ void G_Main::_WalkCustomObjects()
 	ASSERT( TheWorld->m_CustmObjects != NULL );
 
 	// Frame counter for periodic orbit position re-sync.
-	// Every 60 server ticks (~1 second at 60 Hz) we re-broadcast orbiting
-	// planets/asteroids so that clients' locally-advanced CurOrbitPos is
-	// snapped back to the server's authoritative value, preventing drift.
+	// Normal interval: 60 ticks (~1 second at 60 Hz).
+	// Fast interval: 10 ticks while any client has a join burst in progress,
+	// so newly connecting or respawning clients get a fresh position snap
+	// before their stale join-burst curorbitpos has time to drift visibly.
 	static int s_orbitSyncCounter = 0;
-	bool doOrbitSync = ( ++s_orbitSyncCounter >= 60 );
+	bool anyJoinBurstPending = false;
+	for ( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
+		if ( TheSimNetOutput->IsJoinBurstPending( nClientID ) ) {
+			anyJoinBurstPending = true;
+			break;
+		}
+	}
+	int orbitSyncInterval = anyJoinBurstPending ? 10 : 60;
+	bool doOrbitSync = ( ++s_orbitSyncCounter >= orbitSyncInterval );
 	if ( doOrbitSync ) s_orbitSyncCounter = 0;
 
 	CustomObject *precnode  = TheWorld->m_CustmObjects;
