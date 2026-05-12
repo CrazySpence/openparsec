@@ -754,6 +754,87 @@ void G_CollDet::_CollisionResponse_PlanetShip( Planet *curplanet )
 }
 
 
+// asteroid collision detection -----------------------------------------------
+// Uses each asteroid's BoundingSphere (= the base sphere_scale used to generate
+// the visual mesh).  With ±25% noise on the mesh some lobes extend beyond the
+// collision sphere and some dips fall inside it — gives a tight, natural fit.
+//
+void G_CollDet::_CheckShipAsteroidCollision()
+{
+	ASSERT( TheWorld->m_CustmObjects != NULL );
+
+	CustomObject *precnode = TheWorld->m_CustmObjects;
+	CustomObject *walkobjs = (CustomObject *)TheWorld->m_CustmObjects->NextObj;
+
+	while ( walkobjs != NULL ) {
+		if ( walkobjs->ObjectType == asteroid_type_id ) {
+
+			Asteroid *tmpasteroid = (Asteroid *)walkobjs;
+
+			for ( cur_ship = TheWorld->FetchFirstShip(); cur_ship != NULL; ) {
+
+				ShipObject *nextship = (ShipObject *) cur_ship->NextObj;
+
+				geomv_t dx = cur_ship->ObjPosition[ 0 ][ 3 ] - tmpasteroid->ObjPosition[ 0 ][ 3 ];
+				geomv_t dy = cur_ship->ObjPosition[ 1 ][ 3 ] - tmpasteroid->ObjPosition[ 1 ][ 3 ];
+				geomv_t dz = cur_ship->ObjPosition[ 2 ][ 3 ] - tmpasteroid->ObjPosition[ 2 ][ 3 ];
+
+				Vector3 dvec;
+				dvec.X = dx;
+				dvec.Y = dy;
+				dvec.Z = dz;
+
+				geomv_t dist2   = DOT_PRODUCT( &dvec, &dvec );
+				geomv_t minDist = tmpasteroid->BoundingSphere + cur_ship->BoundingSphere;
+				geomv_t minDist2 = GEOMV_MUL( minDist, minDist );
+
+				if ( dist2 < minDist2 ) {
+					_CollisionResponse_AsteroidShip( tmpasteroid );
+				}
+
+				cur_ship = nextship;
+			}
+		}
+
+		precnode = walkobjs;
+		walkobjs = (CustomObject *)walkobjs->NextObj;
+	}
+}
+
+
+// ship collided with Asteroid ------------------------------------------------
+//
+void G_CollDet::_CollisionResponse_AsteroidShip( Asteroid *curasteroid )
+{
+	ASSERT( curasteroid != NULL );
+	ASSERT( cur_ship != NULL );
+
+	// asteroid collision is lethal — same as flying into a planet
+	cur_ship->CurDamage = cur_ship->MaxDamage + 1;
+
+	int nClientID_Downed = GetOwnerFromHostOjbNumber( cur_ship->HostObjNumber );
+
+	TheGameExtraManager->OBJ_CreateShipExtras( cur_ship );
+
+	E_SimPlayerInfo *pSimPlayerInfo = TheSimulator->GetSimPlayerInfo( nClientID_Downed );
+
+	TheGame->RecordDeath( nClientID_Downed, nClientID_Downed, KILL_WEAPON_UNKNOWN );
+
+	RE_PlayerStatus ps;
+	memset( &ps, 0, sizeof( RE_PlayerStatus ) );
+	ps.player_status = PLAYER_CONNECTED;
+	ps.senderid      = nClientID_Downed;
+	ps.params[ 0 ]   = SHIP_DOWNED;
+	pSimPlayerInfo->PerformUnjoin( &ps );
+
+	pSimPlayerInfo->IgnoreJoinUntilUnjoinFromClient();
+
+	TheSimulator->GetSimClientState( nClientID_Downed )->SetClientResync();
+
+	MSGOUT( "%s flew into an asteroid", TheConnManager->GetClientName( nClientID_Downed ) );
+}
+
+
 // emp collision detection ----------------------------------------------------
 //
 void G_CollDet::_CheckShipEmpCollision()
@@ -1699,5 +1780,8 @@ void G_CollDet::OBJ_CheckCollisions()
 
 	// check for Planet Collisions
 	_CheckShipPlanetCollision();
+
+	// check for Asteroid Collisions
+	_CheckShipAsteroidCollision();
 }
 

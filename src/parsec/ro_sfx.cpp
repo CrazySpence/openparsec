@@ -1134,14 +1134,108 @@ float AsteroidNoiseSample()
 {
 	// Numerical Recipes LCG: produces repeatable pseudo-random floats
 	asteroid_noise_lcg = asteroid_noise_lcg * 1103515245 + 12345;
-	// Map to [1 - 0.256, 1 + 0.256] → ±25.6% displacement off sphere surface
-	return 1.0f + ( (float)( ( asteroid_noise_lcg >> 16 ) & 0x1FF ) - 256.0f ) * 0.001f;
+	// Map to ±25% — applied only to the 12 coarse icosahedron verts so each
+	// displaced vertex creates one broad lobe rather than thousands of tiny spikes
+	return 1.0f + ( (float)( ( asteroid_noise_lcg >> 16 ) & 0x1FF ) - 256.0f ) * 0.000977f;
 }
 
 
-// generate the asteroid sphere mesh (noise-perturbed icosahedron subdivision)
-// identical to RO_PlanetGenerateSphere except vertices are randomly displaced
-// from the sphere surface during the pull-to-unit-sphere normalisation step.
+// subdivision levels for asteroid (fewer than planet — coarser faces look rockier)
+#define MAX_ASTEROID_SUBDIV 3
+
+// Linear subdivision for asteroid mesh — identical to RO_PlanetSubdivideTriangle
+// EXCEPT new midpoint vertices are placed at the geometric edge midpoint with NO
+// pull-to-sphere normalisation.  This preserves the large-scale shape deformation
+// applied to the 12 base icosahedron vertices through each subdivision level,
+// producing broad rounded lobes instead of a smooth sphere.
+//
+PRIVATE
+void RO_AsteroidSubdivideLinear( int level, int tri )
+{
+	ASSERT( tri < sphere_numtris );
+
+	if ( level == MAX_ASTEROID_SUBDIV ) {
+		return;
+	}
+
+	int baseindx = tri * 3;
+
+	int bvid0 = sphere_indexes[ baseindx + 0 ];
+	int bvid1 = sphere_indexes[ baseindx + 1 ];
+	int bvid2 = sphere_indexes[ baseindx + 2 ];
+
+	int nvid0 = sphere_numverts;
+	int nvid1 = nvid0 + 1;
+	int nvid2 = nvid1 + 1;
+
+	sphere_numverts += 3;
+	ASSERT( sphere_numverts <= MAX_NUM_ENTS );
+
+	// midpoints — linear average, no normalisation to sphere surface
+	sphere_vertices[ nvid0 ].X = ( sphere_vertices[ bvid0 ].X + sphere_vertices[ bvid1 ].X ) * 0.5f;
+	sphere_vertices[ nvid0 ].Y = ( sphere_vertices[ bvid0 ].Y + sphere_vertices[ bvid1 ].Y ) * 0.5f;
+	sphere_vertices[ nvid0 ].Z = ( sphere_vertices[ bvid0 ].Z + sphere_vertices[ bvid1 ].Z ) * 0.5f;
+
+	sphere_vertices[ nvid1 ].X = ( sphere_vertices[ bvid1 ].X + sphere_vertices[ bvid2 ].X ) * 0.5f;
+	sphere_vertices[ nvid1 ].Y = ( sphere_vertices[ bvid1 ].Y + sphere_vertices[ bvid2 ].Y ) * 0.5f;
+	sphere_vertices[ nvid1 ].Z = ( sphere_vertices[ bvid1 ].Z + sphere_vertices[ bvid2 ].Z ) * 0.5f;
+
+	sphere_vertices[ nvid2 ].X = ( sphere_vertices[ bvid2 ].X + sphere_vertices[ bvid0 ].X ) * 0.5f;
+	sphere_vertices[ nvid2 ].Y = ( sphere_vertices[ bvid2 ].Y + sphere_vertices[ bvid0 ].Y ) * 0.5f;
+	sphere_vertices[ nvid2 ].Z = ( sphere_vertices[ bvid2 ].Z + sphere_vertices[ bvid0 ].Z ) * 0.5f;
+
+	level++;
+
+	// update base triangle in place
+	sphere_indexes[ baseindx + 0 ] = bvid0;
+	sphere_indexes[ baseindx + 1 ] = nvid0;
+	sphere_indexes[ baseindx + 2 ] = nvid2;
+
+	RO_PlanetCalcFacePlane( tri );
+	if ( level == MAX_ASTEROID_SUBDIV )
+		sphere_triinactive[ tri ] = RO_PlanetFaceBackfacing( tri );
+	RO_AsteroidSubdivideLinear( level, tri );
+
+	ASSERT( sphere_numtris <= MAX_NUM_ENTS - 3 );
+
+	sphere_numtris++;
+	sphere_indexes[ sphere_numtris * 3 - 3 ] = nvid0;
+	sphere_indexes[ sphere_numtris * 3 - 2 ] = bvid1;
+	sphere_indexes[ sphere_numtris * 3 - 1 ] = nvid1;
+	RO_PlanetCalcFacePlane( sphere_numtris - 1 );
+	if ( level == MAX_ASTEROID_SUBDIV )
+		sphere_triinactive[ sphere_numtris - 1 ] = RO_PlanetFaceBackfacing( sphere_numtris - 1 );
+	RO_AsteroidSubdivideLinear( level, sphere_numtris - 1 );
+
+	sphere_numtris++;
+	sphere_indexes[ sphere_numtris * 3 - 3 ] = nvid2;
+	sphere_indexes[ sphere_numtris * 3 - 2 ] = nvid1;
+	sphere_indexes[ sphere_numtris * 3 - 1 ] = bvid2;
+	RO_PlanetCalcFacePlane( sphere_numtris - 1 );
+	if ( level == MAX_ASTEROID_SUBDIV )
+		sphere_triinactive[ sphere_numtris - 1 ] = RO_PlanetFaceBackfacing( sphere_numtris - 1 );
+	RO_AsteroidSubdivideLinear( level, sphere_numtris - 1 );
+
+	sphere_numtris++;
+	sphere_indexes[ sphere_numtris * 3 - 3 ] = nvid0;
+	sphere_indexes[ sphere_numtris * 3 - 2 ] = nvid1;
+	sphere_indexes[ sphere_numtris * 3 - 1 ] = nvid2;
+	RO_PlanetCalcFacePlane( sphere_numtris - 1 );
+	if ( level == MAX_ASTEROID_SUBDIV )
+		sphere_triinactive[ sphere_numtris - 1 ] = RO_PlanetFaceBackfacing( sphere_numtris - 1 );
+	RO_AsteroidSubdivideLinear( level, sphere_numtris - 1 );
+}
+
+
+// generate the asteroid sphere mesh -------------------------------------------
+// Approach:
+//   1. Displace the 12 coarse icosahedron base vertices radially by ±25%.
+//      With only 12 verts each displaced vertex creates one large broad lobe,
+//      giving the overall irregular-blob silhouette of a real asteroid.
+//   2. Subdivide using LINEAR midpoints (no pull-to-sphere normalisation).
+//      This preserves the coarse shape through each subdivision level instead
+//      of collapsing new verts back onto the sphere surface.
+//   3. No post-subdivision per-vertex noise — surface detail comes from the texture.
 //
 PRIVATE
 void RO_AsteroidGenerateSphere( Asteroid *asteroid )
@@ -1160,15 +1254,15 @@ void RO_AsteroidGenerateSphere( Asteroid *asteroid )
 		sphere_triinactive = &sphere_indexes[ MAX_NUM_ENTS * 3 ];
 	}
 
-	// Seed the LCG from the per-instance noise seed so each asteroid
-	// has a unique but reproducible jagged silhouette.
+	// Seed LCG from per-instance seed — reproducible unique shape per asteroid
 	asteroid_noise_lcg = asteroid->NoiseSeed;
 
-	// start off with icosahedron
 	sphere_numverts = 12;
 	sphere_numtris  = 20;
 
-	// store icosahedron vertices (apply noise to base 12 verts too)
+	// Place the 12 icosahedron base vertices with per-vertex radial displacement.
+	// Each of the 12 verts independently scales by [0.75, 1.25] × sphere_scale,
+	// creating broad lobes that survive linear subdivision.
 	for ( int vid = 0; vid < sphere_numverts; vid++ ) {
 		float noise = AsteroidNoiseSample();
 		sphere_vertices[ vid ].X = icosahedron_vertices[ vid ].X * sphere_scale * noise;
@@ -1201,43 +1295,11 @@ void RO_AsteroidGenerateSphere( Asteroid *asteroid )
 	}
 	sphere_numtris = dsttri;
 
-	// Subdivide: at the pull-to-sphere step, apply per-vertex noise displacement
-	// so the icosahedron becomes a lumpy rock instead of a smooth sphere.
-	// The RO_PlanetSubdivideTriangle function pulls to the sphere using
-	// sphere_scale / sqrt(|v|^2) — we replicate that here and multiply by noise.
-	// Since subdivision calls back into RO_PlanetSubdivideTriangle which uses
-	// the vanilla (no-noise) pull, we use a different approach: seed noise before
-	// subdivision and post-process all new vertices after each subdivision level.
-	//
-	// Simpler approach: override the sphere_scale with a per-vertex value by
-	// letting subdivision do its thing, then walk all vertices and perturb radially.
-	// This runs once per frame but is identical in cost to the planet path.
+	// Linear subdivision — midpoints are geometric averages, not pulled to sphere.
+	// Face planes and backface flags are set at leaf level inside the recursion.
 	int basenumtris = sphere_numtris;
 	for ( tri = 0; tri < basenumtris; tri++ ) {
-		RO_PlanetSubdivideTriangle( 0, tri );
-	}
-
-	// Post-subdivision radial noise: walk all NEW vertices (indices >= 12)
-	// and displace them radially so the sphere becomes jagged.
-	// Base icosahedron vertices were already perturbed above.
-	for ( int vid = 12; vid < sphere_numverts; vid++ ) {
-		float noise = AsteroidNoiseSample();
-		float len = sqrt(
-			sphere_vertices[ vid ].X * sphere_vertices[ vid ].X +
-			sphere_vertices[ vid ].Y * sphere_vertices[ vid ].Y +
-			sphere_vertices[ vid ].Z * sphere_vertices[ vid ].Z );
-		if ( len > 1e-6f ) {
-			float scale = ( sphere_scale * noise ) / len;
-			sphere_vertices[ vid ].X *= scale;
-			sphere_vertices[ vid ].Y *= scale;
-			sphere_vertices[ vid ].Z *= scale;
-		}
-	}
-
-	// Recompute face planes after noise perturbation (normals have moved)
-	for ( int t = 0; t < sphere_numtris; t++ ) {
-		RO_PlanetCalcFacePlane( t );
-		sphere_triinactive[ t ] = RO_PlanetFaceBackfacing( t );
+		RO_AsteroidSubdivideLinear( 0, tri );
 	}
 }
 

@@ -1482,10 +1482,11 @@ int Cmd_SV_ASTEROID( char* sv_asteroid_command )
 		if ( asteroid == NULL )
 			break;
 
-		// apply rotation speeds (random small tumble if not specified)
-		asteroid->RotSpeedX = rotspdx_given ? rotspdx : (bams_t)( RAND() % 0x20 );
-		asteroid->RotSpeedY = rotspdy_given ? rotspdy : (bams_t)( RAND() % 0x20 );
-		asteroid->RotSpeedZ = rotspdz_given ? rotspdz : (bams_t)( RAND() % 0x20 );
+		// apply rotation speeds (random slow tumble if not specified)
+		// 0x08 max → ~16°/sec max per axis at target framerate — visible but not dizzying
+		asteroid->RotSpeedX = rotspdx_given ? rotspdx : (bams_t)( RAND() % 0x08 );
+		asteroid->RotSpeedY = rotspdy_given ? rotspdy : (bams_t)( RAND() % 0x08 );
+		asteroid->RotSpeedZ = rotspdz_given ? rotspdz : (bams_t)( RAND() % 0x08 );
 
 		// apply shared orbit params
 		asteroid->OrbitSpeed    = orbitspeed;

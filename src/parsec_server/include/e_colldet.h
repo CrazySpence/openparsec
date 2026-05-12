@@ -4,6 +4,7 @@
 #include "g_emp.h"
 #include "g_planet.h"
 #include "g_telep.h"
+#include "g_asteroid.h"
 #ifndef _G_COLLDET_H_
 #define _G_COLLDET_H_
 
@@ -53,6 +54,12 @@ protected:
 
 	// ship collided with Planet
 	void _CollisionResponse_PlanetShip( Planet *curplanet );
+
+	// check for Asteroid Collision
+	void _CheckShipAsteroidCollision();
+
+	// ship collided with Asteroid
+	void _CollisionResponse_AsteroidShip( Asteroid *curasteroid );
 
 
     //Ship collided with missile
