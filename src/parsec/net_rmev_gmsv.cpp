@@ -89,6 +89,9 @@
 #include "g_shipobject.h"
 
 
+// forward declarations for handlers defined later in this file ----------------
+static void NET_ExecRmEvOrbitPos( RE_OrbitPos* re );
+
 // process entire remote event list (execute all contained events) coming from the server
 //
 void NET_ProcessRmEvList_GMSV( NetPacket_GMSV* gamepacket )
@@ -671,7 +674,7 @@ void NET_ExecRmEvAsteroid( RE_Asteroid* pRE_Asteroid )
 // Just updates ObjPosition and CurOrbitPos — no object creation, no texture
 // lookup, no reliable FIFO involvement.
 //
-void NET_ExecRmEvOrbitPos( RE_OrbitPos* re )
+static void NET_ExecRmEvOrbitPos( RE_OrbitPos* re )
 {
 	ASSERT( re != NULL );
 	ASSERT( NetConnected );
