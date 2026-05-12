@@ -1494,6 +1494,13 @@ int Cmd_SV_ASTEROID( char* sv_asteroid_command )
 		asteroid->OrbitShape    = orbitshape;
 		asteroid->OrbitParentId = orbitparentid;
 
+		// Spread orbiting asteroids around the orbit path.
+		// Without this every asteroid starts at CurOrbitPos=0 (the same angle),
+		// snaps to the identical position on the first frame, and clumps in a line.
+		if ( orbitspeed != 0 ) {
+			asteroid->CurOrbitPos = (bams_t)( RAND() % 0x10000 );
+		}
+
 		last_asteroid = asteroid;
 	}
 
