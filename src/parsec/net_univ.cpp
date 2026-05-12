@@ -201,3 +201,18 @@ Asteroid* NET_FindAsteroid( dword hostid )
 }
 
 
+// find any custom object (planet or asteroid) by host object number -----------
+// Used by the RE_ORBITPOS handler which covers both types.
+//
+GenObject* NET_FindOrbitObject( dword hostid )
+{
+	GenObject* walkobjs = FetchFirstCustom();
+	for ( ; walkobjs; walkobjs = walkobjs->NextObj ) {
+		if ( walkobjs->HostObjNumber == hostid ) {
+			return walkobjs;
+		}
+	}
+	return NULL;
+}
+
+

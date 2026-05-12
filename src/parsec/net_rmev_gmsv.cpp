@@ -301,6 +301,9 @@ void NET_ProcessRmEvList_GMSV( NetPacket_GMSV* gamepacket )
 			case RE_ASTEROID:
 				NET_ExecRmEvAsteroid( (RE_Asteroid*) pREList );
 				break;
+			case RE_ORBITPOS:
+				NET_ExecRmEvOrbitPos( (RE_OrbitPos*) pREList );
+				break;
 			default:
 				MSGOUT( "ProcessRmEvList_GMSV(): unknown remote event (%d).", pREList->RE_Type );
 		}
@@ -660,6 +663,38 @@ void NET_ExecRmEvAsteroid( RE_Asteroid* pRE_Asteroid )
 	asteroid->OrbitParentId = pRE_Asteroid->orbitparentid;
 	asteroid->OrbitShape    = pRE_Asteroid->orbitshape;
 	// NOTE: OrbitParent pointer is NOT resolved on the client.
+}
+
+
+// execute lightweight orbit position resync ----------------------------------
+// Sent unreliably every ~60 server ticks for orbiting planets and asteroids.
+// Just updates ObjPosition and CurOrbitPos — no object creation, no texture
+// lookup, no reliable FIFO involvement.
+//
+void NET_ExecRmEvOrbitPos( RE_OrbitPos* re )
+{
+	ASSERT( re != NULL );
+	ASSERT( NetConnected );
+
+	GenObject* obj = NET_FindOrbitObject( re->hostid );
+	if ( obj == NULL ) {
+		// Object not yet created on client — full RE_Planet/RE_Asteroid will
+		// arrive during the next join burst or the next distributable flush.
+		return;
+	}
+
+	// Snap world position to server's authoritative value
+	obj->ObjPosition[ 0 ][ 3 ] = re->pos[ 0 ];
+	obj->ObjPosition[ 1 ][ 3 ] = re->pos[ 1 ];
+	obj->ObjPosition[ 2 ][ 3 ] = re->pos[ 2 ];
+
+	// Snap CurOrbitPos so the next local orbit advance starts from the
+	// server's angle rather than the client's drifted one
+	if ( obj->ObjectType == asteroid_type_id ) {
+		( (Asteroid*) obj )->CurOrbitPos = re->curorbitpos;
+	} else if ( obj->ObjectType == planet_type_id ) {
+		( (Planet*) obj )->CurOrbitPos = re->curorbitpos;
+	}
 }
 
 

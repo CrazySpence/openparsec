@@ -40,6 +40,7 @@ Stargate*	NET_FindStargate( word serverid );
 Teleporter* NET_FindTeleporter( int id );
 Planet*		NET_FindPlanet( dword hostid );
 Asteroid*	NET_FindAsteroid( dword hostid );
+GenObject*	NET_FindOrbitObject( dword hostid );
 
 
 #endif // _NET_UNIV_H_

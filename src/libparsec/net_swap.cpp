@@ -626,6 +626,22 @@ void NET_RmEvList_Swap( RE_Header* relist, int incoming )
 					}
 				}
 				break;
+				case RE_ORBITPOS:
+				{
+					RE_OrbitPos* re_op = (RE_OrbitPos*) relist;
+					re_op->hostid      = NET_SWAP_32( re_op->hostid );
+					re_op->curorbitpos = NET_SWAP_32( re_op->curorbitpos );
+					if ( incoming ) {
+						Geomv_in( (geomv_t*)&re_op->pos[ 0 ] );
+						Geomv_in( (geomv_t*)&re_op->pos[ 1 ] );
+						Geomv_in( (geomv_t*)&re_op->pos[ 2 ] );
+					} else {
+						Geomv_out( (geomv_t*)&re_op->pos[ 0 ] );
+						Geomv_out( (geomv_t*)&re_op->pos[ 1 ] );
+						Geomv_out( (geomv_t*)&re_op->pos[ 2 ] );
+					}
+				}
+				break;
 
 			default:
 				MSGOUT( "NET_RmEvList_Swap(): unknown remote event (%d).", relist->RE_Type );

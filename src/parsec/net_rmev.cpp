@@ -119,6 +119,7 @@ static size_t re_sizes[] = {
 	sizeof( RE_Planet),
 	sizeof( RE_Asteroid ),
 	sizeof( RE_HelixParticle ),
+	sizeof( RE_OrbitPos ),
 };
 
 

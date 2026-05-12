@@ -1106,11 +1106,20 @@ void G_Main::_WalkCustomObjects()
 			// animate planet (rotation + orbit)
 			PlanetAnimate( walkobjs );
 
-			// Periodically re-sync orbiting planets to all clients so that
-			// client-side CurOrbitPos doesn't drift away from the server's value
+			// Periodically broadcast a lightweight RE_ORBITPOS to all clients so
+			// client-side CurOrbitPos doesn't drift from the server's value.
+			// Sent unreliable — bypasses the reliable FIFO, never delays game events.
 			Planet *tmpplanet = (Planet *)walkobjs;
-			if ( doOrbitSync && tmpplanet->OrbitSpeed != 0 && tmpplanet->pDist != NULL ) {
-				TheSimNetOutput->BroadcastDistributableUpdate( tmpplanet->pDist );
+			if ( doOrbitSync && tmpplanet->OrbitSpeed != 0 ) {
+				RE_OrbitPos re;
+				re.RE_Type      = RE_ORBITPOS;
+				re.RE_BlockSize = sizeof( RE_OrbitPos );
+				re.hostid       = tmpplanet->HostObjNumber;
+				re.pos[ 0 ]     = tmpplanet->ObjPosition[ 0 ][ 3 ];
+				re.pos[ 1 ]     = tmpplanet->ObjPosition[ 1 ][ 3 ];
+				re.pos[ 2 ]     = tmpplanet->ObjPosition[ 2 ][ 3 ];
+				re.curorbitpos  = tmpplanet->CurOrbitPos;
+				TheSimNetOutput->BufferForMulticastRE( (RE_Header*)&re, PLAYERID_SERVER, FALSE );
 			}
 
 		} else if ( walkobjs->ObjectType == asteroid_type_id ) {
@@ -1119,10 +1128,18 @@ void G_Main::_WalkCustomObjects()
 			// collision detection sees the current orbital position, not the spawn point
 			AsteroidAnimate( walkobjs );
 
-			// Periodically re-sync orbiting asteroids to all clients
+			// Periodically broadcast lightweight RE_ORBITPOS (unreliable)
 			Asteroid *tmpasteroid = (Asteroid *)walkobjs;
-			if ( doOrbitSync && tmpasteroid->OrbitSpeed != 0 && tmpasteroid->pDist != NULL ) {
-				TheSimNetOutput->BroadcastDistributableUpdate( tmpasteroid->pDist );
+			if ( doOrbitSync && tmpasteroid->OrbitSpeed != 0 ) {
+				RE_OrbitPos re;
+				re.RE_Type      = RE_ORBITPOS;
+				re.RE_BlockSize = sizeof( RE_OrbitPos );
+				re.hostid       = tmpasteroid->HostObjNumber;
+				re.pos[ 0 ]     = tmpasteroid->ObjPosition[ 0 ][ 3 ];
+				re.pos[ 1 ]     = tmpasteroid->ObjPosition[ 1 ][ 3 ];
+				re.pos[ 2 ]     = tmpasteroid->ObjPosition[ 2 ][ 3 ];
+				re.curorbitpos  = tmpasteroid->CurOrbitPos;
+				TheSimNetOutput->BufferForMulticastRE( (RE_Header*)&re, PLAYERID_SERVER, FALSE );
 			}
 		}
 

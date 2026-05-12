@@ -665,6 +665,7 @@ enum re_events {
 	RE_PLANET,
 	RE_ASTEROID,		// 0x20
 	RE_HELIXPARTICLE,   // 0x21 — client sends helix damage particle to server for collision
+	RE_ORBITPOS,        // 0x22 — server broadcasts orbit position resync (unreliable, lightweight)
 	RE_NUMEVENTS
 };
 	
@@ -1021,6 +1022,18 @@ struct RE_HelixParticle : RE_Header {  // 2 bytes
 	geomv_t VY;
 	geomv_t VZ;
 	// sizeof( RE_HelixParticle ) = 2 + 2 + 24 = 28
+};
+
+
+// lightweight orbit position resync — server → all clients, unreliable --------
+// Sent every ~60 server ticks for orbiting planets and asteroids to keep
+// client-side CurOrbitPos in sync with the server without using reliable FIFOs.
+//
+struct RE_OrbitPos : RE_Header {  // 2 bytes
+	dword   hostid;       // 4  — HostObjNumber of the planet or asteroid
+	float   pos[ 3 ];     // 12 — current world-space position
+	bams_t  curorbitpos;  // 4  — current orbit angle
+	// sizeof( RE_OrbitPos ) = 2 + 4 + 12 + 4 = 22 bytes
 };
 
 
