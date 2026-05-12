@@ -125,6 +125,11 @@ void AsteroidInitType( CustomObject *base )
 	asteroid->SurfTexName[ 0 ] = '\0';
 	asteroid->SurfTexture      = NULL;
 
+	// Set a sensible default radius. Without this the BoundingSphere stays at
+	// whatever planet2.od2 stores (planet-scale), making the collision sphere
+	// cover the entire map. sv.asteroid's 'size' param overrides this.
+	asteroid->BoundingSphere = FLOAT_TO_GEOMV( 100.0f );
+
 #ifdef PARSEC_SERVER
 	asteroid->pDist = NULL;
 #endif
