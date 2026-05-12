@@ -1075,6 +1075,14 @@ void G_Main::_WalkCustomObjects()
 {
 	ASSERT( TheWorld->m_CustmObjects != NULL );
 
+	// Frame counter for periodic orbit position re-sync.
+	// Every 60 server ticks (~1 second at 60 Hz) we re-broadcast orbiting
+	// planets/asteroids so that clients' locally-advanced CurOrbitPos is
+	// snapped back to the server's authoritative value, preventing drift.
+	static int s_orbitSyncCounter = 0;
+	bool doOrbitSync = ( ++s_orbitSyncCounter >= 60 );
+	if ( doOrbitSync ) s_orbitSyncCounter = 0;
+
 	CustomObject *precnode  = TheWorld->m_CustmObjects;
 	CustomObject *walkobjs = (CustomObject *)TheWorld->m_CustmObjects->NextObj;
 
@@ -1098,11 +1106,24 @@ void G_Main::_WalkCustomObjects()
 			// animate planet (rotation + orbit)
 			PlanetAnimate( walkobjs );
 
+			// Periodically re-sync orbiting planets to all clients so that
+			// client-side CurOrbitPos doesn't drift away from the server's value
+			Planet *tmpplanet = (Planet *)walkobjs;
+			if ( doOrbitSync && tmpplanet->OrbitSpeed != 0 && tmpplanet->pDist != NULL ) {
+				TheSimNetOutput->BroadcastDistributableUpdate( tmpplanet->pDist );
+			}
+
 		} else if ( walkobjs->ObjectType == asteroid_type_id ) {
 
 			// animate asteroid (tumble + orbit) — updates ObjPosition so
 			// collision detection sees the current orbital position, not the spawn point
 			AsteroidAnimate( walkobjs );
+
+			// Periodically re-sync orbiting asteroids to all clients
+			Asteroid *tmpasteroid = (Asteroid *)walkobjs;
+			if ( doOrbitSync && tmpasteroid->OrbitSpeed != 0 && tmpasteroid->pDist != NULL ) {
+				TheSimNetOutput->BroadcastDistributableUpdate( tmpasteroid->pDist );
+			}
 		}
 
 		precnode  = walkobjs;

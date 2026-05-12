@@ -1431,6 +1431,21 @@ E_Distributable* E_SimNetOutput::CreateDistributable( GenObject* objectpo, int r
 	return pDist;
 }
 
+// re-broadcast an existing E_Distributable to all connected clients ------------
+// Used to keep orbiting planets/asteroids in sync after the initial join burst.
+//
+void E_SimNetOutput::BroadcastDistributableUpdate( E_Distributable* pDist )
+{
+	ASSERT( pDist != NULL );
+
+	for ( int nClientID = 0; nClientID < MAX_NUM_CLIENTS; nClientID++ ) {
+		if ( TheSimulator->IsPlayerDisconnected( nClientID ) == FALSE ) {
+			pDist->MarkForUpdate( nClientID );
+			m_SimClientNetOutput[ nClientID ].ScheduleDistributable( pDist, TRUE );
+		}
+	}
+}
+
 // release a E_Distributable ----------------------------------------------------
 //
 void E_SimNetOutput::ReleaseDistributable( E_Distributable* pDist )

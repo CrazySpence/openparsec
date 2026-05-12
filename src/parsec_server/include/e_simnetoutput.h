@@ -371,6 +371,10 @@ public:
 	// create a new E_Distributable for all connected clients
 	E_Distributable* CreateDistributable( GenObject* object, int reliable = FALSE, int send_to_owner = FALSE );
 
+	// re-broadcast an existing E_Distributable to all currently connected clients
+	// (used to re-sync orbiting objects whose positions drift between join-bursts)
+	void BroadcastDistributableUpdate( E_Distributable* pDist );
+
 	// release a E_Distributable
 	void ReleaseDistributable( E_Distributable* pDist );
 
