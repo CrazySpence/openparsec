@@ -1095,8 +1095,14 @@ void G_Main::_WalkCustomObjects()
 				}
 		} else if ( walkobjs->ObjectType == planet_type_id ) {
 
-			// animate planet (rotation)
+			// animate planet (rotation + orbit)
 			PlanetAnimate( walkobjs );
+
+		} else if ( walkobjs->ObjectType == asteroid_type_id ) {
+
+			// animate asteroid (tumble + orbit) — updates ObjPosition so
+			// collision detection sees the current orbital position, not the spawn point
+			AsteroidAnimate( walkobjs );
 		}
 
 		precnode  = walkobjs;
