@@ -109,6 +109,7 @@ E_SimClientNetOutput::E_SimClientNetOutput()
 
 	m_bIncludeDestClientState= FALSE;
 	m_bJoinBurstPending      = FALSE;
+	m_bSendJoinDone          = FALSE;
 }
 
 
@@ -147,6 +148,7 @@ void E_SimClientNetOutput::_Reset()
 	m_nAveragePacketSize		= NET_UDP_DATA_LENGTH;
 	m_Heartbeat_Timeout_Frame	= -1;
 	m_bJoinBurstPending			= FALSE;
+	m_bSendJoinDone				= FALSE;
 
 	delete []m_ClientIDList;
 	delete []m_SendReliable;
@@ -506,12 +508,13 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 		entry = nextentry;
 	}
 
-	// If a join burst was in progress and the queue just drained, send JOINDONE
-	// to the client so it can leave entry mode.
+	// If a join burst was in progress and the queue just drained, defer JOINDONE
+	// until _FillAndSend_Distributables so it travels in the same (or later) packet
+	// as the last world-object distributable — never before it.
 	if ( m_bJoinBurstPending && ( m_AllDistributables->GetHead() == NULL ) ) {
 		m_bJoinBurstPending = FALSE;
-		m_pReliableBuffer->RmEvStateSync( RMEVSTATE_JOINDONE, 1 );
-		MSGOUT( "join burst complete for client %d — sending JOINDONE", m_nDestClientID );
+		m_bSendJoinDone     = TRUE;
+		MSGOUT( "join burst complete for client %d — JOINDONE deferred to distributable packet", m_nDestClientID );
 
 		// Broadcast INVUNERABLE_END to all clients so the shield glow stops.
 		// Also drop MegaShieldAbsorption to 1 so the server-side countdown
@@ -708,6 +711,16 @@ int E_SimClientNetOutput::_FillAndSend_Distributables( E_REList* pReliable, E_RE
 		pDist->MarkUpdateSent( m_nDestClientID );
 
 
+	}
+
+	// Append JOINDONE after the last distributable so it arrives at the client
+	// behind all world-object data (planets, asteroids).  Writing it here —
+	// rather than in _PrepareClientUpdateInfo — ensures JOINDONE travels in the
+	// same reliable stream as the final distributable packet, never before it.
+	if ( m_bSendJoinDone ) {
+		m_bSendJoinDone = FALSE;
+		pReliable->RmEvStateSync( RMEVSTATE_JOINDONE, 1 );
+		MSGOUT( "JOINDONE appended after last distributable for client %d", m_nDestClientID );
 	}
 
 	return ThePacketHandler->Send_STREAM( m_nDestClientID, m_pReliableBuffer, m_pUnreliableBuffer );

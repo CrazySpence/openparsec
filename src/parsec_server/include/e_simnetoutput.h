@@ -221,6 +221,10 @@ protected:
 
 	// set after RescheduleAllDistributables; cleared once queue empties and JOINDONE sent
 	bool_t          m_bJoinBurstPending;
+
+	// set when join burst completes; JOINDONE is appended after the last distributable
+	// in _FillAndSend_Distributables so it travels behind the world-object data
+	bool_t          m_bSendJoinDone;
     
 	// array of distributables for next packet
 	E_Distributable*	m_DistsForNextPacket[ MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET ];
