@@ -1304,35 +1304,47 @@ void RO_AsteroidGenerateSphere( Asteroid *asteroid )
 }
 
 
-// draw the asteroid sphere with triplanar (box) UV mapping --------------------
+// draw the asteroid sphere with per-face triplanar (box) UV mapping -----------
 //
-// Spherical UV (longitude/latitude) — used by planets — creates one visible
-// seam face at the antimeridian.  On a smooth sphere that face is edge-on and
-// barely noticeable; on an asteroid's coarser, lumpy geometry it can be large
-// and face the camera.  Triplanar mapping has no wrap seam: each vertex picks
-// UVs from its dominant-axis cube face, giving transitions at 45° edges that
-// follow the natural faceted topology and are far less visible.
+// Spherical UV (longitude/latitude) creates one visible seam face at the
+// antimeridian.  A per-VERTEX triplanar approach fixes the seam but introduces
+// jagged lines wherever adjacent vertices of the same triangle are assigned to
+// different cube faces — the GPU interpolates across the UV discontinuity.
 //
-// As a side effect this also avoids NaN from asin(Y/scale) when noise
-// displaces a vertex beyond ±sphere_scale in Y.
+// This per-FACE version reads the triangle's face normal (already computed by
+// RO_PlanetCalcFacePlane) to select the dominant projection axis, then assigns
+// that same projection to all three vertices of the triangle.  Since all three
+// vertices of any one triangle share the same projection, UV interpolation is
+// always within one face — no in-triangle smearing.  Discontinuities only
+// appear at face edges, where they read as natural faceting of the rock.
+// rast_texwrap (= 0) is used so the slight out-of-range UV values produced by
+// the ±25 % noise displacement wrap cleanly rather than clamping to an edge
+// colour.  Vertices cannot be shared across triangles because each triangle
+// may need different UV values for the same vertex position, so the iterator
+// array has one entry per triangle-vertex (sphere_numtris × 3 max).
 //
 PRIVATE
 void RO_AsteroidDrawSphere( Asteroid *asteroid )
 {
 	ASSERT( asteroid != NULL );
 
+	// Worst case: all triangles active, 3 unique verts each.
+	// MAX_ASTEROID_SUBDIV=3 → 20 * 4^3 = 1280 tris → 3840 verts.
+	int maxverts = sphere_numtris * 3;
 	IterArray3 *itarray = (IterArray3 *) ALLOCMEM(
-		(size_t)&((IterArray3*)0)->Vtxs[ sphere_numverts ] );
+		(size_t)&((IterArray3*)0)->Vtxs[ maxverts ] );
 	if ( itarray == NULL )
 		OUTOFMEM( "no mem for asteroid vertex array." );
 
-	itarray->NumVerts  = sphere_numverts;
+	itarray->NumVerts  = 0;   // filled incrementally below
 	itarray->arrayinfo = ITERARRAY_USE_COLOR |
 	                     ITERARRAY_USE_TEXTURE | ITERARRAY_GLOBAL_TEXTURE;
 	itarray->flags     = ITERFLAG_Z_DIV_XYZ | ITERFLAG_Z_DIV_UVW |
 	                     ITERFLAG_Z_TO_DEPTH;
 	itarray->itertype  = iter_texrgb | iter_overwrite;
-	itarray->raststate = rast_zbuffer | rast_texclamp | rast_chromakeyoff;
+	// rast_texwrap (0x0000) — UV values slightly outside [0,1] from noise
+	// displacement wrap naturally rather than clamping to a solid edge colour.
+	itarray->raststate = rast_zbuffer | rast_texwrap | rast_chromakeyoff;
 	itarray->rastmask  = rast_nomask;
 	itarray->texmap    = asteroid->FaceList[ 0 ].TexMap;
 
@@ -1340,66 +1352,65 @@ void RO_AsteroidDrawSphere( Asteroid *asteroid )
 	int texheight = 1 << itarray->texmap->Height;
 	float inv_scale = ( sphere_scale > 0.0f ) ? ( 1.0f / sphere_scale ) : 1.0f;
 
-	for ( int vid = 0; vid < sphere_numverts; vid++ ) {
-
-		itarray->Vtxs[ vid ].X = FLOAT_TO_GEOMV( sphere_vertices[ vid ].X );
-		itarray->Vtxs[ vid ].Y = FLOAT_TO_GEOMV( sphere_vertices[ vid ].Y );
-		itarray->Vtxs[ vid ].Z = FLOAT_TO_GEOMV( sphere_vertices[ vid ].Z );
-		itarray->Vtxs[ vid ].W = GEOMV_1;
-
-		// Normalise vertex position to direction vector in [-1,1]³
-		float vx = sphere_vertices[ vid ].X * inv_scale;
-		float vy = sphere_vertices[ vid ].Y * inv_scale;
-		float vz = sphere_vertices[ vid ].Z * inv_scale;
-
-		float ax = vx < 0.0f ? -vx : vx;
-		float ay = vy < 0.0f ? -vy : vy;
-		float az = vz < 0.0f ? -vz : vz;
-
-		// Pick the cube face whose normal is closest to the vertex direction,
-		// then project the other two axes into [0, 1] UV space.
-		float tu, tv;
-		if ( ax >= ay && ax >= az ) {
-			// X-dominant face
-			float inv = 1.0f / ax;
-			tu = ( vz * inv ) * 0.5f + 0.5f;
-			tv = ( vy * inv ) * 0.5f + 0.5f;
-		} else if ( ay >= az ) {
-			// Y-dominant face
-			float inv = 1.0f / ay;
-			tu = ( vx * inv ) * 0.5f + 0.5f;
-			tv = ( vz * inv ) * 0.5f + 0.5f;
-		} else {
-			// Z-dominant face
-			float inv = 1.0f / az;
-			tu = ( vx * inv ) * 0.5f + 0.5f;
-			tv = ( vy * inv ) * 0.5f + 0.5f;
-		}
-
-		itarray->Vtxs[ vid ].U = FLOAT_TO_GEOMV( tu * texwidth );
-		itarray->Vtxs[ vid ].V = FLOAT_TO_GEOMV( tv * texheight );
-
-		itarray->Vtxs[ vid ].R = 255;
-		itarray->Vtxs[ vid ].G = 255;
-		itarray->Vtxs[ vid ].B = 255;
-		itarray->Vtxs[ vid ].A = 255;
-	}
-
-	// Build index buffer — no seam-fix pass needed, box mapping never wraps.
-	int numtriindxs = sphere_numtris * 3;
-	uint16 *vindxs = (uint16 *) ALLOCMEM( numtriindxs * sizeof( uint16 ) );
+	// Sequential index buffer — each entry is simply its own position because
+	// vertices are never shared between triangles in this scheme.
+	uint16 *vindxs = (uint16 *) ALLOCMEM( maxverts * sizeof( uint16 ) );
 	if ( vindxs == NULL )
 		OUTOFMEM( "no mem for asteroid index buffer." );
 
-	int dstvindx = 0;
+	int dstvid    = 0;
+	int dstvindx  = 0;
+
 	for ( int tri = 0; tri < sphere_numtris; tri++ ) {
+
 		if ( sphere_triinactive[ tri ] )
 			continue;
-		vindxs[ dstvindx + 0 ] = (uint16) sphere_indexes[ tri * 3 + 0 ];
-		vindxs[ dstvindx + 1 ] = (uint16) sphere_indexes[ tri * 3 + 1 ];
-		vindxs[ dstvindx + 2 ] = (uint16) sphere_indexes[ tri * 3 + 2 ];
-		dstvindx += 3;
+
+		// Face normal (normalised, GEOMV = float) — select dominant axis.
+		float nx = sphere_faceplanes[ tri ].X;
+		float ny = sphere_faceplanes[ tri ].Y;
+		float nz = sphere_faceplanes[ tri ].Z;
+		float ax = nx < 0.0f ? -nx : nx;
+		float ay = ny < 0.0f ? -ny : ny;
+		float az = nz < 0.0f ? -nz : nz;
+
+		// Assign the same cube-face projection to all three vertices so that
+		// UV varies smoothly across the triangle without any in-face jump.
+		for ( int k = 0; k < 3; k++ ) {
+			int vid = sphere_indexes[ tri * 3 + k ];
+
+			float vx = sphere_vertices[ vid ].X * inv_scale;
+			float vy = sphere_vertices[ vid ].Y * inv_scale;
+			float vz = sphere_vertices[ vid ].Z * inv_scale;
+
+			float tu, tv;
+			if ( ax >= ay && ax >= az ) {
+				tu = vz * 0.5f + 0.5f;
+				tv = vy * 0.5f + 0.5f;
+			} else if ( ay >= az ) {
+				tu = vx * 0.5f + 0.5f;
+				tv = vz * 0.5f + 0.5f;
+			} else {
+				tu = vx * 0.5f + 0.5f;
+				tv = vy * 0.5f + 0.5f;
+			}
+
+			itarray->Vtxs[ dstvid ].X = FLOAT_TO_GEOMV( sphere_vertices[ vid ].X );
+			itarray->Vtxs[ dstvid ].Y = FLOAT_TO_GEOMV( sphere_vertices[ vid ].Y );
+			itarray->Vtxs[ dstvid ].Z = FLOAT_TO_GEOMV( sphere_vertices[ vid ].Z );
+			itarray->Vtxs[ dstvid ].W = GEOMV_1;
+			itarray->Vtxs[ dstvid ].U = FLOAT_TO_GEOMV( tu * texwidth );
+			itarray->Vtxs[ dstvid ].V = FLOAT_TO_GEOMV( tv * texheight );
+			itarray->Vtxs[ dstvid ].R = 255;
+			itarray->Vtxs[ dstvid ].G = 255;
+			itarray->Vtxs[ dstvid ].B = 255;
+			itarray->Vtxs[ dstvid ].A = 255;
+
+			vindxs[ dstvindx++ ] = (uint16) dstvid++;
+		}
 	}
+
+	itarray->NumVerts = dstvid;
 
 	// calculate transformation matrix
 	MtxMtxMUL( ViewCamera, asteroid->ObjPosition, DestXmatrx );
