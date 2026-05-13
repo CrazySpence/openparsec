@@ -536,6 +536,34 @@ void G_ExtraManager::OBJ_DoExtraPlacement()
 
 #ifdef PARSEC_SERVER
 		}
+
+		// Reject the candidate position if it overlaps an existing extra.
+		// Walk the extra list and skip this spawn if any existing extra is
+		// within MinExtraDist units — prevents visible model overlap when
+		// extras repeatedly respawn near the same players.
+		{
+			geomv_t cx = startm[ 0 ][ 3 ];
+			geomv_t cy = startm[ 1 ][ 3 ];
+			geomv_t cz = startm[ 2 ][ 3 ];
+			geomv_t min_sep = INT_TO_GEOMV( MinExtraDist );
+			geomv_t min_sep_sq = GEOMV_MUL( min_sep, min_sep );
+
+			bool_t too_close = FALSE;
+			ExtraObject *walkextra = (ExtraObject *) TheWorld->m_ExtraObjects->NextObj;
+			while ( walkextra != NULL ) {
+				geomv_t dx = cx - walkextra->ObjPosition[ 0 ][ 3 ];
+				geomv_t dy = cy - walkextra->ObjPosition[ 1 ][ 3 ];
+				geomv_t dz = cz - walkextra->ObjPosition[ 2 ][ 3 ];
+				geomv_t dist_sq = GEOMV_MUL(dx,dx) + GEOMV_MUL(dy,dy) + GEOMV_MUL(dz,dz);
+				if ( dist_sq < min_sep_sq ) {
+					too_close = TRUE;
+					break;
+				}
+				walkextra = (ExtraObject *) walkextra->NextObj;
+			}
+			if ( too_close )
+				return;
+		}
 #endif // PARSEC_SERVER
 
 		int probsum  = 0;
