@@ -500,21 +500,56 @@ void G_Main::JoinPlayer( int nClientID, E_SimShipState* pSimShipState )
 
   	pXmatrx ObjPosition = pSimShipState->GetObjPosition();
 
-	int xdist = ( RAND() % JP_RANGE ) - JP_OFS;
-	int ydist = ( RAND() % JP_RANGE ) - JP_OFS;
-	int zdist = ( RAND() % JP_RANGE ) - JP_OFS;
+	// How many random positions to try before giving up.
+	static const int   JP_SPAWN_ATTEMPTS  = 20;
+	// Multiplier on BoundingSphere — keeps player clear of the object's surface.
+	static const float JP_SPAWN_CLEARANCE = 1.5f;
 
-	xdist += ( xdist < 0 ) ? -JP_M_S_D : JP_M_S_D;
-	ydist += ( ydist < 0 ) ? -JP_M_S_D : JP_M_S_D;
-	zdist += ( zdist < 0 ) ? -JP_M_S_D : JP_M_S_D;
-	
+	int xdist = 0, ydist = 0, zdist = 0;
+
+	for ( int attempt = 0; attempt < JP_SPAWN_ATTEMPTS; attempt++ ) {
+
+		xdist = ( RAND() % JP_RANGE ) - JP_OFS;
+		ydist = ( RAND() % JP_RANGE ) - JP_OFS;
+		zdist = ( RAND() % JP_RANGE ) - JP_OFS;
+
+		xdist += ( xdist < 0 ) ? -JP_M_S_D : JP_M_S_D;
+		ydist += ( ydist < 0 ) ? -JP_M_S_D : JP_M_S_D;
+		zdist += ( zdist < 0 ) ? -JP_M_S_D : JP_M_S_D;
+
+		// Check candidate against every custom object's bounding sphere
+		// (catches planets, asteroids, stargates, teleporters, etc.).
+		float cx = (float)xdist;
+		float cy = (float)ydist;
+		float cz = (float)zdist;
+
+		bool clear = true;
+		CustomObject* walkobjs = (CustomObject*)TheWorld->m_CustmObjects->NextObj;
+		while ( walkobjs != NULL ) {
+			float bs = GEOMV_TO_FLOAT( walkobjs->BoundingSphere ) * JP_SPAWN_CLEARANCE;
+			if ( bs > 0.0f ) {
+				float dx = cx - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 0 ][ 3 ] );
+				float dy = cy - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 1 ][ 3 ] );
+				float dz = cz - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 2 ][ 3 ] );
+				if ( dx*dx + dy*dy + dz*dz < bs*bs ) {
+					clear = false;
+					break;
+				}
+			}
+			walkobjs = (CustomObject*)walkobjs->NextObj;
+		}
+
+		if ( clear ) break;
+
+		if ( attempt == JP_SPAWN_ATTEMPTS - 1 ) {
+			MSGOUT( "JoinPlayer: no clear spawn found for client %d after %d attempts, using last candidate",
+			        nClientID, JP_SPAWN_ATTEMPTS );
+		}
+	}
+
 	ObjPosition[ 0 ][ 3 ] = INT_TO_GEOMV( xdist );
 	ObjPosition[ 1 ][ 3 ] = INT_TO_GEOMV( ydist );
 	ObjPosition[ 2 ][ 3 ] = INT_TO_GEOMV( zdist );
-
-	//ObjPosition[ 0 ][ 3 ] = INT_TO_GEOMV( 0 );
-	//ObjPosition[ 1 ][ 3 ] = INT_TO_GEOMV( 0 );
-	//ObjPosition[ 2 ][ 3 ] = INT_TO_GEOMV( nClientID * 200 );
 
 	m_CurJoinedPlayerList->AppendTail( &m_Players[ nClientID ] );
 }
