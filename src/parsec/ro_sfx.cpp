@@ -1304,6 +1304,120 @@ void RO_AsteroidGenerateSphere( Asteroid *asteroid )
 }
 
 
+// draw the asteroid sphere with triplanar (box) UV mapping --------------------
+//
+// Spherical UV (longitude/latitude) — used by planets — creates one visible
+// seam face at the antimeridian.  On a smooth sphere that face is edge-on and
+// barely noticeable; on an asteroid's coarser, lumpy geometry it can be large
+// and face the camera.  Triplanar mapping has no wrap seam: each vertex picks
+// UVs from its dominant-axis cube face, giving transitions at 45° edges that
+// follow the natural faceted topology and are far less visible.
+//
+// As a side effect this also avoids NaN from asin(Y/scale) when noise
+// displaces a vertex beyond ±sphere_scale in Y.
+//
+PRIVATE
+void RO_AsteroidDrawSphere( Asteroid *asteroid )
+{
+	ASSERT( asteroid != NULL );
+
+	IterArray3 *itarray = (IterArray3 *) ALLOCMEM(
+		(size_t)&((IterArray3*)0)->Vtxs[ sphere_numverts ] );
+	if ( itarray == NULL )
+		OUTOFMEM( "no mem for asteroid vertex array." );
+
+	itarray->NumVerts  = sphere_numverts;
+	itarray->arrayinfo = ITERARRAY_USE_COLOR |
+	                     ITERARRAY_USE_TEXTURE | ITERARRAY_GLOBAL_TEXTURE;
+	itarray->flags     = ITERFLAG_Z_DIV_XYZ | ITERFLAG_Z_DIV_UVW |
+	                     ITERFLAG_Z_TO_DEPTH;
+	itarray->itertype  = iter_texrgb | iter_overwrite;
+	itarray->raststate = rast_zbuffer | rast_texclamp | rast_chromakeyoff;
+	itarray->rastmask  = rast_nomask;
+	itarray->texmap    = asteroid->FaceList[ 0 ].TexMap;
+
+	int texwidth  = 1 << itarray->texmap->Width;
+	int texheight = 1 << itarray->texmap->Height;
+	float inv_scale = ( sphere_scale > 0.0f ) ? ( 1.0f / sphere_scale ) : 1.0f;
+
+	for ( int vid = 0; vid < sphere_numverts; vid++ ) {
+
+		itarray->Vtxs[ vid ].X = FLOAT_TO_GEOMV( sphere_vertices[ vid ].X );
+		itarray->Vtxs[ vid ].Y = FLOAT_TO_GEOMV( sphere_vertices[ vid ].Y );
+		itarray->Vtxs[ vid ].Z = FLOAT_TO_GEOMV( sphere_vertices[ vid ].Z );
+		itarray->Vtxs[ vid ].W = GEOMV_1;
+
+		// Normalise vertex position to direction vector in [-1,1]³
+		float vx = sphere_vertices[ vid ].X * inv_scale;
+		float vy = sphere_vertices[ vid ].Y * inv_scale;
+		float vz = sphere_vertices[ vid ].Z * inv_scale;
+
+		float ax = vx < 0.0f ? -vx : vx;
+		float ay = vy < 0.0f ? -vy : vy;
+		float az = vz < 0.0f ? -vz : vz;
+
+		// Pick the cube face whose normal is closest to the vertex direction,
+		// then project the other two axes into [0, 1] UV space.
+		float tu, tv;
+		if ( ax >= ay && ax >= az ) {
+			// X-dominant face
+			float inv = 1.0f / ax;
+			tu = ( vz * inv ) * 0.5f + 0.5f;
+			tv = ( vy * inv ) * 0.5f + 0.5f;
+		} else if ( ay >= az ) {
+			// Y-dominant face
+			float inv = 1.0f / ay;
+			tu = ( vx * inv ) * 0.5f + 0.5f;
+			tv = ( vz * inv ) * 0.5f + 0.5f;
+		} else {
+			// Z-dominant face
+			float inv = 1.0f / az;
+			tu = ( vx * inv ) * 0.5f + 0.5f;
+			tv = ( vy * inv ) * 0.5f + 0.5f;
+		}
+
+		itarray->Vtxs[ vid ].U = FLOAT_TO_GEOMV( tu * texwidth );
+		itarray->Vtxs[ vid ].V = FLOAT_TO_GEOMV( tv * texheight );
+
+		itarray->Vtxs[ vid ].R = 255;
+		itarray->Vtxs[ vid ].G = 255;
+		itarray->Vtxs[ vid ].B = 255;
+		itarray->Vtxs[ vid ].A = 255;
+	}
+
+	// Build index buffer — no seam-fix pass needed, box mapping never wraps.
+	int numtriindxs = sphere_numtris * 3;
+	uint16 *vindxs = (uint16 *) ALLOCMEM( numtriindxs * sizeof( uint16 ) );
+	if ( vindxs == NULL )
+		OUTOFMEM( "no mem for asteroid index buffer." );
+
+	int dstvindx = 0;
+	for ( int tri = 0; tri < sphere_numtris; tri++ ) {
+		if ( sphere_triinactive[ tri ] )
+			continue;
+		vindxs[ dstvindx + 0 ] = (uint16) sphere_indexes[ tri * 3 + 0 ];
+		vindxs[ dstvindx + 1 ] = (uint16) sphere_indexes[ tri * 3 + 1 ];
+		vindxs[ dstvindx + 2 ] = (uint16) sphere_indexes[ tri * 3 + 2 ];
+		dstvindx += 3;
+	}
+
+	// calculate transformation matrix
+	MtxMtxMUL( ViewCamera, asteroid->ObjPosition, DestXmatrx );
+
+	D_LoadIterMatrix( DestXmatrx );
+	D_LockIterArray3( itarray, 0, itarray->NumVerts );
+	D_DrawIterArrayIndexed( ITERARRAY_MODE_TRIANGLES, dstvindx, vindxs, 0x3f );
+	D_UnlockIterArray();
+
+	FREEMEM( vindxs );
+
+	// restore identity transformation
+	D_LoadIterMatrix( NULL );
+
+	FREEMEM( itarray );
+}
+
+
 // draw dynamically tessellated asteroid (noise-perturbed sphere) --------------
 //
 void R_DrawAsteroid( CustomObject *base )
@@ -1312,9 +1426,7 @@ void R_DrawAsteroid( CustomObject *base )
 	Asteroid *asteroid = (Asteroid *) base;
 
 	RO_AsteroidGenerateSphere( asteroid );
-	// RO_PlanetDrawSphere only uses FaceList[0].TexMap and BoundingSphere,
-	// both of which are members of CustomObject — the reinterpret cast is safe.
-	RO_PlanetDrawSphere( reinterpret_cast<PlanetObject*>( asteroid ) );
+	RO_AsteroidDrawSphere( asteroid );
 
 	// avoid standard geometry drawing
 	asteroid->NumVerts = 0;
