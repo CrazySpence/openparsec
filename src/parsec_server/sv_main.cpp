@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // compilation flags/debug support
 #include "config.h"
@@ -55,6 +56,12 @@ int main( int argc, char** argv )
 {
 	// install any signal handlers
 	SYSs_InstallSignalHandlers();
+
+	// Seed the random number generator from wall-clock time so that extras,
+	// spawn positions and other rand()-based choices differ between runs.
+	// Without this, rand() always starts from its default seed (1) and
+	// produces the same sequence — extras spawn in identical spots every run.
+	srand( (unsigned int) time( NULL ) );
 
 	// get the server global
 	TheServer = E_GameServer::GetGameServer();
