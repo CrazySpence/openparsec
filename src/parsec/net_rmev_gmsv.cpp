@@ -349,6 +349,14 @@ void NET_ExecRmEvCreateExtra2( RE_Header *rmev, int ownerid )
 	// create object if extra available on this client
 	if ( classid != CLASS_ID_INVALID ) {
 
+		// Guard against duplicates: the join burst re-sends all live extras.
+		// If this HostObjId is already in the extra list (received earlier this
+		// session or left over from a previous join), skip creation entirely.
+		if ( FetchSpecificHostObject( re_ce2->HostObjId, (GenObject*)ExtraObjects ) != NULL ) {
+			RMEVTXT( MSGOUT( "--RE_CREATEEXTRA2: skipping duplicate hostobj %d", re_ce2->HostObjId ); );
+			return;
+		}
+
 		ExtraObject *extrapo = (ExtraObject *) CreateObject( classid, re_ce2->ObjPosition );
 		ASSERT( extrapo != NULL );
 		extrapo->HostObjNumber = re_ce2->HostObjId;

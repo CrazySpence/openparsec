@@ -502,51 +502,63 @@ void G_Main::JoinPlayer( int nClientID, E_SimShipState* pSimShipState )
 
 	// How many random positions to try before giving up.
 	static const int   JP_SPAWN_ATTEMPTS  = 50;
-	// Flat clearance added to each object's BoundingSphere.
-	// Must comfortably exceed the largest ship BoundingSphere so the player
-	// never spawns within the collision zone (asteroid.BS + ship.BS).
-	static const float JP_SPAWN_EXTRA_CLEARANCE = 300.0f;
+	// Exclusion radius around each custom object centre.
+	// The actual collision zone is (object.BS + ship.BS).  A ship BoundingSphere
+	// is typically 100-200 units, so 400 gives comfortable clearance even for
+	// large ships.  Objects with BS == 0 still get 400 units of exclusion.
+	static const float JP_SPAWN_EXTRA_CLEARANCE = 400.0f;
 
 	int xdist = 0, ydist = 0, zdist = 0;
+	// Track the best (most-clear) candidate in case no fully-clear spot exists.
+	int   best_x = 0, best_y = 0, best_z = 0;
+	float best_margin = -1.0f;   // closest-obstacle clearance of best candidate
 
 	for ( int attempt = 0; attempt < JP_SPAWN_ATTEMPTS; attempt++ ) {
 
-		xdist = ( RAND() % JP_RANGE ) - JP_OFS;
-		ydist = ( RAND() % JP_RANGE ) - JP_OFS;
-		zdist = ( RAND() % JP_RANGE ) - JP_OFS;
+		int tx = ( RAND() % JP_RANGE ) - JP_OFS;
+		int ty = ( RAND() % JP_RANGE ) - JP_OFS;
+		int tz = ( RAND() % JP_RANGE ) - JP_OFS;
 
-		xdist += ( xdist < 0 ) ? -JP_M_S_D : JP_M_S_D;
-		ydist += ( ydist < 0 ) ? -JP_M_S_D : JP_M_S_D;
-		zdist += ( zdist < 0 ) ? -JP_M_S_D : JP_M_S_D;
+		tx += ( tx < 0 ) ? -JP_M_S_D : JP_M_S_D;
+		ty += ( ty < 0 ) ? -JP_M_S_D : JP_M_S_D;
+		tz += ( tz < 0 ) ? -JP_M_S_D : JP_M_S_D;
 
-		// Check candidate against every custom object's bounding sphere
-		// (catches planets, asteroids, stargates, teleporters, etc.).
-		float cx = (float)xdist;
-		float cy = (float)ydist;
-		float cz = (float)zdist;
+		// Find the minimum clearance margin across all custom objects.
+		float cx = (float)tx;
+		float cy = (float)ty;
+		float cz = (float)tz;
 
-		bool clear = true;
+		float min_margin = 1e30f;   // margin = dist_to_centre - exclusion_radius
 		CustomObject* walkobjs = (CustomObject*)TheWorld->m_CustmObjects->NextObj;
 		while ( walkobjs != NULL ) {
-			// exclusion = asteroid.BS + flat buffer > asteroid.BS + ship.BS
 			float bs = GEOMV_TO_FLOAT( walkobjs->BoundingSphere ) + JP_SPAWN_EXTRA_CLEARANCE;
-			if ( bs > 0.0f ) {
-				float dx = cx - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 0 ][ 3 ] );
-				float dy = cy - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 1 ][ 3 ] );
-				float dz = cz - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 2 ][ 3 ] );
-				if ( dx*dx + dy*dy + dz*dz < bs*bs ) {
-					clear = false;
-					break;
-				}
-			}
+			float dx = cx - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 0 ][ 3 ] );
+			float dy = cy - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 1 ][ 3 ] );
+			float dz = cz - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 2 ][ 3 ] );
+			float dist = sqrtf( dx*dx + dy*dy + dz*dz );
+			float margin = dist - bs;
+			if ( margin < min_margin )
+				min_margin = margin;
 			walkobjs = (CustomObject*)walkobjs->NextObj;
 		}
 
-		if ( clear ) break;
+		// Keep track of the candidate with the best (largest) clearance.
+		if ( min_margin > best_margin ) {
+			best_margin = min_margin;
+			best_x = tx; best_y = ty; best_z = tz;
+		}
+
+		// Fully clear — use this position immediately.
+		if ( min_margin >= 0.0f ) {
+			xdist = tx; ydist = ty; zdist = tz;
+			break;
+		}
 
 		if ( attempt == JP_SPAWN_ATTEMPTS - 1 ) {
-			MSGOUT( "JoinPlayer: no clear spawn found for client %d after %d attempts, using last candidate",
-			        nClientID, JP_SPAWN_ATTEMPTS );
+			// No fully-clear spot found; fall back to the least-bad candidate.
+			xdist = best_x; ydist = best_y; zdist = best_z;
+			MSGOUT( "JoinPlayer: no clear spawn for client %d after %d attempts (best margin %.0f), using least-bad candidate",
+			        nClientID, JP_SPAWN_ATTEMPTS, best_margin );
 		}
 	}
 
