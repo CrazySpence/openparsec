@@ -725,9 +725,10 @@ void G_ExtraManager::OBJ_DoExtraPlacement()
 
 
 // define area in which extras around ship will be placed ---------------------
-//
-#define EXPL_MAXEXTRAAREA	30
-#define EXPL_MINEXTRADIST	5
+// Spread wide enough that extras don't visually overlap on spawn.
+// Drift separates them further over time.
+#define EXPL_MAXEXTRAAREA	200
+#define EXPL_MINEXTRADIST	50
 
 #define EXPL_DRIFTSPEED		0.0012f
 
@@ -756,14 +757,46 @@ void G_ExtraManager::_PlaceShipExtras( int num, int objclass, ShipObject *shippo
 
 #endif // PARSEC_CLIENT
 
-		// do random placement of extras in near vicinity of ship
-		int x = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
-		int y = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
-		int z = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
-
+		// do random placement of extras in near vicinity of ship, retrying
+		// if the candidate lands too close to an existing extra.
+		int x = 0, y = 0, z = 0;
+#ifdef PARSEC_SERVER
+		{
+			static const int EXPL_PLACE_ATTEMPTS = 10;
+			geomv_t min_sep    = INT_TO_GEOMV( EXPL_MINEXTRADIST * 3 );
+			geomv_t min_sep_sq = GEOMV_MUL( min_sep, min_sep );
+			for ( int _attempt = 0; _attempt < EXPL_PLACE_ATTEMPTS; _attempt++ ) {
+				x = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
+				y = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
+				z = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
+				x += ( x < 0 ) ? -EXPL_MINEXTRADIST : EXPL_MINEXTRADIST;
+				y += ( y < 0 ) ? -EXPL_MINEXTRADIST : EXPL_MINEXTRADIST;
+				z += ( z < 0 ) ? -EXPL_MINEXTRADIST : EXPL_MINEXTRADIST;
+				geomv_t cx = INT_TO_GEOMV( x ) + shippo->ObjPosition[ 0 ][ 3 ];
+				geomv_t cy = INT_TO_GEOMV( y ) + shippo->ObjPosition[ 1 ][ 3 ];
+				geomv_t cz = INT_TO_GEOMV( z ) + shippo->ObjPosition[ 2 ][ 3 ];
+				bool_t ok = TRUE;
+				ExtraObject *we = (ExtraObject *) TheWorld->m_ExtraObjects->NextObj;
+				while ( we != NULL ) {
+					geomv_t dx = cx - we->ObjPosition[ 0 ][ 3 ];
+					geomv_t dy = cy - we->ObjPosition[ 1 ][ 3 ];
+					geomv_t dz = cz - we->ObjPosition[ 2 ][ 3 ];
+					if ( GEOMV_MUL(dx,dx)+GEOMV_MUL(dy,dy)+GEOMV_MUL(dz,dz) < min_sep_sq ) {
+						ok = FALSE; break;
+					}
+					we = (ExtraObject *) we->NextObj;
+				}
+				if ( ok ) break;
+			}
+		}
+#else
+		x = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
+		y = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
+		z = ( RAND() % EXPL_MAXEXTRAAREA ) - EXPL_MAXEXTRAAREA / 2;
 		x += ( x < 0 ) ? -EXPL_MINEXTRADIST : EXPL_MINEXTRADIST;
 		y += ( y < 0 ) ? -EXPL_MINEXTRADIST : EXPL_MINEXTRADIST;
 		z += ( z < 0 ) ? -EXPL_MINEXTRADIST : EXPL_MINEXTRADIST;
+#endif
 
 #ifdef TEST_EXTRA_CREATION_CODE_ON_SHIP_DOWNING
 

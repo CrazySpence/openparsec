@@ -501,9 +501,11 @@ void G_Main::JoinPlayer( int nClientID, E_SimShipState* pSimShipState )
   	pXmatrx ObjPosition = pSimShipState->GetObjPosition();
 
 	// How many random positions to try before giving up.
-	static const int   JP_SPAWN_ATTEMPTS  = 20;
-	// Multiplier on BoundingSphere — keeps player clear of the object's surface.
-	static const float JP_SPAWN_CLEARANCE = 1.5f;
+	static const int   JP_SPAWN_ATTEMPTS  = 50;
+	// Flat clearance added to each object's BoundingSphere.
+	// Must comfortably exceed the largest ship BoundingSphere so the player
+	// never spawns within the collision zone (asteroid.BS + ship.BS).
+	static const float JP_SPAWN_EXTRA_CLEARANCE = 300.0f;
 
 	int xdist = 0, ydist = 0, zdist = 0;
 
@@ -526,7 +528,8 @@ void G_Main::JoinPlayer( int nClientID, E_SimShipState* pSimShipState )
 		bool clear = true;
 		CustomObject* walkobjs = (CustomObject*)TheWorld->m_CustmObjects->NextObj;
 		while ( walkobjs != NULL ) {
-			float bs = GEOMV_TO_FLOAT( walkobjs->BoundingSphere ) * JP_SPAWN_CLEARANCE;
+			// exclusion = asteroid.BS + flat buffer > asteroid.BS + ship.BS
+			float bs = GEOMV_TO_FLOAT( walkobjs->BoundingSphere ) + JP_SPAWN_EXTRA_CLEARANCE;
 			if ( bs > 0.0f ) {
 				float dx = cx - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 0 ][ 3 ] );
 				float dy = cy - GEOMV_TO_FLOAT( walkobjs->ObjPosition[ 1 ][ 3 ] );
