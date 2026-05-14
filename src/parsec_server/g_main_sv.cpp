@@ -254,11 +254,41 @@ int G_TimeManagement::GetCurGameTime()
 
 // default ctor ---------------------------------------------------------------
 //
+// Invincibility duration: 3 seconds (FRAME_MEASURE_TIMEBASE = 600 refframes/sec).
+// Prevents stale pre-death client position packets from re-triggering a
+// collision immediately after the server places the ship at a safe spawn point.
+#define SPAWN_SHIELD_REFFRAMES  ( FRAME_MEASURE_TIMEBASE * 3 )
+
 G_Main::G_Main() :
 	m_Players				( NULL ),
 	m_CurConnectedPlayerList( NULL ),
 	m_CurJoinedPlayerList	( NULL )
 {
+	memset( m_SpawnShieldFrames, 0, sizeof( m_SpawnShieldFrames ) );
+}
+
+
+void G_Main::SetSpawnShield( int nClientID )
+{
+	if ( nClientID >= 0 && nClientID < 16 )
+		m_SpawnShieldFrames[ nClientID ] = SPAWN_SHIELD_REFFRAMES;
+}
+
+bool_t G_Main::IsSpawnShielded( int nClientID )
+{
+	if ( nClientID < 0 || nClientID >= 16 ) return FALSE;
+	return ( m_SpawnShieldFrames[ nClientID ] > 0 ) ? TRUE : FALSE;
+}
+
+void G_Main::TickSpawnShields( refframe_t refframes )
+{
+	for ( int i = 0; i < 16; i++ ) {
+		if ( m_SpawnShieldFrames[ i ] > 0 ) {
+			m_SpawnShieldFrames[ i ] -= refframes;
+			if ( m_SpawnShieldFrames[ i ] < 0 )
+				m_SpawnShieldFrames[ i ] = 0;
+		}
+	}
 }
 
 
@@ -566,6 +596,10 @@ void G_Main::JoinPlayer( int nClientID, E_SimShipState* pSimShipState )
 	ObjPosition[ 1 ][ 3 ] = INT_TO_GEOMV( ydist );
 	ObjPosition[ 2 ][ 3 ] = INT_TO_GEOMV( zdist );
 
+	// Grant spawn shield so stale pre-death client position packets can't
+	// immediately re-trigger an asteroid/planet collision.
+	SetSpawnShield( nClientID );
+
 	m_CurJoinedPlayerList->AppendTail( &m_Players[ nClientID ] );
 }
 
@@ -719,6 +753,9 @@ G_Player* G_Main::GetPlayer( int nClientID )
 //
 void G_Main::MaintainGame()
 {
+	// Tick spawn shields every frame regardless of game state
+	TickSpawnShields( TheSimulator->GetThisFrameRefFrames() );
+
 	if ( m_TimeManager.IsGameRunning() ) {
 
 		// check whether the game time-limit is hit

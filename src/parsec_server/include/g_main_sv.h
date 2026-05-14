@@ -115,6 +115,22 @@ protected:
 	G_Main();
 	~G_Main();
 
+	// Per-client spawn invincibility countdown (refframes remaining).
+	// Set to SPAWN_SHIELD_REFFRAMES in JoinPlayer; decremented each frame;
+	// asteroid/planet collision is suppressed while > 0.
+	// Array size = MAX_NET_ALLOC_SLOTS (16).
+	refframe_t	m_SpawnShieldFrames[ 16 ];
+
+public:
+	// Set spawn shield for a newly joined client.
+	void    SetSpawnShield( int nClientID );
+	// Returns TRUE while the client's spawn shield is still active.
+	bool_t  IsSpawnShielded( int nClientID );
+	// Tick all active spawn shields down by the current frame's refframes.
+	void    TickSpawnShields( refframe_t refframes );
+
+protected:
+
 	// walk list of extra objects and advance them ( also handle timeout )
 	void _WalkExtraObjects();
 

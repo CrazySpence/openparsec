@@ -699,6 +699,13 @@ void G_CollDet::_CheckShipPlanetCollision()
 				dvec.Y = dy;
 				dvec.Z = dz;
 
+				// skip collision for freshly-spawned ships (prevents stale position
+				// packets from re-triggering collision immediately after respawn)
+				if ( TheGame->IsSpawnShielded( (int)GetObjectOwner( cur_ship ) ) ) {
+					cur_ship = nextship;
+					continue;
+				}
+
 				geomv_t dist2    = DOT_PRODUCT( &dvec, &dvec );
 				geomv_t minDist  = tmpplanet->BoundingSphere + cur_ship->BoundingSphere;
 				geomv_t minDist2 = GEOMV_MUL( minDist, minDist );
@@ -783,6 +790,13 @@ void G_CollDet::_CheckShipAsteroidCollision()
 				dvec.X = dx;
 				dvec.Y = dy;
 				dvec.Z = dz;
+
+				// skip collision for freshly-spawned ships (prevents stale position
+				// packets from re-triggering collision immediately after respawn)
+				if ( TheGame->IsSpawnShielded( (int)GetObjectOwner( cur_ship ) ) ) {
+					cur_ship = nextship;
+					continue;
+				}
 
 				geomv_t dist2   = DOT_PRODUCT( &dvec, &dvec );
 				geomv_t minDist = tmpasteroid->BoundingSphere + cur_ship->BoundingSphere;
