@@ -398,8 +398,10 @@ int ObjFile::ParseObjectData()
 						// render as solid black or invisible.
 						tempface.MapXY( k ) = Vertex2( p.x, p.y, p.z );
 
-						// MapUV: UV with V flipped (OBJ bottom-left → engine top-left)
-						tempface.MapUV( k ) = Vertex2( t.u, 1.0 - t.v );
+						// MapUV: OBJ UV uses V=0 at bottom-left, same convention as the
+						// engine (matching VRML ships in BRep.cpp which also pass UV
+						// straight through without any flip).  No V-inversion needed.
+						tempface.MapUV( k ) = Vertex2( t.u, t.v );
 					}
 				} else {
 					// All UV triplets are degenerate — face is genuinely unmappable.

@@ -10,7 +10,7 @@
 
 write loading test: box...
 
-load texture box.tga    file grey.tga
+load texture box.tga    file box.tga
 load object (testbox)   file box.od2 type ship_1
 
 ; mon_f1 is the HUD ship-select icon -- reusing firebird's since we have no custom icon
