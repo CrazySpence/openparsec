@@ -23,7 +23,7 @@
 //  ===============
 //  The TriMapping attached to each Face stores 3-vertex correspondences used
 //  by ObjectBinFormat::OD2_CalcAffineMapping() to build the affine texture
-//  matrix. MapXY holds object-space XY (pre-scale, same units as VertexChunk).
+//  matrix. MapXY holds object-space XYZ (X, Y in the Vertex2 X/Y fields; Z in W),
 //  MapUV holds [0,1]-range UV coordinates.
 //  For n-gons with n > 3 only the first three vertices are used for the
 //  affine mapping (same limitation as the original VRML/AOD pipeline).
@@ -333,7 +333,7 @@ int ObjFile::ParseObjectData()
 		// ObjectBinFormat uses face.MapXY / face.MapUV for affine texture
 		// matrix computation.  Only the first three vertices are used
 		// (TriMapping holds exactly 3 correspondences).
-		// MapXY: object-space X and Y (same units as VertexChunk, pre-scale).
+		// MapXY: object-space X/Y/Z (Z in Vertex2::W, same as InitFromVertex3).
 		// MapUV: [0,1] UV range; V is flipped to convert OBJ bottom-left
 		//        origin to engine top-left origin.
 
@@ -378,8 +378,13 @@ int ObjFile::ParseObjectData()
 						const ObjPos&  p  = positions[ vr.vIdx ];
 						const ObjUV&   t  = uvs[ vr.vtIdx ];
 
-						// MapXY: X and Y of the vertex in object space
-						tempface.MapXY( k ) = Vertex2( p.x, p.y );
+						// MapXY: X, Y, Z of the vertex in object space (Z stored in W slot,
+						// matching Vertex2::InitFromVertex3 used by all other BspLib paths).
+						// Without the Z component the XYW matrix is rank-deficient for any
+						// face lying in an axis-aligned plane (e.g. top/bottom of a cube),
+						// causing the texture-gradient adjoint to be zero and the face to
+						// render as solid black or invisible.
+						tempface.MapXY( k ) = Vertex2( p.x, p.y, p.z );
 
 						// MapUV: UV with V flipped (OBJ bottom-left → engine top-left)
 						tempface.MapUV( k ) = Vertex2( t.u, 1.0 - t.v );
