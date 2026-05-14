@@ -866,17 +866,21 @@ void RO_LightWedges( GenObject *obj, const Xmatrx objtoview )
 	
 	//GlobalDirLight
 
-	// world space -> object space
+	// World → object: transpose the rotation block of obj->ObjPosition.
+	// ObjPosition is the object-to-world transform; its transpose (= inverse
+	// for orthonormal rotations) converts world-space directions to object space.
+	// Using objtoview (= ViewCamera × ObjPosition) here was wrong — it dragged
+	// the camera rotation in, making the light follow the camera direction.
 	Xmatrx inv;
-	inv[ 0 ][ 0 ] = objtoview[ 0 ][ 0 ];
-	inv[ 0 ][ 1 ] = objtoview[ 1 ][ 0 ];
-	inv[ 0 ][ 2 ] = objtoview[ 2 ][ 0 ];
-	inv[ 1 ][ 0 ] = objtoview[ 0 ][ 1 ];
-	inv[ 1 ][ 1 ] = objtoview[ 1 ][ 1 ];
-	inv[ 1 ][ 2 ] = objtoview[ 2 ][ 1 ];
-	inv[ 2 ][ 0 ] = objtoview[ 0 ][ 2 ];
-	inv[ 2 ][ 1 ] = objtoview[ 1 ][ 2 ];
-	inv[ 2 ][ 2 ] = objtoview[ 2 ][ 2 ];
+	inv[ 0 ][ 0 ] = obj->ObjPosition[ 0 ][ 0 ];
+	inv[ 0 ][ 1 ] = obj->ObjPosition[ 1 ][ 0 ];
+	inv[ 0 ][ 2 ] = obj->ObjPosition[ 2 ][ 0 ];
+	inv[ 1 ][ 0 ] = obj->ObjPosition[ 0 ][ 1 ];
+	inv[ 1 ][ 1 ] = obj->ObjPosition[ 1 ][ 1 ];
+	inv[ 1 ][ 2 ] = obj->ObjPosition[ 2 ][ 1 ];
+	inv[ 2 ][ 0 ] = obj->ObjPosition[ 0 ][ 2 ];
+	inv[ 2 ][ 1 ] = obj->ObjPosition[ 1 ][ 2 ];
+	inv[ 2 ][ 2 ] = obj->ObjPosition[ 2 ][ 2 ];
 
 	// directional lightsource in object space
 	Vector3 objlightvec;

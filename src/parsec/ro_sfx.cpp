@@ -964,9 +964,9 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 		viewlightvec.Y = FixedStars[ SUN_STAR_NO ].location.Y;
 		viewlightvec.Z = FixedStars[ SUN_STAR_NO ].location.Z;
 		NormVctX( &viewlightvec );
-		litinv[ 0 ][ 0 ] = DestXmatrx[ 0 ][ 0 ]; litinv[ 0 ][ 1 ] = DestXmatrx[ 1 ][ 0 ]; litinv[ 0 ][ 2 ] = DestXmatrx[ 2 ][ 0 ];
-		litinv[ 1 ][ 0 ] = DestXmatrx[ 0 ][ 1 ]; litinv[ 1 ][ 1 ] = DestXmatrx[ 1 ][ 1 ]; litinv[ 1 ][ 2 ] = DestXmatrx[ 2 ][ 1 ];
-		litinv[ 2 ][ 0 ] = DestXmatrx[ 0 ][ 2 ]; litinv[ 2 ][ 1 ] = DestXmatrx[ 1 ][ 2 ]; litinv[ 2 ][ 2 ] = DestXmatrx[ 2 ][ 2 ];
+		litinv[ 0 ][ 0 ] = planet->ObjPosition[ 0 ][ 0 ]; litinv[ 0 ][ 1 ] = planet->ObjPosition[ 1 ][ 0 ]; litinv[ 0 ][ 2 ] = planet->ObjPosition[ 2 ][ 0 ];
+		litinv[ 1 ][ 0 ] = planet->ObjPosition[ 0 ][ 1 ]; litinv[ 1 ][ 1 ] = planet->ObjPosition[ 1 ][ 1 ]; litinv[ 1 ][ 2 ] = planet->ObjPosition[ 2 ][ 1 ];
+		litinv[ 2 ][ 0 ] = planet->ObjPosition[ 0 ][ 2 ]; litinv[ 2 ][ 1 ] = planet->ObjPosition[ 1 ][ 2 ]; litinv[ 2 ][ 2 ] = planet->ObjPosition[ 2 ][ 2 ];
 		MtxVctMULt( litinv, &viewlightvec, &objlightvec_planet );
 		planet_ambient_f = LightColorAmbient.R / 255.0f;
 		planet_diffuse_f = LightColorDiffuse.R  / 255.0f;
@@ -1409,9 +1409,9 @@ void RO_AsteroidDrawSphere( Asteroid *asteroid )
 		ast_viewlightvec.Y = FixedStars[ SUN_STAR_NO ].location.Y;
 		ast_viewlightvec.Z = FixedStars[ SUN_STAR_NO ].location.Z;
 		NormVctX( &ast_viewlightvec );
-		ast_litinv[ 0 ][ 0 ] = DestXmatrx[ 0 ][ 0 ]; ast_litinv[ 0 ][ 1 ] = DestXmatrx[ 1 ][ 0 ]; ast_litinv[ 0 ][ 2 ] = DestXmatrx[ 2 ][ 0 ];
-		ast_litinv[ 1 ][ 0 ] = DestXmatrx[ 0 ][ 1 ]; ast_litinv[ 1 ][ 1 ] = DestXmatrx[ 1 ][ 1 ]; ast_litinv[ 1 ][ 2 ] = DestXmatrx[ 2 ][ 1 ];
-		ast_litinv[ 2 ][ 0 ] = DestXmatrx[ 0 ][ 2 ]; ast_litinv[ 2 ][ 1 ] = DestXmatrx[ 1 ][ 2 ]; ast_litinv[ 2 ][ 2 ] = DestXmatrx[ 2 ][ 2 ];
+		ast_litinv[ 0 ][ 0 ] = asteroid->ObjPosition[ 0 ][ 0 ]; ast_litinv[ 0 ][ 1 ] = asteroid->ObjPosition[ 1 ][ 0 ]; ast_litinv[ 0 ][ 2 ] = asteroid->ObjPosition[ 2 ][ 0 ];
+		ast_litinv[ 1 ][ 0 ] = asteroid->ObjPosition[ 0 ][ 1 ]; ast_litinv[ 1 ][ 1 ] = asteroid->ObjPosition[ 1 ][ 1 ]; ast_litinv[ 1 ][ 2 ] = asteroid->ObjPosition[ 2 ][ 1 ];
+		ast_litinv[ 2 ][ 0 ] = asteroid->ObjPosition[ 0 ][ 2 ]; ast_litinv[ 2 ][ 1 ] = asteroid->ObjPosition[ 1 ][ 2 ]; ast_litinv[ 2 ][ 2 ] = asteroid->ObjPosition[ 2 ][ 2 ];
 		MtxVctMULt( ast_litinv, &ast_viewlightvec, &ast_objlightvec );
 		ast_ambient_f = LightColorAmbient.R / 255.0f;
 		ast_diffuse_f = LightColorDiffuse.R  / 255.0f;
