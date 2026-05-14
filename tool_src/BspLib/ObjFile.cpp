@@ -115,7 +115,19 @@ static void ParseMtlFile( const char *path,
 			}
 		} else if ( cur && strcmp( tok, "map_Kd" ) == 0 ) {
 			tok = strtok( NULL, " \t\r\n" );
-			if ( tok ) cur->texFile = tok;
+			if ( tok ) {
+				// Strip directory component — store only the basename so the
+				// engine can match it against the internal name used in
+				// "load texture <name> file <basename>".  map_Kd paths from
+				// Blender (and most exporters) are often absolute paths on the
+				// artist's machine which are useless at runtime.
+				const char *slash = strrchr( tok, '/' );
+				const char *bslash = strrchr( tok, '\\' );
+				const char *base = tok;
+				if ( slash  && slash  > base ) base = slash  + 1;
+				if ( bslash && bslash > base ) base = bslash + 1;
+				cur->texFile = base;
+			}
 		} else if ( cur && strcmp( tok, "Kd" ) == 0 ) {
 			double r = 0.8, g = 0.8, b = 0.8;
 			tok = strtok( NULL, " \t\r\n" ); if ( tok ) r = atof( tok );
