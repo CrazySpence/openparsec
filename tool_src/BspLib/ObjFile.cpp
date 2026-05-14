@@ -417,11 +417,20 @@ int ObjFile::ParseObjectData()
 		obj->getFaceList().AddElement( tempface );
 
 		// ---- Build Polygon ------------------------------------------------
+		// OBJ uses counter-clockwise (CCW) winding.  BspLib's Plane constructor
+		// uses clockwise (CW) convention (Plane.h: "front face in clockwise
+		// order") so its cross product (v3-v1)×(v2-v1) gives an OUTWARD normal
+		// only when vertices are in CW order.  Inserting each vertex at the HEAD
+		// (PrependNewVIndx) reverses the OBJ CCW order to CW, matching the same
+		// pattern BRep::BuildFromIndexedFaceSet uses for VRML CCW faces.
+		// Without this reversal the stored engine face normals point inward,
+		// causing nearly all faces to appear front-facing regardless of the view
+		// angle and producing the "pentagon" silhouette effect.
 		Polygon *poly = obj->getPolygonList().NewPolygon();
 		poly->setFaceId( faceId );
 
 		for ( const ObjVRef& vr : f.verts )
-			obj->getPolygonList().AppendNewVIndx( vr.vIdx );
+			obj->getPolygonList().PrependNewVIndx( vr.vIdx );
 	}
 
 	obj->CheckParsedData();
