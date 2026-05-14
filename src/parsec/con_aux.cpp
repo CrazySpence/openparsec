@@ -299,7 +299,7 @@ int_command_s verbose_aux_commands[] = {
 #endif // ENABLE_CHEAT_COMMANDS
 	{ 0x80,	"aux_draw_wireframe",						0, 2,	&AUX_DRAW_WIREFRAME,						NULL,				NULL },
 	{ 0x80,	"aux_draw_normals",							0, 1,	&AUX_DRAW_NORMALS,							NULL,				NULL },
-	{ 0x80,	"aux_enable_lighting_types",				0, 0xf,	&AUX_ENABLE_LIGHTING_TYPES,					NULL,				NULL },
+	{ 0x80,	"aux_enable_lighting_types",				0, 0xf,	&AUX_ENABLE_LIGHTING_TYPES,					NULL,				NULL,	1 },
 	{ 0x80,	"aux_enable_colanim_overloading",			0, 1,	&AUX_ENABLE_COLANIM_OVERLOADING,			NULL,				NULL },
 	{ 0x00,	"aux_enable_trilinear_filtering",			0, 1,	&AUX_ENABLE_TRILINEAR_FILTERING,			NULL,				NULL,	1 },
 	{ 0x00,	"aux_enable_movie_writing",					0, 1,	&AUX_ENABLE_MOVIE_WRITING,					NULL,				NULL },

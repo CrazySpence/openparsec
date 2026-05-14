@@ -127,7 +127,7 @@ colrgba_s PanelBackColor		= {  15,  37,  67, 160 };
 colrgba_s PanelTextColor		= { 120, 255, 255, 120 };
 colrgba_s FlareBaseColor		= { 255, 255, 255, 102 };
 
-colrgba_s LightColorAmbient		= { 255, 255, 255, 255 };
+colrgba_s LightColorAmbient		= {  80,  80,  80, 255 };  // ~31% — dark face dim, not black
 colrgba_s LightColorDiffuse		= { 255, 255, 255, 255 };
 colrgba_s LightColorSpecular	= { 255, 255, 255, 255 };
 

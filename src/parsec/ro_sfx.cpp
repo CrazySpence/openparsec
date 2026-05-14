@@ -948,6 +948,30 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 	int texwidth  = 1 << itarray->texmap->Width;
 	int texheight = 1 << itarray->texmap->Height;
 
+	// Compute object-to-view transform early so we can use it for lighting.
+	MtxMtxMUL( ViewCamera, planet->ObjPosition, DestXmatrx );
+
+	// Per-vertex diffuse lighting from the sun.
+	// Transpose of DestXmatrx rotation block gives view→object transform,
+	// matching the pattern in RO_LightWedges (FixedStars are view-space dirs).
+	Xmatrx litinv;
+	Vector3 objlightvec_planet;
+	float planet_ambient_f = 0.0f;
+	float planet_diffuse_f = 0.0f;
+	if ( AUX_ENABLE_LIGHTING_TYPES ) {
+		Vector3 viewlightvec;
+		viewlightvec.X = FixedStars[ SUN_STAR_NO ].location.X;
+		viewlightvec.Y = FixedStars[ SUN_STAR_NO ].location.Y;
+		viewlightvec.Z = FixedStars[ SUN_STAR_NO ].location.Z;
+		NormVctX( &viewlightvec );
+		litinv[ 0 ][ 0 ] = DestXmatrx[ 0 ][ 0 ]; litinv[ 0 ][ 1 ] = DestXmatrx[ 1 ][ 0 ]; litinv[ 0 ][ 2 ] = DestXmatrx[ 2 ][ 0 ];
+		litinv[ 1 ][ 0 ] = DestXmatrx[ 0 ][ 1 ]; litinv[ 1 ][ 1 ] = DestXmatrx[ 1 ][ 1 ]; litinv[ 1 ][ 2 ] = DestXmatrx[ 2 ][ 1 ];
+		litinv[ 2 ][ 0 ] = DestXmatrx[ 0 ][ 2 ]; litinv[ 2 ][ 1 ] = DestXmatrx[ 1 ][ 2 ]; litinv[ 2 ][ 2 ] = DestXmatrx[ 2 ][ 2 ];
+		MtxVctMULt( litinv, &viewlightvec, &objlightvec_planet );
+		planet_ambient_f = LightColorAmbient.R / 255.0f;
+		planet_diffuse_f = LightColorDiffuse.R  / 255.0f;
+	}
+
 	// fill original vertex array
 	for ( int vid = 0; vid < sphere_numverts; vid++ ) {
 
@@ -990,9 +1014,24 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 		itarray->Vtxs[ vid ].U = FLOAT_TO_GEOMV( tu * texwidth );
 		itarray->Vtxs[ vid ].V = FLOAT_TO_GEOMV( tv * texheight );
 
-		itarray->Vtxs[ vid ].R = 255;
-		itarray->Vtxs[ vid ].G = 255;
-		itarray->Vtxs[ vid ].B = 255;
+		if ( AUX_ENABLE_LIGHTING_TYPES && sphere_scale > 0.0f ) {
+			// Use normalised vertex position as outward surface normal (sphere).
+			float inv_s = 1.0f / sphere_scale;
+			float nx = sphere_vertices[ vid ].X * inv_s;
+			float ny = sphere_vertices[ vid ].Y * inv_s;
+			float nz = sphere_vertices[ vid ].Z * inv_s;
+			float ldot = nx * objlightvec_planet.X + ny * objlightvec_planet.Y + nz * objlightvec_planet.Z;
+			if ( ldot < 0.0f ) ldot = 0.0f;
+			int bint = (int)( ( planet_ambient_f + planet_diffuse_f * ldot ) * 255.0f );
+			if ( bint > 255 ) bint = 255;
+			itarray->Vtxs[ vid ].R = (byte) bint;
+			itarray->Vtxs[ vid ].G = (byte) bint;
+			itarray->Vtxs[ vid ].B = (byte) bint;
+		} else {
+			itarray->Vtxs[ vid ].R = 255;
+			itarray->Vtxs[ vid ].G = 255;
+			itarray->Vtxs[ vid ].B = 255;
+		}
 		itarray->Vtxs[ vid ].A = 255;
 	}
 
@@ -1089,9 +1128,7 @@ void RO_PlanetDrawSphere( PlanetObject *planet )
 	// update NumVerts to include seam duplicates
 	itarray->NumVerts = numseamverts;
 
-	// calculate transformation matrix
-	MtxMtxMUL( ViewCamera, planet->ObjPosition, DestXmatrx );
-
+	// DestXmatrx already computed above (before vertex fill) for lighting.
 	// setup transformation matrix and draw
 	D_LoadIterMatrix( DestXmatrx );
 	D_LockIterArray3( itarray, 0, itarray->NumVerts );
@@ -1358,6 +1395,28 @@ void RO_AsteroidDrawSphere( Asteroid *asteroid )
 	if ( vindxs == NULL )
 		OUTOFMEM( "no mem for asteroid index buffer." );
 
+	// Compute object-to-view transform early for lighting.
+	MtxMtxMUL( ViewCamera, asteroid->ObjPosition, DestXmatrx );
+
+	// Per-face diffuse lighting — same view→object pattern as RO_LightWedges.
+	Xmatrx ast_litinv;
+	Vector3 ast_objlightvec;
+	float ast_ambient_f = 0.0f;
+	float ast_diffuse_f = 0.0f;
+	if ( AUX_ENABLE_LIGHTING_TYPES ) {
+		Vector3 ast_viewlightvec;
+		ast_viewlightvec.X = FixedStars[ SUN_STAR_NO ].location.X;
+		ast_viewlightvec.Y = FixedStars[ SUN_STAR_NO ].location.Y;
+		ast_viewlightvec.Z = FixedStars[ SUN_STAR_NO ].location.Z;
+		NormVctX( &ast_viewlightvec );
+		ast_litinv[ 0 ][ 0 ] = DestXmatrx[ 0 ][ 0 ]; ast_litinv[ 0 ][ 1 ] = DestXmatrx[ 1 ][ 0 ]; ast_litinv[ 0 ][ 2 ] = DestXmatrx[ 2 ][ 0 ];
+		ast_litinv[ 1 ][ 0 ] = DestXmatrx[ 0 ][ 1 ]; ast_litinv[ 1 ][ 1 ] = DestXmatrx[ 1 ][ 1 ]; ast_litinv[ 1 ][ 2 ] = DestXmatrx[ 2 ][ 1 ];
+		ast_litinv[ 2 ][ 0 ] = DestXmatrx[ 0 ][ 2 ]; ast_litinv[ 2 ][ 1 ] = DestXmatrx[ 1 ][ 2 ]; ast_litinv[ 2 ][ 2 ] = DestXmatrx[ 2 ][ 2 ];
+		MtxVctMULt( ast_litinv, &ast_viewlightvec, &ast_objlightvec );
+		ast_ambient_f = LightColorAmbient.R / 255.0f;
+		ast_diffuse_f = LightColorDiffuse.R  / 255.0f;
+	}
+
 	int dstvid    = 0;
 	int dstvindx  = 0;
 
@@ -1373,6 +1432,16 @@ void RO_AsteroidDrawSphere( Asteroid *asteroid )
 		float ax = nx < 0.0f ? -nx : nx;
 		float ay = ny < 0.0f ? -ny : ny;
 		float az = nz < 0.0f ? -nz : nz;
+
+		// Per-face diffuse intensity: dot of face normal with object-space light dir.
+		byte ast_bint = 255;
+		if ( AUX_ENABLE_LIGHTING_TYPES ) {
+			float ldot = nx * ast_objlightvec.X + ny * ast_objlightvec.Y + nz * ast_objlightvec.Z;
+			if ( ldot < 0.0f ) ldot = 0.0f;
+			int ival = (int)( ( ast_ambient_f + ast_diffuse_f * ldot ) * 255.0f );
+			if ( ival > 255 ) ival = 255;
+			ast_bint = (byte) ival;
+		}
 
 		// Assign the same cube-face projection to all three vertices so that
 		// UV varies smoothly across the triangle without any in-face jump.
@@ -1401,9 +1470,9 @@ void RO_AsteroidDrawSphere( Asteroid *asteroid )
 			itarray->Vtxs[ dstvid ].W = GEOMV_1;
 			itarray->Vtxs[ dstvid ].U = FLOAT_TO_GEOMV( tu * texwidth );
 			itarray->Vtxs[ dstvid ].V = FLOAT_TO_GEOMV( tv * texheight );
-			itarray->Vtxs[ dstvid ].R = 255;
-			itarray->Vtxs[ dstvid ].G = 255;
-			itarray->Vtxs[ dstvid ].B = 255;
+			itarray->Vtxs[ dstvid ].R = ast_bint;
+			itarray->Vtxs[ dstvid ].G = ast_bint;
+			itarray->Vtxs[ dstvid ].B = ast_bint;
 			itarray->Vtxs[ dstvid ].A = 255;
 
 			vindxs[ dstvindx++ ] = (uint16) dstvid++;
@@ -1412,9 +1481,7 @@ void RO_AsteroidDrawSphere( Asteroid *asteroid )
 
 	itarray->NumVerts = dstvid;
 
-	// calculate transformation matrix
-	MtxMtxMUL( ViewCamera, asteroid->ObjPosition, DestXmatrx );
-
+	// DestXmatrx already computed above (before triangle loop) for lighting.
 	D_LoadIterMatrix( DestXmatrx );
 	D_LockIterArray3( itarray, 0, itarray->NumVerts );
 	D_DrawIterArrayIndexed( ITERARRAY_MODE_TRIANGLES, dstvindx, vindxs, 0x3f );
