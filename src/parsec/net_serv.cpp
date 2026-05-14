@@ -1447,7 +1447,10 @@ int NET_ServerParseMessage( char* msg )
 		if ( sscanf( recvline, "TRANSIT_WEAPONS %x %x", &weapons, &specials ) == 2 ) {
 			if ( MyShip != NULL ) {
 				MyShip->Weapons  = (dword)weapons;
-				MyShip->Specials = (dword)specials;
+				// Strip invulnerability — the join-burst shield handles protection on
+				// arrival; a stale invulnerability from the previous server must not
+				// trigger a full 20-second shield cycle on the new server.
+				MyShip->Specials = (dword)specials & ~SPMASK_INVULNERABILITY;
 				MSGOUT( "transit: client restored weapons %x specials %x", weapons, specials );
 			}
 		}
