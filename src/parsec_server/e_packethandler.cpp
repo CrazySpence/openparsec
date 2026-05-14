@@ -1553,15 +1553,21 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 						ship->CurDamageFrac = 0;
 						// restore weapons/specials directly — the source server already
 						// validated the player legitimately had these.
-						// Strip SPMASK_INVULNERABILITY: a timed shield from the previous
-						// server must not carry over; the join-burst shield applied in
-						// PerformJoin handles invulnerability for the new server.
+						// For SPMASK_INVULNERABILITY: preserve whatever PerformJoin already
+						// set on this server (join-burst shield); do not import the bit from
+						// the transit record (a timed shield from the previous server must
+						// not carry over and must not clear the local join-burst bit, which
+						// e_simnetoutput uses to know when to send INVUNERABLE_END).
+						dword cur_invul = ship->Specials & SPMASK_INVULNERABILITY;
 						ship->Weapons  = rec.Weapons;
-						ship->Specials = rec.Specials & ~SPMASK_INVULNERABILITY;
+						ship->Specials = ( rec.Specials & ~SPMASK_INVULNERABILITY ) | cur_invul;
 						MSGOUT( "transit: restored loadout for %s (client %d)", rname, nClientID );
 
 						// notify the client of its restored weapons/specials so it can
-						// update MyShip->Weapons locally (the stream only carries ammo counts)
+						// update MyShip->Weapons locally (the stream only carries ammo counts).
+						// Strip SPMASK_INVULNERABILITY from the client copy — the client manages
+						// that flag via INVUNERABLE / INVUNERABLE_END RE_Generic, not via
+						// TRANSIT_WEAPONS, so sending the bit here would start a stale 20s cycle.
 						E_ClientInfo* pClientInfo = TheConnManager->GetClientInfo( nClientID );
 						char wcmd[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
 						snprintf( wcmd, sizeof(wcmd), "TRANSIT_WEAPONS %x %x",
