@@ -229,6 +229,12 @@ int ObjFile::ParseObjectData()
 			tok = strtok( NULL, " \t\r\n" ); if ( tok ) pos.x = atof( tok );
 			tok = strtok( NULL, " \t\r\n" ); if ( tok ) pos.y = atof( tok );
 			tok = strtok( NULL, " \t\r\n" ); if ( tok ) pos.z = atof( tok );
+			// Rotate 180° around Y to match Parsec's forward-facing convention.
+			// Blender's default export has +Z toward the viewer (backwards in
+			// Parsec space); negating X and Z is a proper rotation (det=+1)
+			// so face winding and normals are preserved.
+			pos.x = -pos.x;
+			pos.z = -pos.z;
 			positions.push_back( pos );
 
 		} else if ( strcmp( tok, "vt" ) == 0 ) {
