@@ -709,7 +709,8 @@ int E_GameServer::_MaintainMasterServer()
 						CPU_VENDOR_OS,
 						SV_NETCONF_PORT,
 						xpos_out,
-						ypos_out
+						ypos_out,
+						(int)SV_UNIVERSE_ENABLED
 					);
 
 			// append a remote event containing the command

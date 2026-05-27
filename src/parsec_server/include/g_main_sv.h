@@ -48,6 +48,8 @@ protected:
 
 	int			m_nSecGameTimeLimit;		// timelimit for the game in sec.
 	int			m_nSecRestartTimeLimit;		// time to wait between restarts in sec.
+
+	int			m_nUniverseTimeOverride;	// -1 = not active; >= 0 = secs from master
 public:
 	G_TimeManagement();
 
@@ -83,6 +85,9 @@ public:
 
 	// return the current gametime in secs or special gametime codes
 	int GetCurGameTime();
+
+	// universe game: override the displayed/checked time with a master-supplied value
+	void SetUniverseTimeOverride( int secs );
 };
 
 

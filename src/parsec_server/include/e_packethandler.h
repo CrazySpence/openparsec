@@ -135,7 +135,7 @@ protected:
 	int _ParseListRequest_MASTER( char* recvline, int *serverid);
 
 	// do safe parsing of heartbeat packets for the Master Server.
-	int _ParseHBPacket_MASTER(char* recvline);
+	int _ParseHBPacket_MASTER(char* recvline, bool* pUniverseEnabled = NULL);
 
 	// check whether the sender node matches the node for the senderid
 	int _IsLegitSender( NetPacket_GMSV* gamepacket, int bufid );

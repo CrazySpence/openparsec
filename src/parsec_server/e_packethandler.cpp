@@ -1044,7 +1044,7 @@ int E_PacketHandler::_ParseListRequest_MASTER( char* recvline, int *serverid){
 	return TRUE;
 }
 
-int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
+int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline, bool* pUniverseEnabled) {
 
 	ASSERT( recvline != NULL );
 
@@ -1208,6 +1208,17 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 		}
 	}
 
+	// parse optional universe participation flag (added with universe game support)
+	bool bUniverseEnabled = false;
+	ident_str = strtok( NULL, " " ); // skip "univ" label
+	if ( ident_str != NULL && strcmp( ident_str, "univ" ) == 0 ) {
+		ident_str = strtok( NULL, " " );
+		if ( ident_str != NULL )
+			bUniverseEnabled = ( atoi( ident_str ) != 0 );
+	}
+	if ( pUniverseEnabled != NULL )
+		*pUniverseEnabled = bUniverseEnabled;
+
 	// check to see if the server already exists in the ServerList.  If so, update it.  If not, add it.
 	// if the info doesn't match, ignore the packet
 	int i = 0;
@@ -1224,7 +1235,7 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 			it->GetNode(&node_ck);
 			if(NODE_AreSame(&node_ck, &_Node)){
 				// exact match — normal heartbeat refresh
-				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos);
+				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos,bUniverseEnabled);
 				return TRUE;
 			} else if ( memcmp( node_ck.address, _Node.address, 4 ) == 0 ) {
 				// same IP, different port — server restarted or configured port
@@ -1233,7 +1244,7 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 				strcpy( szOld, NODE_Print( &node_ck ) );
 				MSGOUT( "Server %s reconnected on new port (was %s, now %s), updating.\n",
 					ServerName, szOld, NODE_Print( &_Node ) );
-				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos);
+				it->update(ServerID,CurrPlayers,MaxPlayers,PMajor,PMinor,ServerName,OS,&_Node,map_xpos,map_ypos,bUniverseEnabled);
 				return TRUE;
 			} else {
 				// completely different IP — another host is claiming this server ID
@@ -1257,7 +1268,8 @@ int E_PacketHandler::_ParseHBPacket_MASTER(char* recvline) {
 			 OS,
 			 &_Node,
 			 map_xpos,
-			 map_ypos ));
+			 map_ypos,
+			 bUniverseEnabled ));
 	MSGOUT("Added new server %s\n", ServerName);
 	// if we get this far, we should have successfully parsed the packet.  So return true.
 	return TRUE;
@@ -1343,12 +1355,23 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 					}
 				}
 
-				if ( _ParseHBPacket_MASTER(re_commandinfo->command)) {
-					//MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Got HB from client: %s\n", clientIP);
-					return;
-				} else {
-					MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Failed to parse HeartBeat Packet from: %s\n", clientIP);
-					return;
+				{
+					bool bUnivEnabled = false;
+					if ( _ParseHBPacket_MASTER(re_commandinfo->command, &bUnivEnabled)) {
+						// if the server participates in universe and master has an active universe game,
+						// reply immediately with the current universe time remaining
+						if ( bUnivEnabled && TheMaster->m_bUniverseActive ) {
+							int nTimeRemaining = TheMaster->GetUniverseTimeRemaining();
+							char szReply[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+							snprintf( szReply, sizeof(szReply), "UNIV_STATE time_remaining %d", nTimeRemaining );
+							Send_COMMAND_Datagram( szReply, clientnode, PLAYERID_MASTERSERVER );
+						}
+						//MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Got HB from client: %s\n", clientIP);
+						return;
+					} else {
+						MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Failed to parse HeartBeat Packet from: %s\n", clientIP);
+						return;
+					}
 				}
 
 				break;
@@ -1575,6 +1598,21 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 						Send_COMMAND_Datagram( wcmd, &pClientInfo->m_node, nClientID );
 					}
 				}
+			}
+			return;
+		}
+	}
+
+	// UNIV_STATE — master returning universe time remaining
+	// format: "UNIV_STATE time_remaining <secs>"
+	{
+		char prefix[ 20 ];
+		int nTimeRemaining = -1;
+		if ( sscanf( re_commandinfo->command, "%19s time_remaining %d", prefix, &nTimeRemaining ) == 2 &&
+		     strcmp( prefix, "UNIV_STATE" ) == 0 )
+		{
+			if ( SV_UNIVERSE_ENABLED ) {
+				TheGame->m_TimeManager.SetUniverseTimeOverride( nTimeRemaining );
 			}
 			return;
 		}

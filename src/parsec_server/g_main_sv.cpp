@@ -131,6 +131,7 @@ void G_TimeManagement::Reset()
 {
 	m_GameRefFrames	= GAME_NOTSTARTEDYET;
 	m_RefFrameBase	= 0;
+	m_nUniverseTimeOverride = -1;
 }
 
 
@@ -214,6 +215,11 @@ int G_TimeManagement::IsGameTimeLimitHit()
 		return FALSE;
 	}
 
+	// universe override: master says time is up
+	if ( m_nUniverseTimeOverride == 0 ) {
+		return TRUE;
+	}
+
 	// maintain timeout
 	refframe_t diff = SYSs_GetRefFrameCount() - m_RefFrameBase;
 	m_RefFrameBase = SYSs_GetRefFrameCount();
@@ -231,6 +237,11 @@ int G_TimeManagement::GetCurGameTime()
 	// NOTE: the conversion to secs. is needed for distribution to the clients
 	if ( IsGameRunning() ) {
 
+		// universe override: master supplies the authoritative countdown
+		if ( m_nUniverseTimeOverride >= 0 ) {
+			return m_nUniverseTimeOverride;
+		}
+
 		refframe_t timeleft = ( m_GameEndRefFrames - m_GameRefFrames );
 		if ( timeleft < 0 ) {
 			timeleft = 0;
@@ -242,8 +253,24 @@ int G_TimeManagement::GetCurGameTime()
 		ASSERT( ( m_GameRefFrames == GAME_NOTSTARTEDYET ) ||
 				( m_GameRefFrames == GAME_FINISHED_TIME ) ||
 				( m_GameRefFrames == GAME_FINISHED_KILLS ) );
-			
+
 		return m_GameRefFrames;
+	}
+}
+
+
+// set universe time override from master server reply -------------------------
+//
+void G_TimeManagement::SetUniverseTimeOverride( int secs )
+{
+	if ( secs == GAME_FINISHED_TIME ) {
+		// master says game is over — trigger end on next IsGameTimeLimitHit() call
+		m_nUniverseTimeOverride = 0;
+	} else if ( secs < 0 ) {
+		// disable override (e.g. server left universe or universe not active)
+		m_nUniverseTimeOverride = -1;
+	} else {
+		m_nUniverseTimeOverride = secs;
 	}
 }
 
