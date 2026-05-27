@@ -315,6 +315,13 @@ void MasterServer::EndUniverseGame()
 void MasterServer::UpdateUniverseKills( const char* name, int kills, int deaths )
 {
 	ASSERT( name != NULL );
+
+	// don't accept kill updates when no universe game is active — prevents
+	// heartbeat UNIV_SAVEs from repopulating kills after EndUniverseGame()
+	// cleared them, which would carry stale kills into the next round
+	if ( !m_bUniverseActive )
+		return;
+
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
 		  it != PlayerRecords.end(); ++it ) {
 		if ( strncmp( it->name, name, MAX_PLAYER_NAME ) == 0 ) {

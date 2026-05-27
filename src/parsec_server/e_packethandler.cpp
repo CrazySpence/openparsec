@@ -1649,6 +1649,18 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 		{
 			if ( SV_UNIVERSE_ENABLED ) {
 				TheGame->m_TimeManager.SetUniverseTimeOverride( nTimeRemaining );
+
+				// when the master signals game over, reset universe kill credits for
+				// all connected players so next-round heartbeats send 0 and master
+				// doesn't repopulate stale kills into the new game's records
+				if ( nTimeRemaining == GAME_FINISHED_TIME ) {
+					for ( int nSlot = 0; nSlot < MAX_NUM_CLIENTS; nSlot++ ) {
+						G_Player* pPlayer = TheGame->GetPlayer( nSlot );
+						if ( pPlayer != NULL )
+							pPlayer->SetUniverseKillsAtJoin( 0, 0 );
+					}
+					MSGOUT( "universe: game over signal received — reset universe kill credits for all players" );
+				}
 			}
 			return;
 		}

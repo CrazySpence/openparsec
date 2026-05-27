@@ -220,6 +220,12 @@ int G_TimeManagement::IsGameTimeLimitHit()
 		return TRUE;
 	}
 
+	// universe is active and counting down — don't let the local timer end the game;
+	// only the master's UNIV_STATE time_remaining 0 signal should do that
+	if ( m_nUniverseTimeOverride > 0 ) {
+		return FALSE;
+	}
+
 	// maintain timeout
 	refframe_t diff = SYSs_GetRefFrameCount() - m_RefFrameBase;
 	m_RefFrameBase = SYSs_GetRefFrameCount();
