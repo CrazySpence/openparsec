@@ -81,6 +81,8 @@ void G_Player::ResetGameVars()
       m_nKills                = 0;
       m_nDeaths               = 0;
       m_nPoints               = 0;
+      m_nUniverseKillsAtJoin  = 0;
+      m_nUniverseDeathsAtJoin = 0;
       m_nLastUnjoinFlag       = USER_EXIT;
       m_nLastKiller           = KILLERID_UNKNOWN;
       m_nLastWeapon           = KILL_WEAPON_UNKNOWN;

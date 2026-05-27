@@ -203,7 +203,8 @@ int	ServerConfig::GetSimFrequency()
 E_GameServer::E_GameServer() :
 m_bQuit( false )
 {
-	m_nTransitPending = 0;
+	m_nTransitPending    = 0;
+	m_nUnivQueryPending  = 0;
 }
 
 // default dtor ---------------------------------------------------------------
@@ -813,6 +814,44 @@ int E_GameServer::ConsumePendingTransit( const char* name )
 			int nClientID = m_TransitPending[ i ].nClientID;
 			// remove by swapping with last entry
 			m_TransitPending[ i ] = m_TransitPending[ --m_nTransitPending ];
+			return nClientID;
+		}
+	}
+	return -1;
+}
+
+
+// register that we are waiting for a universe kill response for this player --
+//
+void E_GameServer::RegisterPendingUniverseQuery( const char* name, int nClientID )
+{
+	ASSERT( name != NULL );
+
+	for ( int i = 0; i < m_nUnivQueryPending; i++ ) {
+		if ( strncmp( m_UnivQueryPending[ i ].name, name, MAX_PLAYER_NAME ) == 0 ) {
+			m_UnivQueryPending[ i ].nClientID = nClientID;
+			return;
+		}
+	}
+	if ( m_nUnivQueryPending < MAX_TRANSIT_PENDING ) {
+		strncpy( m_UnivQueryPending[ m_nUnivQueryPending ].name, name, MAX_PLAYER_NAME );
+		m_UnivQueryPending[ m_nUnivQueryPending ].name[ MAX_PLAYER_NAME ] = '\0';
+		m_UnivQueryPending[ m_nUnivQueryPending ].nClientID = nClientID;
+		m_nUnivQueryPending++;
+	}
+}
+
+
+// consume (look up and remove) a pending universe kill query -----------------
+// returns nClientID, or -1 if not found
+//
+int E_GameServer::ConsumePendingUniverseQuery( const char* name )
+{
+	ASSERT( name != NULL );
+	for ( int i = 0; i < m_nUnivQueryPending; i++ ) {
+		if ( strncmp( m_UnivQueryPending[ i ].name, name, MAX_PLAYER_NAME ) == 0 ) {
+			int nClientID = m_UnivQueryPending[ i ].nClientID;
+			m_UnivQueryPending[ i ] = m_UnivQueryPending[ --m_nUnivQueryPending ];
 			return nClientID;
 		}
 	}

@@ -57,6 +57,7 @@
 #include "obj_creg.h"				// for ShipClasses
 ////#include "e_stats.h"
 #include "g_main_sv.h"
+#include "g_player.h"
 #include "g_wfx.h"
 #include "e_connmanager.h"
 #include "e_gameserver.h"
@@ -310,6 +311,17 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 			pRE->Release();
 			TheServer->RegisterPendingTransit( pname, m_nClientID );
 			MSGOUT( "transit: sent QUERY for %s", pname );
+
+			// if this server participates in the universe game, also query universe kills
+			if ( SV_UNIVERSE_ENABLED ) {
+				snprintf( cmd, sizeof(cmd), "UNIV_QUERY %s", pname );
+				E_REList* pRE2 = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+				pRE2->NET_Append_RE_CommandInfo( cmd );
+				TheServer->SendToMaster( pRE2 );
+				pRE2->Release();
+				TheServer->RegisterPendingUniverseQuery( pname, m_nClientID );
+				MSGOUT( "universe: sent UNIV_QUERY for %s", pname );
+			}
 		}
 	}
 }
@@ -363,6 +375,24 @@ void E_SimPlayerInfo::PerformUnjoin( RE_PlayerStatus* playerstatus )
 	// (WFX_EnsureParticleWeaponsInactive was already called above, so the
 	// null-check guard in UnjoinPlayer will correctly skip the second call.)
 	m_pShip = NULL;
+
+	// if participating in universe game, save this player's kill total to master
+	// so it can be credited when they join another universe server.
+	if ( SV_UNIVERSE_ENABLED && TheServer->HasMasterServerNode() ) {
+		const char* pname = TheConnManager->GetClientName( m_nClientID );
+		G_Player* pPlayer = TheGame->GetPlayer( m_nClientID );
+		if ( pname != NULL && pname[0] != '\0' && pPlayer != NULL ) {
+			char cmd[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+			snprintf( cmd, sizeof(cmd), "UNIV_SAVE %s %d %d",
+			          pname,
+			          pPlayer->GetTotalUniverseKills(),
+			          pPlayer->GetTotalUniverseDeaths() );
+			E_REList* pRE = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+			pRE->NET_Append_RE_CommandInfo( cmd );
+			TheServer->SendToMaster( pRE );
+			pRE->Release();
+		}
+	}
 
 	// unjoin the player in G_Main
 	TheGame->UnjoinPlayer( m_nClientID );

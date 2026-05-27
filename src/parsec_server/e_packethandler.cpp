@@ -73,6 +73,7 @@
 #include "e_simplayerinfo.h"
 #include "e_simnetinput.h"
 #include "g_main_sv.h"
+#include "g_player.h"
 #include "e_connmanager.h"
 #include "e_gameserver.h"
 #include "e_relist.h"
@@ -1355,6 +1356,41 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 					}
 				}
 
+				// UNIV_QUERY — game server asking for this player's universe kill total
+				// format: "UNIV_QUERY <name>"
+				{
+					char prefix[ 20 ];
+					char qname[ MAX_PLAYER_NAME + 1 ];
+					if ( sscanf( re_commandinfo->command, "%19s %31s", prefix, qname ) == 2 &&
+					     strcmp( prefix, "UNIV_QUERY" ) == 0 )
+					{
+						qname[ MAX_PLAYER_NAME ] = '\0';
+						int kills = 0, deaths = 0;
+						TheMaster->GetUniverseKills( qname, &kills, &deaths );
+						char resp[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+						snprintf( resp, sizeof(resp), "UNIV_PLAYER %s %d %d", qname, kills, deaths );
+						ThePacketHandler->Send_COMMAND_Datagram( resp, clientnode, PLAYERID_MASTERSERVER );
+						MSGOUT( "universe: sent UNIV_PLAYER %s kills=%d deaths=%d to game server", qname, kills, deaths );
+						return;
+					}
+				}
+
+				// UNIV_SAVE — game server saving a player's universe kill total
+				// format: "UNIV_SAVE <name> <kills> <deaths>"
+				{
+					char prefix[ 20 ];
+					char sname[ MAX_PLAYER_NAME + 1 ];
+					int kills = 0, deaths = 0;
+					if ( sscanf( re_commandinfo->command, "%19s %31s %d %d", prefix, sname, &kills, &deaths ) == 4 &&
+					     strcmp( prefix, "UNIV_SAVE" ) == 0 )
+					{
+						sname[ MAX_PLAYER_NAME ] = '\0';
+						TheMaster->UpdateUniverseKills( sname, kills, deaths );
+						MSGOUT( "universe: saved kills for %s: k=%d d=%d", sname, kills, deaths );
+						return;
+					}
+				}
+
 				{
 					bool bUnivEnabled = false;
 					if ( _ParseHBPacket_MASTER(re_commandinfo->command, &bUnivEnabled)) {
@@ -1613,6 +1649,28 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 		{
 			if ( SV_UNIVERSE_ENABLED ) {
 				TheGame->m_TimeManager.SetUniverseTimeOverride( nTimeRemaining );
+			}
+			return;
+		}
+	}
+
+	// UNIV_PLAYER — master returning this player's universe kill total on join
+	// format: "UNIV_PLAYER <name> <kills> <deaths>"
+	{
+		char prefix[ 20 ];
+		char pname[ MAX_PLAYER_NAME + 1 ];
+		int kills = 0, deaths = 0;
+		if ( sscanf( re_commandinfo->command, "%19s %31s %d %d", prefix, pname, &kills, &deaths ) == 4 &&
+		     strcmp( prefix, "UNIV_PLAYER" ) == 0 )
+		{
+			pname[ MAX_PLAYER_NAME ] = '\0';
+			int nClientID = TheServer->ConsumePendingUniverseQuery( pname );
+			if ( nClientID >= 0 ) {
+				G_Player* pPlayer = TheGame->GetPlayer( nClientID );
+				if ( pPlayer != NULL ) {
+					pPlayer->SetUniverseKillsAtJoin( kills, deaths );
+					MSGOUT( "universe: credited %s with %d universe kills (%d deaths)", pname, kills, deaths );
+				}
 			}
 			return;
 		}

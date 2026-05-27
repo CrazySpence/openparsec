@@ -157,6 +157,10 @@ protected: 	// data
 	TransitPendingEntry m_TransitPending[ MAX_TRANSIT_PENDING ];
 	int                 m_nTransitPending;
 
+	// pending universe kill queries: players awaiting a UNIV_PLAYER response from master
+	TransitPendingEntry m_UnivQueryPending[ MAX_TRANSIT_PENDING ];
+	int                 m_nUnivQueryPending;
+
 	bool_t				m_bQuit;
 
 	// server-side bot manager
@@ -228,6 +232,10 @@ public: 	// methods
 	void		SendToMaster( class E_REList* relist );
 	void		RegisterPendingTransit( const char* name, int nClientID );
 	int			ConsumePendingTransit( const char* name );
+
+	// universe kill query helpers (same pattern as transit)
+	void		RegisterPendingUniverseQuery( const char* name, int nClientID );
+	int			ConsumePendingUniverseQuery( const char* name );
 };
 
 #endif // _E_GAMESERVER_H_

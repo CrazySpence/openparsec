@@ -6,9 +6,11 @@ class G_Player
 
 protected:
 
-	int			m_nKills;				// # of ships this player killed
-	int			m_nDeaths;				// # of deaths for this player
+	int			m_nKills;				// # of ships this player killed this session
+	int			m_nDeaths;				// # of deaths for this player this session
 	int			m_nPoints;				// # of points for this player
+	int			m_nUniverseKillsAtJoin;	// kills carried in from other universe servers
+	int			m_nUniverseDeathsAtJoin;// deaths carried in from other universe servers
 	int			m_nLastUnjoinFlag;		// the last unjoin flag
 	int			m_nLastKiller;			// the playerid of last killer
 	int			m_nLastWeapon;			// the weapon type used to kill this player
@@ -104,6 +106,15 @@ public:
 
 	// return # of kills for the player
 	int GetKills() { return m_nKills; }
+	// total kills including kills carried from other universe servers
+	int GetTotalUniverseKills()  { return m_nKills + m_nUniverseKillsAtJoin; }
+	int GetTotalUniverseDeaths() { return m_nDeaths + m_nUniverseDeathsAtJoin; }
+	// apply universe kills credited from master on join
+	void SetUniverseKillsAtJoin( int kills, int deaths )
+	{
+		m_nUniverseKillsAtJoin  = kills;
+		m_nUniverseDeathsAtJoin = deaths;
+	}
 
 	// return the last unjoin flag
 	int GetLastUnjoinFlag() { return m_nLastUnjoinFlag; }
