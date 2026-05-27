@@ -797,15 +797,6 @@ int E_GameServer::_MaintainHousekeeping()
 		TheSimNetOutput->CleanupZombieDistributables();
 	}
 
-	// auto-expire the universe game when the master's timer runs out
-	if ( GetServerIsMaster() && TheMaster->m_bUniverseActive ) {
-		if ( TheMaster->GetUniverseTimeRemaining() == GAME_FINISHED_TIME ) {
-			SV_UNIVERSE_ACTIVE = 0;
-			TheMaster->EndUniverseGame();
-			MSGOUT( "Universe game timer expired — game ended automatically." );
-		}
-	}
-
 	return TRUE;
 }
 
@@ -938,6 +929,15 @@ refframe_t E_GameServer::ServerFrame()
 		// TODO: Master server stuff....
 		TheMaster->RemoveStaleEntries();
 		TheMaster->RemoveStalePlayerRecords();
+
+		// auto-expire the universe game when the master's timer runs out
+		if ( TheMaster->m_bUniverseActive ) {
+			if ( TheMaster->GetUniverseTimeRemaining() == GAME_FINISHED_TIME ) {
+				SV_UNIVERSE_ACTIVE = 0;
+				TheMaster->EndUniverseGame();
+				MSGOUT( "Universe game timer expired — game ended automatically." );
+			}
+		}
 	}
 	// increment the serverframe counter
 	//MSGOUT( "m_nServerFrame++" );
