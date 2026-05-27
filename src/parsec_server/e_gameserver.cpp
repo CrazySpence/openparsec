@@ -84,6 +84,8 @@
 #include "e_connmanager.h"
 #include "e_packethandler.h"
 #include "e_simulator.h"
+#include "e_simplayerinfo.h"
+#include "g_player.h"
 #include "e_relist.h"
 #include "e_simnetinput.h"
 #include "e_simnetoutput.h"
@@ -735,6 +737,35 @@ int E_GameServer::_MaintainMasterServer()
 
 			// release the RE list from here
 			pUnreliable->Release();
+
+			// if this server participates in the universe game, send current kill
+			// totals for all joined players so the master has fresh stats even for
+			// players who are still alive and have never triggered PerformUnjoin.
+			// Each player gets its own command packet because the master handler
+			// dispatches on the first RE_CommandInfo per packet.
+			if ( SV_UNIVERSE_ENABLED ) {
+				for ( int nSlot = 0; nSlot < MAX_NUM_CLIENTS; nSlot++ ) {
+					E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( nSlot );
+					if ( pSPI == NULL || !pSPI->IsPlayerJoined() )
+						continue;
+					const char* pname = TheConnManager->GetClientName( nSlot );
+					if ( pname == NULL || pname[0] == '\0' )
+						continue;
+					G_Player* pPlayer = TheGame->GetPlayer( nSlot );
+					if ( pPlayer == NULL )
+						continue;
+
+					char szSave[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+					snprintf( szSave, sizeof(szSave), "UNIV_SAVE %s %d %d",
+					          pname,
+					          pPlayer->GetTotalUniverseKills(),
+					          pPlayer->GetTotalUniverseDeaths() );
+					E_REList* pStats = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+					pStats->NET_Append_RE_CommandInfo( szSave );
+					ThePacketHandler->Send_STREAM_Datagram( pStats, &m_MasterServer_Node, PLAYERID_MASTERSERVER );
+					pStats->Release();
+				}
+			}
 		}
 	}
 
