@@ -322,6 +322,9 @@ void MasterServer::UpdateUniverseKills( const char* name, int kills, int deaths 
 			// a player hops between servers
 			if ( kills  > it->UniverseKills  ) it->UniverseKills  = kills;
 			if ( deaths > it->UniverseDeaths ) it->UniverseDeaths = deaths;
+			// refresh timestamp so RemoveStalePlayerRecords() doesn't reap
+			// this record while the player is still actively playing
+			it->timestamp = time( NULL );
 			return;
 		}
 	}
