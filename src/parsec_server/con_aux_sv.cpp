@@ -52,11 +52,13 @@
 // proprietary module headers
 #include "con_com_sv.h"
 #include "con_int_sv.h"
+#include "con_main_sv.h"
 #include "g_main_sv.h"
 //#include "e_supp.h"
 //#include "net_csdf.h"
 #include "net_ports.h"
 #include "e_gameserver.h"
+#include "MasterServer.h"
 
 // flags
 #define REGISTER_VERBOSE_SV_COMMANDS
@@ -96,6 +98,39 @@ DEF_RMEV_STATESYNC( KillLimit,	RMEVSTATE_KILLLIMIT,	AUX_KILL_LIMIT_FOR_GAME_END	
 void G_RealizeGameVars()
 {
 	TheGame->RealizeVariables();
+}
+
+// forward declaration for MasterServer universe control ----------------------
+//
+void Universe_RealizeActive();
+
+
+// Cmd_SV_UNIVERSE_HTMLFILE ---------------------------------------------------
+// sv.universe.htmlfile <path>
+//
+int Cmd_SV_UNIVERSE_HTMLFILE( char* args )
+{
+	ASSERT( args != NULL );
+	HANDLE_COMMAND_DOMAIN( args );
+
+	char* tok = strtok( args, " \t\r\n" );
+	if ( !tok ) {
+		CON_AddLine( "usage: sv.universe.htmlfile <path>" );
+		return TRUE;
+	}
+
+	if ( !TheServer->GetServerIsMaster() ) {
+		CON_AddLine( "sv.universe.htmlfile: only valid on master server" );
+		return TRUE;
+	}
+
+	// safe downcast — only called when server is master
+	MasterServer* master = (MasterServer*)TheServer;
+	strncpy( master->m_szUniverseHtmlFile, tok,
+	         sizeof( master->m_szUniverseHtmlFile ) - 1 );
+	master->m_szUniverseHtmlFile[ sizeof( master->m_szUniverseHtmlFile ) - 1 ] = '\0';
+	MSGOUT( "universe: html output path set to %s", master->m_szUniverseHtmlFile );
+	return TRUE;
 }
 
 // for registration of SV flags/data as integer variable commands -----------------
@@ -141,6 +176,13 @@ int_command_s verbose_sv_commands[] = {
 	{ 0x80, "sv.map.y",									-1, 32767,	&SV_MAP_Y,									NULL,					NULL,		-1 },
 
 	{ 0x80, "sv.lag_compensation_max_ms",				150, 500,	&SV_LAG_COMPENSATION_MAX_MS,				NULL,					NULL,		150 },
+
+	// universe game coordination (game server side: opt-in flag)
+	{ 0x80, "sv.universe.enabled",						0, 1,		&SV_UNIVERSE_ENABLED,						NULL,					NULL,		0 },
+
+	// universe game coordination (master server side: active flag + duration)
+	{ 0x80, "sv.universe.active",						0, 1,		&SV_UNIVERSE_ACTIVE,						Universe_RealizeActive,	NULL,		0 },
+	{ 0x80, "sv.universe.duration",					10, 86400,	&SV_UNIVERSE_DURATION,						NULL,					NULL,		600 },
 
 };
 
@@ -238,4 +280,35 @@ void CON_AUX_SV_Register()
 
 	// register all commands that are NOPs for the server
 	RegisterServerNOPCommands();
+
+	// register sv.universe.htmlfile (string arg, master only)
+	{
+		user_command_s regcom;
+		memset( &regcom, 0, sizeof( user_command_s ) );
+		regcom.command   = "sv.universe.htmlfile";
+		regcom.numparams = 1;
+		regcom.execute   = Cmd_SV_UNIVERSE_HTMLFILE;
+		regcom.statedump = NULL;
+		CON_RegisterUserCommand( &regcom );
+	}
+}
+
+
+// realize sv.universe.active — start or stop the universe game ---------------
+//
+void Universe_RealizeActive()
+{
+	if ( !TheServer->GetServerIsMaster() )
+		return;
+
+	MasterServer* master = (MasterServer*)TheServer;
+
+	if ( SV_UNIVERSE_ACTIVE ) {
+		// pick up duration before starting
+		master->m_nUniverseDuration = SV_UNIVERSE_DURATION;
+		master->StartUniverseGame();
+	} else {
+		if ( master->m_bUniverseActive )
+			master->EndUniverseGame();
+	}
 }

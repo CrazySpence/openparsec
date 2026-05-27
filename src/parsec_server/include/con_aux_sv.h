@@ -45,8 +45,11 @@
 #define SV_MAP_X									AuxEnabling[ 26 ]
 #define SV_MAP_Y									AuxEnabling[ 27 ]
 #define SV_LAG_COMPENSATION_MAX_MS					AuxEnabling[ 28 ]
+#define SV_UNIVERSE_ENABLED							AuxEnabling[ 29 ]
+#define SV_UNIVERSE_ACTIVE							AuxEnabling[ 30 ]
+#define SV_UNIVERSE_DURATION						AuxEnabling[ 31 ]
 
-#define AUX_ARRAY_NUM_ENTRIES_USED					29	// UPDATE THIS!! <==
+#define AUX_ARRAY_NUM_ENTRIES_USED					32	// UPDATE THIS!! <==
 
 #if ( AUX_ARRAY_NUM_ENTRIES_USED > MAX_SV_ARRAY_SIZE )
 	#error "MAX_AUX_ENABLING too small!"
