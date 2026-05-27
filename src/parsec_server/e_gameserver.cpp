@@ -288,12 +288,12 @@ int	E_GameServer::Init()
 	TheSimNetInput	= E_SimNetInput::GetSimNetInput();
 	TheSimNetOutput	= E_SimNetOutput::GetSimNetOutput();
 
+	// register all AUX/SV vars (needed on both game server and master server)
+	CON_AUX_SV_Register();
+
 	// init the simulation engine only if we are not running a master server.
 	if(!this->GetServerIsMaster()){
 		TheSimulator	= E_Simulator::GetSimulator();
-
-		// register all AUX/SV vars
-		CON_AUX_SV_Register();
 
 		// register server-side bot console commands
 		SV_BotManager_RegisterCommands();
