@@ -70,6 +70,14 @@ extern char			Player_Name[][ MAX_PLAYER_NAME + 1 ];
 
 extern char*		Masters[];
 
+// universe end-game leaderboard (populated by RE_UNIVERSE_LEADERBOARD) -------
+// Note: array bounds must match UNI_LB_MAX (16) and UNI_LB_NAMELEN (31) in net_defs.h
+//
+extern int			Universe_LB_Active;
+extern int			Universe_LB_Count;
+extern char			Universe_LB_Names[ 16 ][ 32 ];  // [UNI_LB_MAX][UNI_LB_NAMELEN+1]
+extern int			Universe_LB_Kills[ 16 ];          // [UNI_LB_MAX]
+
 
 // NETWORKING subsystem jump table for dynamic function binding ---------------
 //

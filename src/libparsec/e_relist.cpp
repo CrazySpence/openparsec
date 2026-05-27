@@ -108,6 +108,7 @@ static size_t re_sizes[] = {
 	sizeof( RE_Asteroid ),
 	sizeof( RE_HelixParticle ),
 	sizeof( RE_OrbitPos ),
+	sizeof( RE_UniverseLeaderboard ),
 };
 
 // table of remote event sizes ------------------------------------------------
@@ -147,7 +148,8 @@ static const char* re_names[] = { //Used by server
     "RE_PLANET",
     "RE_ASTEROID",
     "RE_HELIXPARTICLE",
-    "RE_ORBITPOS"
+    "RE_ORBITPOS",
+    "RE_UNIVERSE_LEADERBOARD"
 	//FIXME: use NET_UTIL::PrInf_* functions and E_REList::Dump
 };
 
@@ -1071,4 +1073,41 @@ RE_Header* E_REList::NET_Allocate( int retype )
 	((RE_Header*)m_CurPos)->RE_Type = RE_EMPTY;
 
 	return pBegin;
+}
+
+
+// append a universe end-game leaderboard RE ----------------------------------
+//
+int E_REList::NET_Append_RE_UniverseLeaderboard( byte count, const char names[][ UNI_LB_NAMELEN + 1 ], const int kills[] )
+{
+	ASSERT( count <= UNI_LB_MAX );
+
+	if ( m_Avail < sizeof( RE_UniverseLeaderboard ) )
+		return FALSE;
+
+	RE_UniverseLeaderboard* re = (RE_UniverseLeaderboard*) m_CurPos;
+	re->RE_Type      = RE_UNIVERSE_LEADERBOARD;
+	re->RE_BlockSize = RE_BLOCKSIZE_INVALID; // size > 255: use re_sizes[] table
+	re->count        = count;
+	re->padding[0]   = 0;
+	re->padding[1]   = 0;
+	re->padding[2]   = 0;
+
+	for ( int i = 0; i < count; i++ ) {
+		strncpy( re->entries[ i ].name, names[ i ], UNI_LB_NAMELEN );
+		re->entries[ i ].name[ UNI_LB_NAMELEN ] = '\0';
+		re->entries[ i ].kills = kills[ i ];
+	}
+	// zero out unused entries
+	for ( int i = count; i < UNI_LB_MAX; i++ ) {
+		re->entries[ i ].name[0] = '\0';
+		re->entries[ i ].kills   = 0;
+	}
+
+	m_CurPos += sizeof( RE_UniverseLeaderboard );
+	m_Avail  -= sizeof( RE_UniverseLeaderboard );
+
+	((RE_Header*)m_CurPos)->RE_Type = RE_EMPTY;
+
+	return TRUE;
 }

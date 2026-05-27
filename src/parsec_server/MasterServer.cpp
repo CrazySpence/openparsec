@@ -69,6 +69,7 @@
 #include "g_main_sv.h"
 #include "e_connmanager.h"
 #include "e_packethandler.h"
+#include "e_relist.h"
 #include "e_simulator.h"
 #include "e_simnetinput.h"
 #include "e_simnetoutput.h"
@@ -204,6 +205,10 @@ int MasterServer::GetUniverseTimeRemaining()
 }
 
 
+// leaderboard entry for sorting (file-scope to avoid local-type-template-args warning)
+struct LBEntry { char name[ MAX_PLAYER_NAME + 1 ]; int kills; };
+
+
 // start the universe game ----------------------------------------------------
 //
 void MasterServer::StartUniverseGame()
@@ -224,6 +229,59 @@ void MasterServer::EndUniverseGame()
 	UpdateLadderStats();
 	WriteLadderStats();
 	WriteHTMLLadder();
+
+	// --- build and broadcast the universe leaderboard to all opted-in servers ---
+
+	// collect players with any kills this game from PlayerRecords
+	std::vector<LBEntry> lb;
+	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
+		  it != PlayerRecords.end(); ++it ) {
+		if ( it->UniverseKills > 0 ) {
+			LBEntry e;
+			strncpy( e.name, it->name, MAX_PLAYER_NAME );
+			e.name[ MAX_PLAYER_NAME ] = '\0';
+			e.kills = it->UniverseKills;
+			lb.push_back( e );
+		}
+	}
+
+	// sort by kills descending (simple insertion sort — 16 entries max)
+	for ( size_t i = 1; i < lb.size(); i++ ) {
+		for ( size_t j = i; j > 0 && lb[j].kills > lb[j-1].kills; j-- ) {
+			LBEntry tmp = lb[j]; lb[j] = lb[j-1]; lb[j-1] = tmp;
+		}
+	}
+
+	// cap at UNI_LB_MAX
+	int count = (int)lb.size();
+	if ( count > UNI_LB_MAX ) count = UNI_LB_MAX;
+
+	// build static arrays for the RE append function
+	char lb_names[ UNI_LB_MAX ][ UNI_LB_NAMELEN + 1 ];
+	int  lb_kills[ UNI_LB_MAX ];
+	for ( int i = 0; i < count; i++ ) {
+		strncpy( lb_names[ i ], lb[ i ].name, UNI_LB_NAMELEN );
+		lb_names[ i ][ UNI_LB_NAMELEN ] = '\0';
+		lb_kills[ i ] = lb[ i ].kills;
+	}
+
+	// send to all universe-enabled servers in the server list
+	for ( std::vector<MasterServerItem>::iterator si = ServerList.begin();
+		  si != ServerList.end(); ++si ) {
+		if ( !si->GetUniverseEnabled() )
+			continue;
+		node_t srv_node;
+		si->GetNode( &srv_node );
+
+		E_REList* pRE = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+		if ( pRE->NET_Append_RE_UniverseLeaderboard( (byte)count,
+		         (const char (*)[ UNI_LB_NAMELEN + 1 ])lb_names, lb_kills ) ) {
+			ThePacketHandler->Send_STREAM_Datagram( pRE, &srv_node, PLAYERID_MASTERSERVER );
+			MSGOUT( "universe: sent leaderboard (%d players) to server %s",
+			        count, NODE_Print( &srv_node ) );
+		}
+		pRE->Release();
+	}
 
 	// clear per-game kill data from PlayerRecords so next game starts clean
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();

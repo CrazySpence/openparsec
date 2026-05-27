@@ -71,6 +71,7 @@ static char status_kills_str[]			= "kills";
 static char status_caption_str[]		= "         game status        ";
 static char status_kill_limit_str[]		= "kill limit has been reached!";
 static char status_time_limit_str[]		= "   the game time is over!   ";
+static char status_universe_over_str[]	= "  *** UNIVERSE GAME OVER ***";
 
 
 // status window configuration and state variables ----------------------------
@@ -249,6 +250,28 @@ void DrawStatusWindowItems( WSFP wstrfp )
 	int text_y		  = statuswindow_content_metrics.text_y;
 	unsigned int maxcontwidth  = statuswindow_content_metrics.maxcontwidth;
 
+	// if a universe leaderboard is active, show it instead of the normal scoreboard
+	if ( Universe_LB_Active ) {
+		int count = Universe_LB_Count;
+		if ( count > MAX_NET_PROTO_PLAYERS ) count = MAX_NET_PROTO_PLAYERS; // clamp to visible rows
+		for ( int i = 0; i < count; i++ ) {
+			const char* name = Universe_LB_Names[ i ];
+			wstrfp( name, text_x, text_y, TRTAB_PANELTEXT );
+
+			char ckills_str[ 8 ];
+			sprintf( ckills_str, "%d", Universe_LB_Kills[ i ] );
+			int xofs = ( maxcontwidth - strlen( ckills_str ) ) * chwidth;
+			wstrfp( ckills_str, text_x + xofs, text_y, TRTAB_PANELTEXT );
+
+			text_y += chheight;
+		}
+		// clear when the status window fades out
+		if ( status_fadepos <= 0 ) {
+			Universe_LB_Active = 0;
+		}
+		return;
+	}
+
 	//FIXME: this function is EXACT the same as M_LIST::DrawPlayerListItems
 	const char *voidstr = "-";
 
@@ -330,7 +353,10 @@ void CalcStatusWindowContentMetrics()
 	// determine caption
 	statuswindow_caption = status_caption_str;
 
-	if ( GAME_NO_SERVER() ) {
+	// universe leaderboard overrides the caption
+	if ( Universe_LB_Active ) {
+		statuswindow_caption = status_universe_over_str;
+	} else if ( GAME_NO_SERVER() ) {
 
 		extern int limit_reached;
 		if ( limit_reached ) {

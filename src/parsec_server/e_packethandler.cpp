@@ -1814,8 +1814,46 @@ void E_PacketHandler::_Handle_STREAM( NetPacket_GMSV* gamepacket )
 {
 	ASSERT( gamepacket != NULL );
 	ASSERT( gamepacket->Command == PKTP_STREAM );
-	ASSERT( gamepacket->SendPlayerId != PLAYERID_MASTERSERVER );
-	
+
+	// handle stream packets from the master server (e.g. universe leaderboard)
+	if ( gamepacket->SendPlayerId == PLAYERID_MASTERSERVER ) {
+		RE_Header* re = (RE_Header*) &gamepacket->RE_List;
+		while ( re->RE_Type != RE_EMPTY ) {
+			if ( re->RE_Type == RE_UNIVERSE_LEADERBOARD && SV_UNIVERSE_ENABLED ) {
+				// forward the leaderboard to all connected clients
+				RE_UniverseLeaderboard* lb = (RE_UniverseLeaderboard*) re;
+				int count = lb->count;
+				if ( count > UNI_LB_MAX ) count = UNI_LB_MAX;
+
+				// rebuild arrays for the append function
+				char lb_names[ UNI_LB_MAX ][ UNI_LB_NAMELEN + 1 ];
+				int  lb_kills[ UNI_LB_MAX ];
+				for ( int i = 0; i < count; i++ ) {
+					strncpy( lb_names[ i ], lb->entries[ i ].name, UNI_LB_NAMELEN );
+					lb_names[ i ][ UNI_LB_NAMELEN ] = '\0';
+					lb_kills[ i ] = lb->entries[ i ].kills;
+				}
+
+				E_REList* pBcast = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+				pBcast->NET_Append_RE_UniverseLeaderboard( (byte)count, lb_names, lb_kills );
+				// broadcast to all connected clients
+				for ( int cid = 0; cid < MAX_NET_ALLOC_SLOTS; cid++ ) {
+					E_ClientInfo* ci = TheConnManager->GetClientInfo( cid );
+					if ( ci && !ci->IsSlotFree() ) {
+						Send_STREAM_Datagram( pBcast, &ci->m_node, cid );
+					}
+				}
+				pBcast->Release();
+				MSGOUT( "universe: forwarded leaderboard (%d players) to %d clients",
+				        count, TheConnManager->GetNumConnected() );
+			}
+			size_t sz = E_REList::RmEvGetSize( re );
+			if ( sz == 0 ) break;
+			re = (RE_Header*)( (char*)re + sz );
+		}
+		return;
+	}
+
 	// identify sender & get the sender node
 	int	nClientID = gamepacket->SendPlayerId;
 

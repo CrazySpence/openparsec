@@ -278,7 +278,10 @@ public:
 
     //Append a Particle RE (energy fields, megashield...etc)
     int NET_Append_RE_ParticleObject( int type, const Vertex3& origin );
-    
+
+	// append a RE_UniverseLeaderboard (sent to all clients on universe game end)
+	int NET_Append_RE_UniverseLeaderboard( byte count, const char names[][ UNI_LB_NAMELEN + 1 ], const int kills[] );
+
 	// determine the size of a remote-event list
 	static size_t DetermineListSize( RE_Header* relist )
 	{

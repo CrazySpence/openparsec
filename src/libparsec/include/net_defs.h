@@ -664,8 +664,9 @@ enum re_events {
     RE_GENERIC,
 	RE_PLANET,
 	RE_ASTEROID,		// 0x20
-	RE_HELIXPARTICLE,   // 0x21 — client sends helix damage particle to server for collision
-	RE_ORBITPOS,        // 0x22 — server broadcasts orbit position resync (unreliable, lightweight)
+	RE_HELIXPARTICLE,        // 0x21 — client sends helix damage particle to server for collision
+	RE_ORBITPOS,             // 0x22 — server broadcasts orbit position resync (unreliable, lightweight)
+	RE_UNIVERSE_LEADERBOARD, // 0x23 — server sends universe end-game top-16 leaderboard to clients
 	RE_NUMEVENTS
 };
 	
@@ -1034,6 +1035,22 @@ struct RE_OrbitPos : RE_Header {  // 2 bytes
 	float   pos[ 3 ];     // 12 — current world-space position
 	bams_t  curorbitpos;  // 4  — current orbit angle
 	// sizeof( RE_OrbitPos ) = 2 + 4 + 12 + 4 = 22 bytes
+};
+
+
+// universe end-game leaderboard: top-16 players across all servers -----------
+//
+#define UNI_LB_MAX     16
+#define UNI_LB_NAMELEN MAX_PLAYER_NAME   // 31
+
+struct RE_UniverseLeaderboard : RE_Header {  // 2
+	byte  count;                              // 1
+	byte  padding[ 3 ];                       // 3  — alignment
+	struct Entry {
+		char  name[ UNI_LB_NAMELEN + 1 ];    // 32
+		int   kills;                          // 4
+	} entries[ UNI_LB_MAX ];                 // 36 × 16 = 576
+	// sizeof = 2 + 4 + 576 = 582 bytes
 };
 
 

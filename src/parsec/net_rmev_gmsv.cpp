@@ -91,6 +91,7 @@
 
 // forward declarations for handlers defined later in this file ----------------
 static void NET_ExecRmEvOrbitPos( RE_OrbitPos* re );
+void        NET_ExecRmEvUniverseLeaderboard( RE_UniverseLeaderboard* re );
 
 // process entire remote event list (execute all contained events) coming from the server
 //
@@ -306,6 +307,9 @@ void NET_ProcessRmEvList_GMSV( NetPacket_GMSV* gamepacket )
 				break;
 			case RE_ORBITPOS:
 				NET_ExecRmEvOrbitPos( (RE_OrbitPos*) pREList );
+				break;
+			case RE_UNIVERSE_LEADERBOARD:
+				NET_ExecRmEvUniverseLeaderboard( (RE_UniverseLeaderboard*) pREList );
 				break;
 			default:
 				MSGOUT( "ProcessRmEvList_GMSV(): unknown remote event (%d).", pREList->RE_Type );
@@ -706,6 +710,26 @@ static void NET_ExecRmEvOrbitPos( RE_OrbitPos* re )
 	} else if ( obj->ObjectType == planet_type_id ) {
 		( (Planet*) obj )->CurOrbitPos = re->curorbitpos;
 	}
+}
+
+
+// execute RE containing universe end-game leaderboard ------------------------
+//
+void NET_ExecRmEvUniverseLeaderboard( RE_UniverseLeaderboard* re )
+{
+	ASSERT( re != NULL );
+
+	byte count = re->count;
+	if ( count > UNI_LB_MAX )
+		count = UNI_LB_MAX;
+
+	Universe_LB_Count = count;
+	for ( int i = 0; i < count; i++ ) {
+		strncpy( Universe_LB_Names[ i ], re->entries[ i ].name, UNI_LB_NAMELEN );
+		Universe_LB_Names[ i ][ UNI_LB_NAMELEN ] = '\0';
+		Universe_LB_Kills[ i ] = re->entries[ i ].kills;
+	}
+	Universe_LB_Active = 1;
 }
 
 

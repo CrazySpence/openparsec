@@ -182,6 +182,15 @@ int				Player_LastUpdateGameStateMsgId[ MAX_NET_ALLOC_SLOTS ];
 char	  		Player_Name[ MAX_NET_ALLOC_SLOTS ][ MAX_PLAYER_NAME + 1 ];
 
 
+// universe end-game leaderboard globals --------------------------------------
+// Note: sizes must match UNI_LB_MAX (16) and UNI_LB_NAMELEN (31) in net_defs.h
+//
+int				Universe_LB_Active = 0;
+int				Universe_LB_Count  = 0;
+char			Universe_LB_Names[ 16 ][ 32 ];   // [UNI_LB_MAX][UNI_LB_NAMELEN+1]
+int				Universe_LB_Kills[ 16 ];          // [UNI_LB_MAX]
+
+
 // list of masterservers to query ---------------------------------------------
 //
 char*			Masters[ MAX_MASTERSERVERS ] = { NULL, NULL, NULL };
