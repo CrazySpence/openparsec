@@ -33,6 +33,10 @@ struct PlayerRecord {
 	// universe game stats (zero in non-universe games)
 	int      UniverseKills;
 	int      UniverseDeaths;
+	// set only when this record carries a real transit loadout (SavePlayerRecord).
+	// records created by UpdateUniverseKills have this false and must NOT be
+	// returned by ClaimPlayerRecord as transit data.
+	bool     has_loadout;
 };
 
 // per-player historical ladder stats -----------------------------------------

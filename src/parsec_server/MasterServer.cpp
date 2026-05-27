@@ -117,13 +117,21 @@ void MasterServer::SavePlayerRecord( const PlayerRecord& rec )
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
 		  it != PlayerRecords.end(); ++it ) {
 		if ( strncmp( it->name, rec.name, MAX_PLAYER_NAME ) == 0 ) {
+			// preserve universe kill data accumulated in this slot
+			int savedKills  = it->UniverseKills;
+			int savedDeaths = it->UniverseDeaths;
 			*it = rec;
+			it->has_loadout    = true;
+			it->UniverseKills  = savedKills;
+			it->UniverseDeaths = savedDeaths;
 			MSGOUT( "transit: updated record for %s", rec.name );
 			return;
 		}
 	}
-	// new record
-	PlayerRecords.push_back( rec );
+	// new record — mark it as a real transit loadout
+	PlayerRecord r = rec;
+	r.has_loadout = true;
+	PlayerRecords.push_back( r );
 	MSGOUT( "transit: stored record for %s", rec.name );
 }
 
@@ -138,8 +146,17 @@ bool MasterServer::ClaimPlayerRecord( const char* name, PlayerRecord* out )
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
 		  it != PlayerRecords.end(); ++it ) {
 		if ( strncmp( it->name, name, MAX_PLAYER_NAME ) == 0 ) {
+			// only claim records that carry a real transit loadout — universe-kill-only
+			// records (created by UpdateUniverseKills) must not be mistaken for transit data
+			if ( !it->has_loadout ) {
+				MSGOUT( "transit: record for %s exists but has no loadout (universe-kills only), skipping", name );
+				return false;
+			}
 			*out = *it;
-			PlayerRecords.erase( it );
+			// keep the slot alive for universe kill tracking, but clear the loadout flag
+			// so a second respawn on this server doesn't re-apply the same loadout
+			it->has_loadout = false;
+			it->timestamp   = time( NULL );   // refresh so it isn't immediately reaped as stale
 			MSGOUT( "transit: claimed record for %s", name );
 			return true;
 		}
