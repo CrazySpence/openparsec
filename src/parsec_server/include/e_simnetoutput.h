@@ -225,6 +225,12 @@ protected:
 	// set when join burst completes; JOINDONE is appended after the last distributable
 	// in _FillAndSend_Distributables so it travels behind the world-object data
 	bool_t          m_bSendJoinDone;
+
+	// set while awaiting UNIV_PLAYER response from master; blocks JOINDONE so the
+	// client stays in "Entering game" until universe kill credit has been applied.
+	// Cleared by ClearUniverseQueryPending() when UNIV_PLAYER arrives (or times out).
+	bool_t          m_bUniverseQueryPending;
+	refframe_t      m_UnivQueryDeadline;    // abs refframe timeout (0 = no timeout set)
     
 	// array of distributables for next packet
 	E_Distributable*	m_DistsForNextPacket[ MAX_NUM_DISTRIBUTABLES_TO_SEND_PER_PACKET ];
@@ -259,6 +265,17 @@ public:
 
 	// query whether a join burst is still in progress for this client
 	bool_t IsJoinBurstPending() const { return m_bJoinBurstPending; }
+
+	// mark that JOINDONE must wait for UNIV_PLAYER from master;
+	// a 5-second timeout is set automatically so a dropped reply never
+	// locks the client in "Entering game" indefinitely.
+	void SetUniverseQueryPending();  // impl in e_simnetoutput.cpp (needs refframe)
+
+	// unblock JOINDONE when UNIV_PLAYER arrives (or on timeout)
+	void ClearUniverseQueryPending() {
+		m_bUniverseQueryPending = FALSE;
+		m_UnivQueryDeadline     = 0;
+	}
 
 	// schedule a E_Distributable to be sent to the client
 	// Schedule pDist for delivery to this client.
@@ -371,6 +388,12 @@ public:
 	// query whether a join burst is still in progress for a specific client
 	bool_t IsJoinBurstPending( int nClientID ) const
 	    { return m_SimClientNetOutput[ nClientID ].IsJoinBurstPending(); }
+
+	// mark / unmark a UNIV_PLAYER wait for a specific client
+	void SetUniverseQueryPending( int nClientID )
+	    { m_SimClientNetOutput[ nClientID ].SetUniverseQueryPending(); }
+	void ClearUniverseQueryPending( int nClientID )
+	    { m_SimClientNetOutput[ nClientID ].ClearUniverseQueryPending(); }
 
 	// create a new E_Distributable for all connected clients
 	E_Distributable* CreateDistributable( GenObject* object, int reliable = FALSE, int send_to_owner = FALSE );

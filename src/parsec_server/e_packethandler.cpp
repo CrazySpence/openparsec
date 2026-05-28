@@ -72,6 +72,7 @@
 #include "net_stream.h"
 #include "e_simplayerinfo.h"
 #include "e_simnetinput.h"
+#include "e_simnetoutput.h"
 #include "g_main_sv.h"
 #include "g_player.h"
 #include "e_connmanager.h"
@@ -1671,6 +1672,9 @@ void E_PacketHandler::_Handle_COMMAND_MASV( NetPacket_GMSV* gamepacket, int bufi
 					pPlayer->SetUniverseKillsAtJoin( kills, deaths );
 					MSGOUT( "universe: credited %s with %d universe kills (%d deaths)", pname, kills, deaths );
 				}
+				// Unblock JOINDONE — the client can now leave "Entering game".
+				TheSimNetOutput->ClearUniverseQueryPending( nClientID );
+				MSGOUT( "universe: UNIV_PLAYER received — JOINDONE unblocked for client %d", nClientID );
 			}
 			return;
 		}

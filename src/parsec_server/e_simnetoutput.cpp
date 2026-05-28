@@ -110,6 +110,8 @@ E_SimClientNetOutput::E_SimClientNetOutput()
 	m_bIncludeDestClientState= FALSE;
 	m_bJoinBurstPending      = FALSE;
 	m_bSendJoinDone          = FALSE;
+	m_bUniverseQueryPending  = FALSE;
+	m_UnivQueryDeadline      = 0;
 }
 
 
@@ -147,13 +149,25 @@ void E_SimClientNetOutput::_Reset()
 	m_nNumPacketSlots			= 0;
 	m_nAveragePacketSize		= NET_UDP_DATA_LENGTH;
 	m_Heartbeat_Timeout_Frame	= -1;
-	m_bJoinBurstPending			= FALSE;
-	m_bSendJoinDone				= FALSE;
+	m_bJoinBurstPending          = FALSE;
+	m_bSendJoinDone              = FALSE;
+	m_bUniverseQueryPending      = FALSE;
+	m_UnivQueryDeadline          = 0;
 
 	delete []m_ClientIDList;
 	delete []m_SendReliable;
 	m_ClientIDList = NULL;
 	m_SendReliable = NULL;
+}
+
+
+// block JOINDONE until UNIV_PLAYER arrives from master (5-second timeout) ----
+//
+void E_SimClientNetOutput::SetUniverseQueryPending()
+{
+	m_bUniverseQueryPending = TRUE;
+	m_UnivQueryDeadline     = SYSs_GetRefFrameCount() + 5 * FRAME_MEASURE_TIMEBASE;
+	MSGOUT( "universe: JOINDONE gated on UNIV_PLAYER for client %d (deadline +5s)", m_nDestClientID );
 }
 
 
@@ -511,7 +525,25 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 	// If a join burst was in progress and the queue just drained, defer JOINDONE
 	// until _FillAndSend_Distributables so it travels in the same (or later) packet
 	// as the last world-object distributable — never before it.
+	// Also wait for UNIV_PLAYER response (universe kill credit) so the client
+	// stays in "Entering game" until all join-burst data has arrived.
 	if ( m_bJoinBurstPending && ( m_AllDistributables->GetHead() == NULL ) ) {
+
+		// Check for UNIV_PLAYER timeout so a dropped reply never locks the player.
+		if ( m_bUniverseQueryPending &&
+		     m_UnivQueryDeadline != 0 &&
+		     SYSs_GetRefFrameCount() >= m_UnivQueryDeadline ) {
+			MSGOUT( "universe: UNIV_PLAYER timed out for client %d — unblocking JOINDONE", m_nDestClientID );
+			m_bUniverseQueryPending = FALSE;
+			m_UnivQueryDeadline     = 0;
+		}
+
+		// Still waiting for UNIV_PLAYER — keep m_bJoinBurstPending set so the
+		// distributable list is considered non-empty from JOINDONE's perspective.
+		if ( m_bUniverseQueryPending ) {
+			// queue is drained but universe query still in-flight; wait.
+		} else {
+
 		m_bJoinBurstPending = FALSE;
 		m_bSendJoinDone     = TRUE;
 		MSGOUT( "join burst complete for client %d — JOINDONE deferred to distributable packet", m_nDestClientID );
@@ -536,6 +568,8 @@ int E_SimClientNetOutput::_PrepareClientUpdateInfo()
 		        delete re_end;
 		    }
 		}
+
+		} // end else (!m_bUniverseQueryPending)
 	}
 
 

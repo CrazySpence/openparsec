@@ -312,7 +312,9 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 			TheServer->RegisterPendingTransit( pname, m_nClientID );
 			MSGOUT( "transit: sent QUERY for %s", pname );
 
-			// if this server participates in the universe game, also query universe kills
+			// if this server participates in the universe game, also query universe kills;
+			// JOINDONE is withheld until the reply arrives so the player remains in
+			// "Entering game" until kill credit has been applied (same as TRANSIT_RESPONSE).
 			if ( SV_UNIVERSE_ENABLED ) {
 				snprintf( cmd, sizeof(cmd), "UNIV_QUERY %s", pname );
 				E_REList* pRE2 = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
@@ -320,7 +322,8 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 				TheServer->SendToMaster( pRE2 );
 				pRE2->Release();
 				TheServer->RegisterPendingUniverseQuery( pname, m_nClientID );
-				MSGOUT( "universe: sent UNIV_QUERY for %s", pname );
+				TheSimNetOutput->SetUniverseQueryPending( m_nClientID );
+				MSGOUT( "universe: sent UNIV_QUERY for %s — JOINDONE gated", pname );
 			}
 		}
 	}
