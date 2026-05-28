@@ -318,11 +318,14 @@ void MasterServer::EndUniverseGame()
 		pRE->Release();
 	}
 
-	// PlayerRecords.UniverseKills intentionally NOT cleared here.
-	// UpdateLadderStats() now uses max() instead of +=, so the cumulative
-	// totals are preserved correctly across rounds.  Clearing would break
-	// UNIV_PLAYER responses at the start of round 2 (master would return 0
-	// instead of the player's actual all-time total).
+	// clear per-round kill data so the next round starts clean;
+	// UNIV_SAVE heartbeats now report GetKills() (this-round only), so
+	// PlayerRecords.UniverseKills holds only kills earned this round.
+	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
+		  it != PlayerRecords.end(); ++it ) {
+		it->UniverseKills  = 0;
+		it->UniverseDeaths = 0;
+	}
 
 	// if universe mode is still enabled (sv.universe.active 1), automatically
 	// start the next round's game so servers continue cycling without operator
@@ -488,15 +491,10 @@ void MasterServer::UpdateLadderStats()
 		bool found = false;
 		for ( size_t i = 0; i < m_LadderStats.size(); i++ ) {
 			if ( strncmp( m_LadderStats[ i ].name, it->name, MAX_PLAYER_NAME ) == 0 ) {
-				// Use max() not += : PlayerRecords.UniverseKills holds the
-				// cumulative total (m_nKills + m_nUniverseKillsAtJoin), which grows
-				// monotonically.  Additive accumulation would double-count the
-				// carry-in kills every round.  max() advances the ladder whenever
-				// the player's all-time total increases.
-				if ( it->UniverseKills  > m_LadderStats[ i ].total_kills  )
-					m_LadderStats[ i ].total_kills  = it->UniverseKills;
-				if ( it->UniverseDeaths > m_LadderStats[ i ].total_deaths )
-					m_LadderStats[ i ].total_deaths = it->UniverseDeaths;
+					// UNIV_SAVE now reports only this-round kills (GetKills()),
+				// so straight addition gives the correct running total.
+				m_LadderStats[ i ].total_kills  += it->UniverseKills;
+				m_LadderStats[ i ].total_deaths += it->UniverseDeaths;
 				m_LadderStats[ i ].games_played += 1;
 				m_LadderStats[ i ].last_seen     = now;
 				found = true;

@@ -758,8 +758,8 @@ int E_GameServer::_MaintainMasterServer()
 					char szSave[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
 					snprintf( szSave, sizeof(szSave), "UNIV_SAVE %s %d %d",
 					          pname,
-					          pPlayer->GetTotalUniverseKills(),
-					          pPlayer->GetTotalUniverseDeaths() );
+					          pPlayer->GetKills(),
+					          pPlayer->GetDeaths() );
 					E_REList* pStats = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
 					pStats->NET_Append_RE_CommandInfo( szSave );
 					ThePacketHandler->Send_STREAM_Datagram( pStats, &m_MasterServer_Node, PLAYERID_MASTERSERVER );

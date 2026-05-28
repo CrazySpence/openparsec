@@ -105,8 +105,9 @@ public:
 	// return the ship object assigned to the player
 	ShipObject* GetShipObject();
 
-	// return # of kills for the player
-	int GetKills() { return m_nKills; }
+	// return # of kills/deaths for the player (this round only)
+	int GetKills()  { return m_nKills; }
+	int GetDeaths() { return m_nDeaths; }
 	// total kills including kills carried from other universe servers
 	int GetTotalUniverseKills()  { return m_nKills + m_nUniverseKillsAtJoin; }
 	int GetTotalUniverseDeaths() { return m_nDeaths + m_nUniverseDeathsAtJoin; }
