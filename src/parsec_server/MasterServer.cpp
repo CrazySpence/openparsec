@@ -354,11 +354,14 @@ void MasterServer::UpdateUniverseKills( const char* name, int kills, int deaths 
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
 		  it != PlayerRecords.end(); ++it ) {
 		if ( strncmp( it->name, name, MAX_PLAYER_NAME ) == 0 ) {
-			// UNIV_SAVE reports per-round kills (GetKills(), resets to 0 each
-			// round), so plain assignment is correct — the latest heartbeat
-			// always has the most up-to-date count for this round.
-			it->UniverseKills  = kills;
-			it->UniverseDeaths = deaths;
+			// Use max() so a 0-kill UNIV_SAVE from a server that just ended its
+			// local round (and had _ResetPlayerVars called) cannot clobber kills
+			// the player genuinely earned on another server and that are already
+			// stored here.  Kills grow monotonically within a round (no kill
+			// decreases), and PlayerRecords are cleared at EndUniverseGame() so
+			// the stale-max problem cannot carry across universe rounds.
+			if ( kills  > it->UniverseKills  ) it->UniverseKills  = kills;
+			if ( deaths > it->UniverseDeaths ) it->UniverseDeaths = deaths;
 			// refresh timestamp so RemoveStalePlayerRecords() doesn't reap
 			// this record while the player is still actively playing
 			it->timestamp = time( NULL );
