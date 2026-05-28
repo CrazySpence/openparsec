@@ -241,11 +241,29 @@ void MasterServer::StartUniverseGame()
 //
 void MasterServer::EndUniverseGame()
 {
-	m_bUniverseActive = false;
 	MSGOUT( "Universe game ended.  Updating ladder stats." );
 	UpdateLadderStats();
 	WriteLadderStats();
 	WriteHTMLLadder();
+
+	// --- notify all universe servers that the game is over BEFORE clearing the flag ---
+	// Game servers check IsGameTimeLimitHit() for m_nUniverseTimeOverride == 0.
+	// Without this explicit broadcast they would only learn via the heartbeat reply,
+	// which stops the moment m_bUniverseActive becomes false — leaving any server
+	// whose last reply was "time_remaining 1" stuck and the game never ending.
+	for ( std::vector<MasterServerItem>::iterator si = ServerList.begin();
+		  si != ServerList.end(); ++si ) {
+		if ( !si->GetUniverseEnabled() )
+			continue;
+		node_t srv_node;
+		si->GetNode( &srv_node );
+		char szGameOver[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+		snprintf( szGameOver, sizeof( szGameOver ), "UNIV_STATE time_remaining %d", GAME_FINISHED_TIME );
+		ThePacketHandler->Send_COMMAND_Datagram( szGameOver, &srv_node, PLAYERID_MASTERSERVER );
+		MSGOUT( "universe: sent game-over signal to server %s", NODE_Print( &srv_node ) );
+	}
+
+	m_bUniverseActive = false;
 
 	// --- build and broadcast the universe leaderboard to all opted-in servers ---
 
