@@ -315,7 +315,13 @@ void E_SimPlayerInfo::PerformJoin( RE_PlayerStatus* playerstatus )
 			// if this server participates in the universe game, also query universe kills;
 			// JOINDONE is withheld until the reply arrives so the player remains in
 			// "Entering game" until kill credit has been applied (same as TRANSIT_RESPONSE).
-			if ( SV_UNIVERSE_ENABLED ) {
+			// Guard with m_bUniverseKillsCredited: on RESPAWN (PerformJoin fires again
+			// mid-round), skip the query so we don't add this round's already-reported
+			// kills on top of m_nKills (which is NOT reset on respawn), doubling the count.
+			G_Player* pPlayerUniv = TheGame->GetPlayer( m_nClientID );
+			bool bUnivQueryNeeded = SV_UNIVERSE_ENABLED &&
+			    ( pPlayerUniv == NULL || !pPlayerUniv->IsUniverseKillsCredited() );
+			if ( bUnivQueryNeeded ) {
 				snprintf( cmd, sizeof(cmd), "UNIV_QUERY %s", pname );
 				E_REList* pRE2 = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
 				pRE2->NET_Append_RE_CommandInfo( cmd );

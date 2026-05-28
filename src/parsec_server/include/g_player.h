@@ -11,6 +11,7 @@ protected:
 	int			m_nPoints;				// # of points for this player
 	int			m_nUniverseKillsAtJoin;	// kills carried in from other universe servers
 	int			m_nUniverseDeathsAtJoin;// deaths carried in from other universe servers
+	bool		m_bUniverseKillsCredited; // true once UNIV_PLAYER has been applied this round
 	int			m_nLastUnjoinFlag;		// the last unjoin flag
 	int			m_nLastKiller;			// the playerid of last killer
 	int			m_nLastWeapon;			// the weapon type used to kill this player
@@ -109,11 +110,15 @@ public:
 	// total kills including kills carried from other universe servers
 	int GetTotalUniverseKills()  { return m_nKills + m_nUniverseKillsAtJoin; }
 	int GetTotalUniverseDeaths() { return m_nDeaths + m_nUniverseDeathsAtJoin; }
-	// apply universe kills credited from master on join
+	// true once UNIV_PLAYER credit has been applied this round; prevents respawn re-query
+	bool IsUniverseKillsCredited() const { return m_bUniverseKillsCredited; }
+
+	// apply universe kills credited from master on join (once per round)
 	void SetUniverseKillsAtJoin( int kills, int deaths )
 	{
-		m_nUniverseKillsAtJoin  = kills;
-		m_nUniverseDeathsAtJoin = deaths;
+		m_nUniverseKillsAtJoin    = kills;
+		m_nUniverseDeathsAtJoin   = deaths;
+		m_bUniverseKillsCredited  = true;
 	}
 
 	// return the last unjoin flag
