@@ -132,6 +132,7 @@ void G_TimeManagement::Reset()
 	m_GameRefFrames	= GAME_NOTSTARTEDYET;
 	m_RefFrameBase	= 0;
 	m_nUniverseTimeOverride = -1;
+	m_nUniverseEndDeadline  = 0;
 }
 
 
@@ -145,6 +146,7 @@ void G_TimeManagement::StartGame()
 	// IsGameTimeLimitHit() — the master will re-supply the new time via UNIV_STATE
 	// on the next heartbeat reply
 	m_nUniverseTimeOverride = -1;
+	m_nUniverseEndDeadline  = 0;
 }
 
 
@@ -221,6 +223,15 @@ int G_TimeManagement::IsGameTimeLimitHit()
 
 	// universe override: master says time is up
 	if ( m_nUniverseTimeOverride == 0 ) {
+		// honour a 3-second grace period so players mid-transit can receive their
+		// state sync (nebula change) before _OnGameFinished unjoin them
+		if ( m_nUniverseEndDeadline != 0 ) {
+			if ( SYSs_GetRefFrameCount() < m_nUniverseEndDeadline ) {
+				return FALSE;   // still in grace window
+			}
+			MSGOUT( "universe: grace period expired — ending game now" );
+			m_nUniverseEndDeadline = 0;
+		}
 		return TRUE;
 	}
 
@@ -234,6 +245,13 @@ int G_TimeManagement::IsGameTimeLimitHit()
 	refframe_t diff = SYSs_GetRefFrameCount() - m_RefFrameBase;
 	m_RefFrameBase = SYSs_GetRefFrameCount();
 	m_GameRefFrames += diff;
+
+	// universe server: local timer must NEVER end the game — only the master's
+	// UNIV_STATE time_remaining 0 signal does that.  This guard covers the bootstrap
+	// window (override == -1) before the first UNIV_STATE reply has arrived.
+	if ( SV_UNIVERSE_ENABLED ) {
+		return FALSE;
+	}
 
 	// check whether the game time is longer than the timelimit
 	return ( m_GameRefFrames >= m_GameEndRefFrames );
@@ -274,11 +292,19 @@ int G_TimeManagement::GetCurGameTime()
 void G_TimeManagement::SetUniverseTimeOverride( int secs )
 {
 	if ( secs == GAME_FINISHED_TIME ) {
-		// master says game is over — trigger end on next IsGameTimeLimitHit() call
+		// master says game is over — arm a short grace period (3 seconds) so any
+		// player who is mid-transit can receive their state sync (nebula change)
+		// before _OnGameFinished unjoin them.  Only arm once; don't push deadline
+		// out further if we're already in the grace window.
+		if ( m_nUniverseTimeOverride != 0 ) {
+			m_nUniverseEndDeadline = SYSs_GetRefFrameCount() + 3 * FRAME_MEASURE_TIMEBASE;
+			MSGOUT( "universe: game-over received — 3s grace period before ending" );
+		}
 		m_nUniverseTimeOverride = 0;
 	} else if ( secs < 0 ) {
 		// disable override (e.g. server left universe or universe not active)
 		m_nUniverseTimeOverride = -1;
+		m_nUniverseEndDeadline  = 0;
 	} else {
 		m_nUniverseTimeOverride = secs;
 	}

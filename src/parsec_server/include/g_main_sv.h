@@ -50,6 +50,7 @@ protected:
 	int			m_nSecRestartTimeLimit;		// time to wait between restarts in sec.
 
 	int			m_nUniverseTimeOverride;	// -1 = not active; >= 0 = secs from master
+	refframe_t	m_nUniverseEndDeadline;		// absolute refframe when grace period expires (0 = no grace)
 public:
 	G_TimeManagement();
 
