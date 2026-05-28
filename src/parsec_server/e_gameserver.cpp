@@ -697,6 +697,35 @@ int E_GameServer::_MaintainMasterServer()
 		// send challenge/info packet to masterserver
 		if ( m_bMasterServer_NodeValid ) {
 
+			// Send UNIV_SAVE kill snapshots BEFORE the heartbeat so the master
+			// has fresh kill data in PlayerRecords when the heartbeat arrives.
+			// If the heartbeat triggers EndUniverseGame() on the master side,
+			// it will read the just-updated kill counts rather than data from
+			// the previous heartbeat cycle (which could be 10 seconds stale).
+			if ( SV_UNIVERSE_ENABLED ) {
+				for ( int nSlot = 0; nSlot < MAX_NUM_CLIENTS; nSlot++ ) {
+					E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( nSlot );
+					if ( pSPI == NULL || !pSPI->IsPlayerJoined() )
+						continue;
+					const char* pname = TheConnManager->GetClientName( nSlot );
+					if ( pname == NULL || pname[0] == '\0' )
+						continue;
+					G_Player* pPlayer = TheGame->GetPlayer( nSlot );
+					if ( pPlayer == NULL )
+						continue;
+
+					char szSave[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+					snprintf( szSave, sizeof(szSave), "UNIV_SAVE %s %d %d",
+					          pname,
+					          pPlayer->GetKills(),
+					          pPlayer->GetDeaths() );
+					E_REList* pStats = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
+					pStats->NET_Append_RE_CommandInfo( szSave );
+					ThePacketHandler->Send_STREAM_Datagram( pStats, &m_MasterServer_Node, PLAYERID_MASTERSERVER );
+					pStats->Release();
+				}
+			}
+
 			// build command
 			char szBuffer[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
 			int xpos_out = ( SV_MAP_X >= 0 ) ? SV_MAP_X : (int)SV_SERVERID;
@@ -737,35 +766,6 @@ int E_GameServer::_MaintainMasterServer()
 
 			// release the RE list from here
 			pUnreliable->Release();
-
-			// if this server participates in the universe game, send current kill
-			// totals for all joined players so the master has fresh stats even for
-			// players who are still alive and have never triggered PerformUnjoin.
-			// Each player gets its own command packet because the master handler
-			// dispatches on the first RE_CommandInfo per packet.
-			if ( SV_UNIVERSE_ENABLED ) {
-				for ( int nSlot = 0; nSlot < MAX_NUM_CLIENTS; nSlot++ ) {
-					E_SimPlayerInfo* pSPI = TheSimulator->GetSimPlayerInfo( nSlot );
-					if ( pSPI == NULL || !pSPI->IsPlayerJoined() )
-						continue;
-					const char* pname = TheConnManager->GetClientName( nSlot );
-					if ( pname == NULL || pname[0] == '\0' )
-						continue;
-					G_Player* pPlayer = TheGame->GetPlayer( nSlot );
-					if ( pPlayer == NULL )
-						continue;
-
-					char szSave[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
-					snprintf( szSave, sizeof(szSave), "UNIV_SAVE %s %d %d",
-					          pname,
-					          pPlayer->GetKills(),
-					          pPlayer->GetDeaths() );
-					E_REList* pStats = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
-					pStats->NET_Append_RE_CommandInfo( szSave );
-					ThePacketHandler->Send_STREAM_Datagram( pStats, &m_MasterServer_Node, PLAYERID_MASTERSERVER );
-					pStats->Release();
-				}
-			}
 		}
 	}
 

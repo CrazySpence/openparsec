@@ -354,10 +354,11 @@ void MasterServer::UpdateUniverseKills( const char* name, int kills, int deaths 
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
 		  it != PlayerRecords.end(); ++it ) {
 		if ( strncmp( it->name, name, MAX_PLAYER_NAME ) == 0 ) {
-			// take the higher value so kills can't go backwards when
-			// a player hops between servers
-			if ( kills  > it->UniverseKills  ) it->UniverseKills  = kills;
-			if ( deaths > it->UniverseDeaths ) it->UniverseDeaths = deaths;
+			// UNIV_SAVE reports per-round kills (GetKills(), resets to 0 each
+			// round), so plain assignment is correct — the latest heartbeat
+			// always has the most up-to-date count for this round.
+			it->UniverseKills  = kills;
+			it->UniverseDeaths = deaths;
 			// refresh timestamp so RemoveStalePlayerRecords() doesn't reap
 			// this record while the player is still actively playing
 			it->timestamp = time( NULL );
@@ -435,7 +436,7 @@ void MasterServer::LoadLadderStats()
 		long long ls;
 		// format: name|kills|deaths|games|last_seen
 		char namebuf[ MAX_PLAYER_NAME + 1 ];
-		if ( sscanf( line, "%20[^|]|%d|%d|%d|%lld",
+		if ( sscanf( line, "%31[^|]|%d|%d|%d|%lld",
 		             namebuf, &s.total_kills, &s.total_deaths,
 		             &s.games_played, &ls ) == 5 ) {
 			strncpy( s.name, namebuf, MAX_PLAYER_NAME );
@@ -481,9 +482,14 @@ void MasterServer::WriteLadderStats()
 //
 void MasterServer::UpdateLadderStats()
 {
+	MSGOUT( "universe: UpdateLadderStats — %d PlayerRecords, %d ladder entries",
+	        (int)PlayerRecords.size(), (int)m_LadderStats.size() );
+
 	time_t now = time( NULL );
 	for ( std::vector<PlayerRecord>::iterator it = PlayerRecords.begin();
 		  it != PlayerRecords.end(); ++it ) {
+		MSGOUT( "universe: record '%s' k=%d d=%d",
+		        it->name, it->UniverseKills, it->UniverseDeaths );
 		if ( it->UniverseKills == 0 && it->UniverseDeaths == 0 )
 			continue; // didn't participate
 
@@ -491,12 +497,15 @@ void MasterServer::UpdateLadderStats()
 		bool found = false;
 		for ( size_t i = 0; i < m_LadderStats.size(); i++ ) {
 			if ( strncmp( m_LadderStats[ i ].name, it->name, MAX_PLAYER_NAME ) == 0 ) {
-					// UNIV_SAVE now reports only this-round kills (GetKills()),
+				// UNIV_SAVE now reports only this-round kills (GetKills()),
 				// so straight addition gives the correct running total.
 				m_LadderStats[ i ].total_kills  += it->UniverseKills;
 				m_LadderStats[ i ].total_deaths += it->UniverseDeaths;
 				m_LadderStats[ i ].games_played += 1;
 				m_LadderStats[ i ].last_seen     = now;
+				MSGOUT( "universe: updated ladder for '%s': total k=%d d=%d games=%d",
+				        it->name, m_LadderStats[i].total_kills,
+				        m_LadderStats[i].total_deaths, m_LadderStats[i].games_played );
 				found = true;
 				break;
 			}
@@ -511,6 +520,8 @@ void MasterServer::UpdateLadderStats()
 			s.games_played = 1;
 			s.last_seen    = now;
 			m_LadderStats.push_back( s );
+			MSGOUT( "universe: new ladder entry for '%s': k=%d d=%d",
+			        it->name, it->UniverseKills, it->UniverseDeaths );
 		}
 	}
 
