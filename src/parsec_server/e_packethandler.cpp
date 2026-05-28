@@ -1395,12 +1395,18 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 				{
 					bool bUnivEnabled = false;
 					if ( _ParseHBPacket_MASTER(re_commandinfo->command, &bUnivEnabled)) {
-						// if the server participates in universe and master has an active universe game,
-						// reply immediately with the current universe time remaining
-						if ( bUnivEnabled && TheMaster->m_bUniverseActive ) {
-							int nTimeRemaining = TheMaster->GetUniverseTimeRemaining();
+						// if the server participates in universe, always reply with the
+						// current universe state so the game server can switch between
+						// universe timer and local timer correctly.
+						if ( bUnivEnabled ) {
 							char szReply[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
-							snprintf( szReply, sizeof(szReply), "UNIV_STATE time_remaining %d", nTimeRemaining );
+							if ( TheMaster->m_bUniverseActive ) {
+								int nTimeRemaining = TheMaster->GetUniverseTimeRemaining();
+								snprintf( szReply, sizeof(szReply), "UNIV_STATE time_remaining %d", nTimeRemaining );
+							} else {
+								// no active universe game — tell server to use local timer
+								snprintf( szReply, sizeof(szReply), "UNIV_STATE time_remaining -1" );
+							}
 							Send_COMMAND_Datagram( szReply, clientnode, PLAYERID_MASTERSERVER );
 						}
 						//MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Got HB from client: %s\n", clientIP);

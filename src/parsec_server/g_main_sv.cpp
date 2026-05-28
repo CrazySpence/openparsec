@@ -259,13 +259,9 @@ int G_TimeManagement::GetCurGameTime()
 			return m_nUniverseTimeOverride;
 		}
 
-		// Universe server in bootstrap window (before first UNIV_STATE reply from
-		// master): the local timer would show a wrong countdown that isn't synced
-		// to the universe clock.  Return 0 so clients see no false countdown.
-		if ( SV_UNIVERSE_ENABLED ) {
-			return 0;
-		}
-
+		// override == -1: no active universe game (or bootstrap window before first
+		// UNIV_STATE reply).  Fall through to the local refframe calculation so
+		// the client sees the local server's countdown rather than 0:00.
 		refframe_t timeleft = ( m_GameEndRefFrames - m_GameRefFrames );
 		if ( timeleft < 0 ) {
 			timeleft = 0;
