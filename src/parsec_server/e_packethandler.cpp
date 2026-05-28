@@ -1403,11 +1403,19 @@ void E_PacketHandler::_Handle_STREAM_MASTER(NetPacket_GMSV* gamepacket, int bufi
 							if ( TheMaster->m_bUniverseActive ) {
 								int nTimeRemaining = TheMaster->GetUniverseTimeRemaining();
 								snprintf( szReply, sizeof(szReply), "UNIV_STATE time_remaining %d", nTimeRemaining );
+								Send_COMMAND_Datagram( szReply, clientnode, PLAYERID_MASTERSERVER );
+								// auto-end on first expiry detection: broadcasts GAME_FINISHED_TIME
+								// to ALL universe servers and clears m_bUniverseActive so that
+								// subsequent heartbeats receive time_remaining -1 (local timer),
+								// rather than endlessly re-killing every new round.
+								if ( nTimeRemaining == GAME_FINISHED_TIME ) {
+									TheMaster->EndUniverseGame();
+								}
 							} else {
 								// no active universe game — tell server to use local timer
 								snprintf( szReply, sizeof(szReply), "UNIV_STATE time_remaining -1" );
+								Send_COMMAND_Datagram( szReply, clientnode, PLAYERID_MASTERSERVER );
 							}
-							Send_COMMAND_Datagram( szReply, clientnode, PLAYERID_MASTERSERVER );
 						}
 						//MSGOUT("E_PacketHandler::_Handle_STREAM_MASTER(): Got HB from client: %s\n", clientIP);
 						return;

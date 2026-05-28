@@ -265,6 +265,11 @@ void MasterServer::EndUniverseGame()
 
 	m_bUniverseActive = false;
 
+	// sync the console variable so "sv.universe.active" shows 0; direct write
+	// does not trigger the realize callback, avoiding re-entrant EndUniverseGame().
+	SV_UNIVERSE_ACTIVE = 0;
+	MSGOUT( "universe: sv.universe.active reset to 0" );
+
 	// --- build and broadcast the universe leaderboard to all opted-in servers ---
 
 	// collect players with any kills this game from PlayerRecords
