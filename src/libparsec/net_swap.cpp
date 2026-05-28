@@ -643,6 +643,17 @@ void NET_RmEvList_Swap( RE_Header* relist, int incoming )
 				}
 				break;
 
+				case RE_UNIVERSE_LEADERBOARD:
+				{
+					RE_UniverseLeaderboard* lb = (RE_UniverseLeaderboard*) relist;
+					int n = lb->count;
+					if ( n > UNI_LB_MAX ) n = UNI_LB_MAX;
+					for ( int i = 0; i < n; i++ ) {
+						lb->entries[ i ].kills = (int) NET_SWAP_32( (dword) lb->entries[ i ].kills );
+					}
+				}
+				break;
+
 			default:
 				MSGOUT( "NET_RmEvList_Swap(): unknown remote event (%d).", relist->RE_Type );
 		}

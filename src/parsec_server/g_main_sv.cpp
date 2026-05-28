@@ -141,6 +141,10 @@ void G_TimeManagement::StartGame()
 {
 	m_GameRefFrames	= 0;
 	m_RefFrameBase	= SYSs_GetRefFrameCount();
+	// reset universe override so the new game doesn't immediately re-trigger
+	// IsGameTimeLimitHit() — the master will re-supply the new time via UNIV_STATE
+	// on the next heartbeat reply
+	m_nUniverseTimeOverride = -1;
 }
 
 
