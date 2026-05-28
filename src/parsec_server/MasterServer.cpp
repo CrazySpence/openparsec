@@ -265,11 +265,6 @@ void MasterServer::EndUniverseGame()
 
 	m_bUniverseActive = false;
 
-	// sync the console variable so "sv.universe.active" shows 0; direct write
-	// does not trigger the realize callback, avoiding re-entrant EndUniverseGame().
-	SV_UNIVERSE_ACTIVE = 0;
-	MSGOUT( "universe: sv.universe.active reset to 0" );
-
 	// --- build and broadcast the universe leaderboard to all opted-in servers ---
 
 	// collect players with any kills this game from PlayerRecords
@@ -328,6 +323,15 @@ void MasterServer::EndUniverseGame()
 		  it != PlayerRecords.end(); ++it ) {
 		it->UniverseKills  = 0;
 		it->UniverseDeaths = 0;
+	}
+
+	// if universe mode is still enabled (sv.universe.active 1), automatically
+	// start the next round's game so servers continue cycling without operator
+	// intervention.  Only a manual "sv.universe.active 0" stops the cycle.
+	if ( SV_UNIVERSE_ACTIVE ) {
+		m_nUniverseDuration = SV_UNIVERSE_DURATION;
+		MSGOUT( "universe: auto-restarting for next round (duration %d s)", m_nUniverseDuration );
+		StartUniverseGame();
 	}
 }
 

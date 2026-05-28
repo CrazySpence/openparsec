@@ -933,8 +933,8 @@ refframe_t E_GameServer::ServerFrame()
 		// auto-expire the universe game when the master's timer runs out
 		if ( TheMaster->m_bUniverseActive ) {
 			if ( TheMaster->GetUniverseTimeRemaining() == GAME_FINISHED_TIME ) {
-				SV_UNIVERSE_ACTIVE = 0;
 				TheMaster->EndUniverseGame();
+				// EndUniverseGame() auto-restarts if SV_UNIVERSE_ACTIVE is still 1
 				MSGOUT( "Universe game timer expired — game ended automatically." );
 			}
 		}
