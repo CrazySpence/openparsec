@@ -719,8 +719,12 @@ void G_Main::DisconnectPlayer( int nClientID )
 int G_Main::GetPlayerKills( int nClientID )
 {
 	ASSERT( ( nClientID >= 0 ) && ( nClientID < MAX_NUM_CLIENTS ) );
-	// always return this-round kills only; the universe ladder accumulates
-	// totals separately via UNIV_SAVE heartbeats.
+	// On universe servers, show the player's total cross-server kills so
+	// kills carried from another server appear in the in-game scoreboard.
+	// Doubling is prevented by the m_bUniverseKillsCredited guard in
+	// PerformJoin() which stops UNIV_QUERY from re-firing on respawn.
+	if ( SV_UNIVERSE_ENABLED )
+		return m_Players[ nClientID ].GetTotalUniverseKills();
 	return m_Players[ nClientID ].GetKills();
 }
 

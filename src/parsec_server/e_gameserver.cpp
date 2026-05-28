@@ -715,10 +715,14 @@ int E_GameServer::_MaintainMasterServer()
 						continue;
 
 					char szSave[ MAX_RE_COMMANDINFO_COMMAND_LEN + 1 ];
+					// Send GetTotalUniverseKills() so kills carried from a
+					// previous server this round are included in the master's
+					// record.  Doubling on respawn is prevented by the
+					// m_bUniverseKillsCredited guard in PerformJoin().
 					snprintf( szSave, sizeof(szSave), "UNIV_SAVE %s %d %d",
 					          pname,
-					          pPlayer->GetKills(),
-					          pPlayer->GetDeaths() );
+					          pPlayer->GetTotalUniverseKills(),
+					          pPlayer->GetTotalUniverseDeaths() );
 					E_REList* pStats = E_REList::CreateAndAddRef( RE_LIST_MAXAVAIL );
 					pStats->NET_Append_RE_CommandInfo( szSave );
 					ThePacketHandler->Send_STREAM_Datagram( pStats, &m_MasterServer_Node, PLAYERID_MASTERSERVER );
